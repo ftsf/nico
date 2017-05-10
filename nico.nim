@@ -22,8 +22,8 @@ when not defined(emscripten):
   import sdl2.audio
   import sdl2.mixer
 
-import nico.stb_image_write
 import nico.stb_image
+import nico.stb_image_write
 
 import osproc
 

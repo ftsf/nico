@@ -51,10 +51,19 @@ proc newNicoController*(sdlControllerId: cint): NicoController =
 
 proc update*(self: NicoController) =
   for i in 0..self.buttons.high:
+    if i == pcL2:
+      if self.axes[pcLTrigger].current > 0.5:
+        self.buttons[i] += 1
+      else:
+        self.buttons[i] = 0
+    elif i == pcR2:
+      if self.axes[pcRTrigger].current > 0.5:
+        self.buttons[i] += 1
+      else:
+        self.buttons[i] = 0
+
     if self.buttons[i] >= 1:
       self.buttons[i] += 1
-    if self.buttons[i] > 48:
-      self.buttons[i] = 1
 
 proc postUpdate*(self: NicoController) =
   for i in 0..self.axes.high:
@@ -65,6 +74,10 @@ proc btn*(self: NicoController, button: NicoButton): bool =
 
 proc btnp*(self: NicoController, button: NicoButton): bool =
   return self.buttons[button] == 2
+
+proc btnpr*(self: NicoController, button: NicoButton, repeat = 48): bool =
+  let v = self.buttons[button]
+  return v == 2 or v == (repeat + 2) or (v > repeat + 2 and v mod (repeat div 2) == 2)
 
 proc setButtonState*(self: NicoController, button: NicoButton, down: bool) =
   if button > NicoButton.high:

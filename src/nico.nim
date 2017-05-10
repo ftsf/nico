@@ -1990,6 +1990,8 @@ proc init*(org: string, app: string) =
     echo getError()
     quit(1)
 
+  loadPalettePico8()
+
   basePath = $sdl2.getBasePath()
   echo "basePath: ", basePath
 

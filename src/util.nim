@@ -462,9 +462,9 @@ proc vline*(x,y0,y1: cint) {.inline.} =
 proc hline*(x0,x1,y: cint) {.inline.} =
   line(x0, y, x1, y)
 
-proc mapDrawTiled*(tx,ty,tw,th: int, dx,dy, dw,dh: int, ox,oy: int, scale: float = 1.0) =
-  let drawWidth = (tw.float*8.0 * scale).int
-  let drawHeight = (th.float*8.0 * scale).int
+proc mapDrawTiled*(tx,ty,tw,th: int, dx,dy, dw,dh: int, ox,oy: int) =
+  let drawWidth = tw*8
+  let drawHeight = th*8
 
   let ox = ox %%/ drawWidth
   let oy = oy %%/ drawHeight
@@ -474,7 +474,7 @@ proc mapDrawTiled*(tx,ty,tw,th: int, dx,dy, dw,dh: int, ox,oy: int, scale: float
 
   for dy in countup(startY, startY+dh + (drawHeight-1), drawHeight):
     for dx in countup(startX, startX+dw + (drawWidth-1), drawWidth):
-      mapDraw(tx,ty,tw,th,dx,dy,scale)
+      mapDraw(tx,ty,tw,th,dx,dy)
 
 proc angleArc*(sx,sy, ex,ey: cint) =
   let dx = ex - sx

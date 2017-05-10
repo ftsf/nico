@@ -14,6 +14,14 @@ What it does:
  * Text drawing: load and draw fonts from png, supports variable width fonts.
  * Export animated gifs
  
+## Installation
+ * You will need to have the Nim compiler installed, as well as a working C compiler
+ * ```nimble install sdl2```
+ * ```nimble install stb_image```
+ * ```nimble install gifenc```
+ * Clone this repository and from within it run ```nimble install```
+ * You can now ```import nico``` in your project, see the examples. 
+ 
 ## Why should you use NICO?
  * It's fun and easy to use
  * Learn Nim the fun way! It's a great new statically typed programming language that compiles to C.

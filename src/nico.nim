@@ -1,32 +1,87 @@
-import basic2d
-import sdl2
+import sdl2 except rect
 import sdl2.joystick
 import sdl2.gamecontroller
-import ringbuffer
+import sdl2.haptic
+import nico.ringbuffer
 import math
 import algorithm
 import strutils
+import json
 import sequtils
 export math.sin
 import random
-import nicocontroller
-import unsigned
+import nico.controller
 import os
+import times
 import streams
+import gifenc
+import strscans
+import parseCfg
+
+when not defined(emscripten):
+  import sdl2.audio
+  import sdl2.mixer
+
+import nico.stb_image_write
+import nico.stb_image
+
+import osproc
 
 export NicoController
 export NicoControllerKind
 export NicoAxis
 export NicoButton
+
 export btn
 export btnp
+export btnpr
 export axis
 export axisp
 
 export KeyboardEventPtr
 export Scancode
 
+## TYPES
+
+type
+  Pint* = int32
+  ColorId* = range[0..15]
+  Font = object
+    rects: array[256, Rect]
+    surface: SurfacePtr
+  FontId* = range[0..3]
+  MusicId* = range[-1..63]
+  SfxId* = range[-1..63]
+  Frame = seq[uint8]
+
+type
+  LineIterator = iterator(): (Pint,Pint)
+  Edge = tuple[xint, xfrac, dxint, dxfrac, dy, life: int]
+
+## CONSTANTS
+
 const deadzone* = int16.high div 2
+const gifScale = 2
+const maxPlayers* = 4
+const recordingEnabled = true
+
+## CONVERTERS
+
+converter toPint*(x: float): Pint {.inline.} =
+  return x.Pint
+
+converter toPint*(x: float32): Pint {.inline.} =
+  return x.Pint
+
+converter toPint*(x: int): Pint {.inline.} =
+  return x.Pint
+
+
+
+## GLOBALS
+##
+var recordSeconds = 30
+var fullSpeedGif = true
 
 var controllers: seq[NicoController]
 
@@ -35,128 +90,210 @@ var mapHeight* = 128
 var mapData = newSeq[uint8](mapWidth * mapHeight)
 
 var spriteFlags: array[128, uint8]
+var mixerChannels = 0
 
-type
-  IntPoint2d* = object
-    x*,y*: int
-
-proc `-`*(a,b: IntPoint2d): IntPoint2d =
-  result.x = a.x - b.x
-  result.y = a.y - b.y
-
-proc `+=`*(a: var IntPoint2d, b: IntPoint2d) =
-  a.x += b.x
-  a.y += b.y
-
-
-type
-  PhysicalInputType* = enum
-    Key
-    JButton
-    JAxis
-    JHat
-  PhysicalInput* = object
-    kind*: PhysicalInputType
-    index*: int
-    value*: int
-  VirtualButton = object
-    inputs: seq[PhysicalInput]
-
-var virtualButtons*: array[2,array[10,seq[PhysicalInput]]] = [
-  [
-    @[
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_LEFT.int),
-      PhysicalInput(kind: JHat, index: 0, value: SDL_HAT_LEFT.int),
-      PhysicalInput(kind: JAxis, index: 0, value: -1),
-    ],
-    @[
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_RIGHT.int),
-      PhysicalInput(kind: JHat, index: 0, value: SDL_HAT_RIGHT.int),
-      PhysicalInput(kind: JAxis, index: 0, value: 1),
-    ],
-    @[
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_UP.int),
-      PhysicalInput(kind: JHat, index: 0, value: SDL_HAT_UP.int),
-    ],
-    @[
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_DOWN.int),
-      PhysicalInput(kind: JHat, index: 0, value: SDL_HAT_DOWN.int),
-    ],
-    @[
-      # accel
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_Z.int),
-      PhysicalInput(kind: JButton, index: 2, value: 1),
-      PhysicalInput(kind: JButton, index: 7, value: 1),
-    ],
-    @[
-      # brake
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_X.int),
-      PhysicalInput(kind: JButton, index: 3, value: 1),
-      PhysicalInput(kind: JButton, index: 6, value: 1),
-    ],
-    @[
-      # boost
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_A.int),
-      PhysicalInput(kind: JButton, index: 1, value: 1),
-      PhysicalInput(kind: JButton, index: 4, value: 1),
-    ],
-    @[
-      # shoot
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_S.int),
-      PhysicalInput(kind: JButton, index: 0, value: 1),
-    ],
-    @[
-      # start
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_P.int),
-      PhysicalInput(kind: JButton, index: 9, value: 1),
-    ],
-    @[
-      # back
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_ESCAPE.int),
-      PhysicalInput(kind: JButton, index: 8, value: 1),
-    ],
-  ],
-  [
-    @[
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_LEFT.int),
-    ],
-    @[
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_RIGHT.int),
-    ],
-    @[
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_UP.int),
-    ],
-    @[
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_DOWN.int),
-    ],
-    @[
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_Z.int),
-    ],
-    @[
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_X.int),
-    ],
-    @[
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_LSHIFT.int),
-    ],
-    @[
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_SPACE.int),
-    ],
-    @[
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_RETURN.int),
-    ],
-    @[
-      PhysicalInput(kind: Key, index: SDL_SCANCODE_ESCAPE.int),
-    ],
-  ],
-]
-
-var setControlMode = (-1,-1)
 
 var frameRate* = 60
 var timeStep* = 1/frameRate
 var frameMult = 1
 
-var basePath*: string
+var basePath*: string # should be the current dir with the app
+var writePath*: string # should be a writable dir
+
+var screenScale = 4.0
+var window: WindowPtr
+var spriteSheets: array[16,SurfacePtr]
+var spriteSheet: ptr SurfacePtr
+
+var initFunc: proc()
+var updateFunc: proc(dt:float)
+var drawFunc: proc()
+var keyFunc: proc(key: KeyboardEventPtr, down: bool): bool
+var eventFunc: proc(event: Event): bool
+var textFunc: proc(text: string): bool
+
+var controllerAddedFunc: proc(controller: NicoController)
+var controllerRemovedFunc: proc(controller: NicoController)
+
+var fonts: array[FontId, Font]
+var font: ptr Font
+
+var render: RendererPtr
+var hwCanvas: TexturePtr
+var swCanvas: SurfacePtr
+var swCanvas32: SurfacePtr
+
+var targetScreenWidth = 128
+var targetScreenHeight = 128
+
+var fixedScreenSize = true
+var integerScreenScale = false
+
+var screenWidth* = 128
+var screenHeight* = 128
+
+var screenPaddingX = 0
+var screenPaddingY = 0
+
+var srcRect = sdl2.rect(0,0,screenWidth,screenHeight)
+var dstRect = sdl2.rect(screenPaddingX,screenPaddingY,screenWidth,screenHeight)
+
+var frame* = 0
+
+var colors: array[16, Color]
+
+var recordFrame: Frame
+var recordFrames: RingBuffer[Frame]
+
+var cameraX: Pint = 0
+var cameraY: Pint = 0
+
+var paletteSize: range[0..16] = 16
+
+var paletteMapDraw: array[256, ColorId]
+var paletteMapDisplay: array[256, ColorId]
+var paletteTransparent: array[256, bool]
+
+for i in 0..<paletteSize.int:
+  paletteMapDraw[i] = i
+  paletteMapDisplay[i] = i
+  paletteTransparent[i] = if i == 0: true else: false
+
+var currentColor: ColorId = 0
+
+var mouseButtonState: int
+var mouseButtonPState: int
+var mouseWheelState: int
+
+var keepRunning = true
+var mute = false
+
+var current_time = sdl2.getTicks()
+var acc = 0.0
+var next_time: uint32
+
+var config: Config
+
+var currentMusicId: int = -1
+var currentFontId: int = 0
+
+var clipMinX, clipMaxX, clipMinY, clipMaxY: int
+var clippingRect: Rect
+
+
+## Public API
+
+# Fonts
+proc getFont*(): FontId
+proc setFont*(fontId: FontId)
+
+# Printing text
+proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint {.discardable, inline.}
+
+proc print*(text: string, x,y: Pint, scale: Pint = 1)
+proc printc*(text: string, x,y: Pint, scale: Pint = 1) # centered
+proc printr*(text: string, x,y: Pint, scale: Pint = 1) # right aligned
+
+proc textWidth*(text: string, scale: Pint = 1): Pint
+proc glyphWidth*(c: char, scale: Pint = 1): Pint
+
+# Colors
+proc setColor*(colId: ColorId)
+proc getColor*(): ColorId
+proc loadPaletteFromGPL*(filename: string)
+proc loadPalettePico8*()
+
+proc pal*(a,b: ColorId) # maps one color to another
+proc pal*() # resets palette
+proc palt*(a: ColorId, trans: bool) # sets transparency for color
+proc palt*() # resets transparency
+
+# Clipping
+proc clip*(x,y,w,h: Pint)
+proc clip*()
+
+# Camera
+proc setCamera*(x,y: Pint = 0)
+proc getCamera*(): (Pint,Pint)
+
+# Input
+proc btn*(b: NicoButton, player: range[0..maxPlayers] = 0): bool
+proc btnp*(b: NicoButton, player: range[0..maxPlayers] = 0): bool
+proc btnpr*(b: NicoButton, player: range[0..maxPlayers] = 0, repeat = 48): bool
+proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers] = 0): float
+proc mouse*(): (Pint,Pint)
+proc mousebtn*(filter: range[0..2]): bool
+proc mousebtnp*(filter: range[0..2]): bool
+
+## Drawing API
+
+# pixels
+proc pset*(x,y: Pint)
+proc pget*(x,y: Pint): ColorId
+proc sset*(x,y: Pint, c: int = -1)
+proc sget*(x,y: Pint): ColorId
+
+# rectangles
+proc rectfill*(x1,y1,x2,y2: Pint)
+proc rect*(x1,y1,x2,y2: Pint)
+
+# line drawing
+proc line*(x0,y0,x1,y1: Pint)
+proc hline*(x0,y,x1: Pint)
+proc vline*(x,y0,y1: Pint)
+
+# triangles
+proc trifill*(x1,y1,x2,y2,x3,y3: Pint)
+
+# circles
+proc circfill*(cx,cy: Pint, r: Pint)
+proc circ*(cx,cy: Pint, r: Pint)
+
+# sprites
+proc spr*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false)
+proc sprs*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip, vflip: bool = false)
+proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = false)
+
+# misc
+proc copy*(sx,sy,dx,dy,w,h: Pint) # copy one area of the screen to another
+
+## System functions
+proc shutdown*()
+proc createWindow*(title: string, w,h: Pint, scale: Pint = 2, fullscreen: bool = false)
+proc initMixer*(channels: Pint)
+proc init*(org: string, app: string)
+
+# Tilemap functions
+proc mset*(tx,ty: Pint, t: uint8)
+proc mget*(tx,ty: Pint): uint8
+proc mapDraw*(tx,ty, tw,th, dx,dy: Pint)
+proc loadMap*(filename: string)
+proc saveMap*(filename: string)
+
+# Sound functions
+proc loadSfx*(sfxId: SfxId, filename: string)
+proc sfx*(sfxId: SfxId, channel: range[-1..15] = -1, loop = 0)
+proc sfxVol*(value: int)
+
+proc loadMusic*(musicId: MusicId, filename: string)
+proc music*(musicId: MusicId)
+proc musicVol*(value: int)
+
+# Maths functions
+proc flr*(x: float): float
+proc lerp*[T](a,b: T, t: float): T
+
+proc rnd*[T: Ordinal](x: T): T
+proc rnd*[T](a: openarray[T]): T
+proc rnd*(x: float): float
+
+## Internal functions
+
+proc flipQuick()
+proc checkInput()
+proc setRecordSeconds*(seconds: int)
+proc setFullSpeedGif*(enabled: bool)
+proc createRecordBuffer()
 
 proc fps*(fps: int) =
   frameRate = fps
@@ -176,266 +313,92 @@ proc sgn*[T](x: T): T =
   else:
     return 0
 
-proc setControlInput*(pid, btn: int) =
-  # after calling this, next input will be assigned to control
-  setControlMode = (pid,btn)
 
-proc setControl*(pid, btn: int, kind: PhysicalInputType, index: int, value: int = 0) =
-  var phys = PhysicalInput(kind: kind, index: index, value: value)
-  if not (phys in virtualButtons[pid][btn]):
-    virtualButtons[pid][btn].add(phys)
-
-proc setControl*(pid, btn: int, phys: PhysicalInput) =
-  if not (phys in virtualButtons[pid][btn]):
-    virtualButtons[pid][btn].add(phys)
-
-proc parsePhysName*(physName: string): PhysicalInput =
-  if physName.startsWith("jbutton"):
-    var btnId = physName[7..physName.high].parseInt() - 1
-    return PhysicalInput(kind: JButton, index: btnId)
-
-  elif physName.startsWith("jhat"):
-    var hatId = physName[4..4].parseInt() - 1
-    var value = 0
-    var valueName = physName[5..physName.high]
-    if valueName == "left":
-      value = SDL_HAT_LEFT.int
-    elif valueName == "right":
-      value = SDL_HAT_RIGHT.int
-    elif valueName == "up":
-      value = SDL_HAT_UP.int
-    elif valueName == "down":
-      value = SDL_HAT_DOWN.int
-    else:
-      raise newException(ValueError, "Invalid Hat Direction")
-    return PhysicalInput(kind: JHat, index: hatId, value: value)
-
-  elif physName.startsWith("jaxis"):
-    var axisId = physName[5..5].parseInt() - 1
-    var value = 1
-    if physName[physName.high..physName.high] == "-":
-      value = -1
-    elif physName[physName.high..physName.high] == "+":
-      value = 1
-    return PhysicalInput(kind: JAxis, index: axisId, value: value)
-
-  else:
-    var scancode = getScancodeFromName(physName)
-    if scancode != SDL_SCANCODE_UNKNOWN:
-      return PhysicalInput(kind: Key, index: scancode.int, value: 0)
-    else:
-      raise newException(Exception, "unknown input name: " & physName)
-
-proc setControl*(pid, btn: int, physName: string) =
-  # convert physName into a Physical Input
-  setControl(pid,btn,parsePhysName(physName))
-
-proc clearControl*(pid, btn: int) =
-  virtualButtons[pid][btn] = @[]
-
-proc unsetControl*(pid, btn: int) =
-  discard virtualButtons[pid][btn].pop()
-
-proc getControlName*(pid, btn: int): string =
-  var bits = newSeq[string]()
-  for phys in virtualButtons[pid][btn]:
-    if phys.kind == Key:
-      bits.add(
-        ($getKeyName(getKeyFromScancode(phys.index.Scancode))).toLower()
-      )
-    elif phys.kind == JButton:
-      bits.add("jbutton" & $(phys.index + 1))
-    elif phys.kind == JHat:
-      var hatDir: string
-      case phys.value.uint8:
-      of SDL_HAT_LEFT:
-         hatDir = "left"
-      of SDL_HAT_RIGHT:
-         hatDir = "right"
-      of SDL_HAT_UP:
-         hatDir = "up"
-      of SDL_HAT_DOWN:
-         hatDir = "down"
-      else:
-        hatDir = "?"
-      bits.add("jhat" & $(phys.index + 1) & hatDir)
-    elif phys.kind == JAxis:
-      bits.add("jaxis" & $(phys.index + 1) & (if phys.value < 0: "-" else: "+"))
-  return bits.join(",")
-
-
-proc getControlPretty*(pid, btn: int): string =
-  var bits = newSeq[string]()
-  for phys in virtualButtons[pid][btn]:
-    if phys.kind == Key:
-      bits.add(
-        "[" & ($getKeyName(getKeyFromScancode(phys.index.Scancode))).toLower() & "]"
-      )
-    elif phys.kind == JButton:
-      bits.add("(B" & $(phys.index + 1) & ")")
-    elif phys.kind == JHat:
-      var hatDir: string
-      case phys.value.uint8:
-      of SDL_HAT_LEFT:
-         hatDir = "left"
-      of SDL_HAT_RIGHT:
-         hatDir = "right"
-      of SDL_HAT_UP:
-         hatDir = "up"
-      of SDL_HAT_DOWN:
-         hatDir = "down"
-      else:
-        hatDir = "?"
-      bits.add("(HAT" & $(phys.index + 1) & ":" & hatDir & ")")
-    elif phys.kind == JAxis:
-      bits.add("(" & (if phys.value < 0: "-" else: "+") & "AXIS" & $(phys.index + 1) & ")")
-  return bits.join(", ")
-
-proc intPoint2d*(x,y: int): IntPoint2d =
-  result.x = x
-  result.y = y
-
-proc `+`*(a,b: IntPoint2d): IntPoint2d =
-  result.x = a.x + b.x
-  result.y = a.y + b.y
-
-converter toIntPoint2d*(p: Point2d): IntPoint2d =
-  result.x = p.x.int
-  result.y = p.y.int
-
-converter toPoint2d*(p: IntPoint2d): Point2d =
-  result.x = p.x.float
-  result.y = p.y.float
-
-converter toBool32(x: bool): Bool32 =
-  return Bool32(x)
-
-converter toCint*(x: int): cint =
-  return cint(x)
-
-converter toCint*(x: float): cint =
-  return cint(x)
-
-when defined(opengl):
-  import opengl
-
-when not defined(emscripten):
-  import sdl2.audio
-  import sdl2.mixer
-
-import math
-import stb_image_write
-import stb_image
-
-var screenScale* = 4
-
-var window: WindowPtr
-var spriteSheets: array[16,SurfacePtr]
-var spriteSheet: ptr SurfacePtr
-
-var initFunc: proc()
-var updateFunc: proc(dt:float)
-var drawFunc: proc()
-var keyFunc: proc(key: KeyboardEventPtr, down: bool): bool
-var eventFunc: proc(event: Event): bool
-var textFunc: proc(text: string): bool
-
-var controllerAddedFunc: proc(controller: NicoController)
-var controllerRemovedFunc: proc(controller: NicoController)
-
-type
-  Font* = ref object
-    rects: array[256, Rect]
-    surface: SurfacePtr
-
-var font: Font
-
-var render: RendererPtr
-var hwCanvas: TexturePtr
-var swCanvas: SurfacePtr
-var swCanvas32: SurfacePtr
-
-#var targetScreenWidth = 480
-#var targetScreenHeight = 272
-var targetScreenWidth = 240
-var targetScreenHeight = 136
-
-var screenWidth* = 480
-var screenHeight* = 272
-
-var screenPaddingX = 0
-var screenPaddingY = 0
-
-var srcRect = rect(0,0,screenWidth,screenHeight)
-var dstRect = rect(screenPaddingX,screenPaddingY,screenWidth,screenHeight)
-
-var frame* = 0
-
-const maxPlayers* = 4
-
-type
-  ColorId* = range[0..15]
 
 proc makeColor(r,g,b,a: int): Color =
   return (uint8(r),uint8(g),uint8(b),uint8(a))
 
-var colors: array[16, Color] = [
-  makeColor(0,0,0,255),
-  makeColor(29,43,83,255),
-  makeColor(126,37,83,255),
-  makeColor(0,135,81,255),
-  makeColor(171,82,54,255),
-  makeColor(95,87,79,255),
-  makeColor(194,195,199,255),
-  makeColor(255,241,232,255),
-  makeColor(255,0,77,255),
-  makeColor(255,163,0,255),
-  makeColor(255,240,36,255),
-  makeColor(0,231,86,255),
-  makeColor(41,173,255,255),
-  makeColor(131,118,156,255),
-  makeColor(255,119,168,255),
-  makeColor(255,204,170,255),
-]
+proc loadPaletteFromGPL*(filename: string) =
+  var fp = open(filename, fmRead)
+  var i = 0
+  for line in fp.lines():
+    if i == 0:
+      if scanf(line, "GIMP Palette"):
+        i += 1
+        continue
+    if line[0] == '#':
+      continue
+    if line.len == 0:
+      continue
+    var r,g,b: int
+    if scanf(line, "$s$i $s$i $s$i", r,g,b):
+      echo "matched ", i-1, ":", r,",",g,",",b
+      colors[i-1] = makeColor(r,g,b,255)
+      if i > 15:
+        break
+      i += 1
+    else:
+      echo "not matched: ", line
 
-var clipMinX, clipMaxX, clipMinY, clipMaxY: int
+
+proc loadPalettePico8*() =
+  colors[0]  = makeColor(0,0,0,255)
+  colors[1]  = makeColor(29,43,83,255)
+  colors[2]  = makeColor(126,37,83,255)
+  colors[3]  = makeColor(0,135,81,255)
+  colors[4]  = makeColor(171,82,54,255)
+  colors[5]  = makeColor(95,87,79,255)
+  colors[6]  = makeColor(194,195,199,255)
+  colors[7]  = makeColor(255,241,232,255)
+  colors[8]  = makeColor(255,0,77,255)
+  colors[9]  = makeColor(255,163,0,255)
+  colors[10] = makeColor(255,240,36,255)
+  colors[11] = makeColor(0,231,86,255)
+  colors[12] = makeColor(41,173,255,255)
+  colors[13] = makeColor(131,118,156,255)
+  colors[14] = makeColor(255,119,168,255)
+  colors[15] = makeColor(255,204,170,255)
+
 clipMaxX = screenWidth-1
 clipMaxY = screenHeight-1
-var clippingRect: Rect
 
-proc clip*(x,y,w,h: int = 0) =
-  if w == 0:
-    # reset clip
-    clipMinX = 0
-    clipMaxX = screenWidth-1
-    clipMinY = 0
-    clipMaxY = screenHeight-1
-    clippingRect.x = 0
-    clippingRect.y = 0
-    clippingrect.w = screenWidth - 1
-    clippingrect.h = screenHeight - 1
-  else:
-    clipMinX = max(x, 0)
-    clipMaxX = min(x+w-1, screenWidth-1)
-    clipMinY = max(y, 0)
-    clipMaxY = min(y+h-1, screenHeight-1)
-    clippingRect.x = max(x, 0)
-    clippingRect.y = max(y, 0)
-    clippingrect.w = min(w, screenWidth - x)
-    clippingrect.h = min(h, screenHeight - y)
+proc clip*() =
+  clipMinX = 0
+  clipMaxX = screenWidth-1
+  clipMinY = 0
+  clipMaxY = screenHeight-1
+  clippingRect.x = 0
+  clippingRect.y = 0
+  clippingRect.w = screenWidth - 1
+  clippingRect.h = screenHeight - 1
+
+proc clip*(x,y,w,h: Pint) =
+  clipMinX = max(x, 0)
+  clipMaxX = min(x+w-1, screenWidth-1)
+  clipMinY = max(y, 0)
+  clipMaxY = min(y+h-1, screenHeight-1)
+  clippingRect.x = max(x, 0)
+  clippingRect.y = max(y, 0)
+  clippingRect.w = min(w, screenWidth - x)
+  clippingRect.h = min(h, screenHeight - y)
 
 
-proc btn*(b: NicoButton, player: range[0..7] = 0): bool =
+proc btn*(b: NicoButton, player: range[0..maxPlayers] = 0): bool =
   if player > controllers.high:
     return false
   return controllers[player].btn(b)
 
-proc btnp*(b: NicoButton, player: range[0..7] = 0): bool =
+proc btnp*(b: NicoButton, player: range[0..maxPlayers] = 0): bool =
   if player > controllers.high:
     return false
   return controllers[player].btnp(b)
 
-proc jaxis*(axis: NicoAxis, player: range[0..7] = 0): float =
+proc btnpr*(b: NicoButton, player: range[0..maxPlayers] = 0, repeat = 48): bool =
+  if player > controllers.high:
+    return false
+  return controllers[player].btnpr(b, repeat)
+
+proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers] = 0): float =
   if player > controllers.high:
     return 0.0
   return controllers[player].axis(axis)
@@ -445,35 +408,18 @@ proc keyState*(key: Scancode): bool =
 
   return keyState[int(key)] != 0
 
-const recordSeconds = 15
-
-type Frame = seq[uint8]
-
-var recordFrames: RingBuffer[Frame]
-
-var cameraX = 0
-var cameraY = 0
-
-var paletteMapDraw: array[16, ColorId]
-var paletteMapDisplay: array[16, ColorId]
-var paletteTransparent: array[16, bool]
-for i in 0..15:
-  paletteMapDraw[i] = i
-  paletteMapDisplay[i] = i
-  paletteTransparent[i] = if i == 0: true else: false
-
 proc pal*(a,b: ColorId) =
   paletteMapDraw[a] = b
 
 proc pal*() =
-  for i in 0..15:
+  for i in 0..<paletteSize.int:
     paletteMapDraw[i] = i
 
 proc palt*(a: ColorId, trans: bool) =
   paletteTransparent[a] = trans
 
 proc palt*() =
-  for i in 0..15:
+  for i in 0..<paletteSize.int:
     paletteTransparent[i] = if i == 0: true else: false
 
 proc convertToRGBA(indexPixels, rgbaPixels: pointer, spitch, dpitch, w,h: cint) =
@@ -515,45 +461,96 @@ proc flipQuick() =
 proc flip*() =
   flipQuick()
 
-  when true:
-    if frame mod 2 == 0:
-      var frame = newSeq[uint8](screenWidth*screenHeight)
-      if frame != nil:
-        copyMem(frame[0].addr, swCanvas.pixels, swCanvas.pitch * swCanvas.h)
-        recordFrames.add([frame])
+  when recordingEnabled:
+    if recordSeconds > 0:
+      if fullSpeedGif or frame mod 2 == 0:
+        if recordFrame != nil:
+          copyMem(recordFrame[0].addr, swCanvas.pixels, swCanvas.pitch * swCanvas.h)
+          recordFrames.add([recordFrame])
 
   sdl2.delay(0)
 
-import strutils
+proc saveScreenshot*() =
+  createDir(writePath & "/screenshots")
+  var frame = recordFrames[recordFrames.size-1]
+  var abgr = newSeq[uint8](screenWidth*screenHeight*4)
+  # convert RGBA to BGRA
+  convertToABGR(frame[0].addr, abgr[0].addr, swCanvas.pitch, screenWidth*4, screenWidth, screenHeight)
+  let filename = writePath & "/screenshots/screenshot-$1T$2.png".format(getDateStr(), getClockStr())
+  discard write_png(filename.cstring, screenWidth, screenHeight, RgbAlpha, abgr[0].addr, screenWidth*4)
+  echo "saved screenshot to: ", filename
 
-proc saveRecording() =
-  var i = 0
+proc saveRecording*() =
+  # TODO: do this in another thread?
   echo "saveRecording"
+  createDir(writePath & "/video")
+
+  var palette: array[16,array[3,uint8]]
+  for i in 0..15:
+    palette[i] = [colors[i].r, colors[i].g, colors[i].b]
+
+  let filename = writePath & "/video/video-$1T$2.gif".format(getDateStr(), getClockStr())
+
+  var gif = newGIF(
+    filename.cstring,
+    (screenWidth*gifScale).uint16,
+    (screenHeight*gifScale).uint16,
+    palette[0][0].addr, 4, 0
+  )
+
+  echo "created gif"
+  var pixels: ptr[array[int32.high, uint8]]
+
+  let oldColor = getColor()
+
   for j in 0..recordFrames.size:
     var frame = recordFrames[j]
-    var abgr = newSeq[uint8](screenWidth*screenHeight*4)
-    # convert RGBA to BGRA
-    echo "converting frame: ", j
-    convertToABGR(frame[0].addr, abgr[0].addr, swCanvas.pitch, screenWidth*4, screenWidth, screenHeight)
-    discard write_png("screenshot-$1.png".format(($i).align(4,'0')).cstring, screenWidth, screenHeight, RgbAlpha, abgr[0].addr, screenWidth*4)
-    i += 1
+    if frame == nil:
+      echo "empty frame. breaking."
+      break
+
+    pixels = cast[ptr array[int32.high, uint8]](gif.frame)
+
+    if gifScale != 1:
+      for y in 0..<screenHeight*gifScale:
+        for x in 0..<screenWidth*gifScale:
+          let sx = x div gifScale
+          let sy = y div gifScale
+          pixels[y*screenWidth*gifScale+x] = frame[sy*swCanvas.pitch+sx]
+    else:
+      copyMem(gif.frame, frame[0].addr, screenWidth*screenHeight)
+    gif.add_frame(if fullSpeedGif: 2 else: 3)
+
+    setColor(13)
+    rectfill(0,screenHeight-7,screenWidth,screenHeight)
+    setColor(7)
+    printc("SAVING GIF $1%".format(((j.float / recordFrames.size.float)*100.0).int), screenWidth div 2, screenHeight - 6)
+    flipQuick()
+
+  gif.close()
+
+  setColor(13)
+  rectfill(0,screenHeight-7,screenWidth,screenHeight)
+  setColor(7)
+  printc("SAVED GIF. PRESS [F11] TO OPEN DIR.".format(filename), screenWidth div 2, screenHeight - 6)
+  flipQuick()
+  for i in 0..100:
+    checkInput()
+    sdl2.delay(10)
+
+  setColor(oldColor)
 
 proc cls*() =
-  var rect = rect(clipMinX,clipMinY,clipMaxX-clipMinX+1,clipMaxY-clipMinY+1)
+  var rect = sdl2.rect(clipMinX,clipMinY,clipMaxX-clipMinX+1,clipMaxY-clipMinY+1)
   swCanvas.fillRect(addr(rect),0)
 
-proc setCamera*(c: IntPoint2d) =
-  cameraX = c.x
-  cameraY = c.y
-
-proc setCamera*(x,y: cint = 0) =
+proc setCamera*(x,y: Pint = 0) =
   cameraX = x
   cameraY = y
 
-proc getCamera*(): Point2d =
-  return point2d(cameraX.float,cameraY.float)
+proc getCamera*(): (Pint,Pint) =
+  return (cameraX, cameraY)
 
-var currentColor: ColorId = 0
 
 proc setColor*(colId: ColorId) =
   currentColor = colId
@@ -561,12 +558,19 @@ proc setColor*(colId: ColorId) =
 proc getColor*(): ColorId =
   return currentColor
 
-proc getPixels(surface: SurfacePtr): ptr array[int.high, uint8] =
+proc getPixels(surface: SurfacePtr): ptr array[int.high, uint8] {.inline.} =
   return cast[ptr array[int.high, uint8]](surface.pixels)
 
 {.push checks: off, optimization: speed.}
-proc pset*(x,y: cint, c: int = -1) =
-  let c = if c == -1: currentColor else: c
+proc pset*(x,y: Pint) =
+  var pixels = swCanvas.getPixels()
+  let x = x-cameraX
+  let y = y-cameraY
+  if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
+    return
+  pixels[y*swCanvas.pitch+x] = paletteMapDraw[currentColor]
+
+proc pset*(x,y: Pint, c: int) =
   var pixels = swCanvas.getPixels()
   let x = x-cameraX
   let y = y-cameraY
@@ -574,37 +578,34 @@ proc pset*(x,y: cint, c: int = -1) =
     return
   pixels[y*swCanvas.pitch+x] = paletteMapDraw[c]
 
-proc psetInner*(x,y: int, c: ColorId) =
+proc psetRaw*(x,y: int, c: ColorId) =
   var pixels = swCanvas.getPixels()
-  if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
-    return
-  pixels[y*swCanvas.pitch+x] = c
+  let i = y*swCanvas.pitch+x
+  if i >= 0 and i < swCanvas.pitch*swCanvas.h:
+    pixels[i] = c
 {.pop.}
 
-proc sset*(x,y: cint, c: int = -1) =
+proc sset*(x,y: Pint, c: int = -1) =
   let c = if c == -1: currentColor else: c
   var pixels = spriteSheet[].getPixels()
   if x < 0 or y < 0 or x > spriteSheet.w-1 or y > spriteSheet.h-1:
     raise newException(RangeError, "sset ($1,$2) out of bounds".format(x,y))
   pixels[y*spriteSheet.pitch+x] = paletteMapDraw[c]
 
-proc sget*(x,y: cint): ColorId =
+proc sget*(x,y: Pint): ColorId =
   if x > spriteSheet.w-1 or x < 0 or y > spriteSheet.h-1 or y < 0:
     return 0
   var pixels = spriteSheet[].getPixels()
   let color = pixels[y*spriteSheet.pitch+x]
   return color
 
-proc pget*(x,y: cint): ColorId =
+proc pget*(x,y: Pint): ColorId =
   if x > swCanvas.w-1 or x < 0 or y > swCanvas.h-1 or y < 0:
     return 0
   var pixels = swCanvas.getPixels()
   return pixels[y*swCanvas.pitch+x]
 
-proc pset*(p: Point2d) =
-  pset(p.x.int,p.y.int)
-
-proc rectfill*(x1,y1,x2,y2: cint) =
+proc rectfill*(x1,y1,x2,y2: Pint) =
   let minx = min(x1,x2)
   let maxx = max(x1,x2)
   let miny = min(y1,y2)
@@ -613,13 +614,13 @@ proc rectfill*(x1,y1,x2,y2: cint) =
     for x in minx..maxx:
       pset(x,y)
 
-proc innerLine(x0,y0,x1,y1: cint) =
+proc innerLine(x0,y0,x1,y1: Pint) =
   var x = x0
   var y = y0
-  var dx: cint = abs(x1-x0)
-  var sx: cint = if x0 < x1: 1 else: -1
-  var dy: cint = abs(y1-y0)
-  var sy: cint = if y0 < y1: 1 else: -1
+  var dx: int = abs(x1-x0)
+  var sx: int = if x0 < x1: 1 else: -1
+  var dy: int = abs(y1-y0)
+  var sy: int = if y0 < y1: 1 else: -1
   var err: float = (if dx>dy: dx else: -dy).float/2.0
   var e2: float = 0
 
@@ -635,16 +636,35 @@ proc innerLine(x0,y0,x1,y1: cint) =
       err += dx.float
       y += sy
 
-proc line*(x0,y0,x1,y1: cint) =
+iterator lineIterator*(x0,y0,x1,y1: Pint): (Pint,Pint) =
+  var x = x0
+  var y = y0
+  var dx: Pint = abs(x1-x0)
+  var sx: Pint = if x0 < x1: 1 else: -1
+  var dy: Pint = abs(y1-y0)
+  var sy: Pint = if y0 < y1: 1 else: -1
+  var err: float = (if dx>dy: dx else: -dy).float/2.0
+  var e2: float = 0
+
+  while true:
+    yield (x,y)
+    if x == x1 and y == y1:
+      break
+    e2 = err
+    if e2 > -dx:
+      err -= dy.float
+      x += sx
+    if e2 < dy:
+      err += dx.float
+      y += sy
+
+proc line*(x0,y0,x1,y1: Pint) =
   if x0 == x1 and y0 == y1:
     pset(x0,y0)
   else:
     innerLine(x0,y0,x1,y1)
 
-proc line*(a,b: IntPoint2d) =
-  line(a.x,a.y,b.x,b.y)
-
-proc hline(x0,y,x1: cint) =
+proc hline*(x0,y,x1: Pint) =
   var x0 = x0
   var x1 = x1
   if x1<x0:
@@ -652,7 +672,15 @@ proc hline(x0,y,x1: cint) =
   for x in x0..x1:
     pset(x,y)
 
-proc rect*(x1,y1,x2,y2: int) =
+proc vline*(x,y0,y1: Pint) =
+  var y0 = y0
+  var y1 = y1
+  if y1<y0:
+    swap(y1,y0)
+  for y in y0..y1:
+    pset(x,y)
+
+proc rect*(x1,y1,x2,y2: Pint) =
   var r = sdl2.rect(
     x1,
     y1,
@@ -664,38 +692,29 @@ proc rect*(x1,y1,x2,y2: int) =
   let x = r.x
   let y = r.y
   # top
-  line(x, y, x+w, y)
+  hline(x, y, x+w)
   # bottom
-  line(x, y+h, x+w, y+h)
+  hline(x, y+h, x+w)
   # right
-  line(x+w, y, x+w, y+h)
+  vline(x+w, y+1, y+h-1)
   # left
-  line(x, y, x, y+h)
+  vline(x, y+1, y+h-1)
 
-proc rect*(a,b: Point2d) =
-  rect(a.x.int,a.y.int,b.x.int,b.y.int)
-
-proc flr*(v: Point2d): Point2d =
-  return point2d(v.x.floor(),v.y.floor())
-
-proc flr*(v: float): float =
-  return v.floor()
+proc flr*(x: float): float =
+  return x.floor()
 
 proc lerp[T](a, b: T, t: float): T =
   return a + (b - a) * t
 
-type
-  LineIterator = iterator(): (cint,cint)
-
 {.push checks: off, optimization: speed.}
-proc bresenham(x0,y0,x1,y1: cint): LineIterator =
-  iterator p1(): (cint,cint) =
+proc bresenham(x0,y0,x1,y1: Pint): LineIterator =
+  iterator p1(): (Pint,Pint) =
     var x = x0
     var y = y0
-    var dx: cint = abs(x1-x0)
-    var sx: cint = if x0 < x1: 1 else: -1
-    var dy: cint = abs(y1-y0)
-    var sy: cint = if y0 < y1: 1 else: -1
+    var dx: Pint = abs(x1-x0)
+    var sx: Pint = if x0 < x1: 1 else: -1
+    var dy: Pint = abs(y1-y0)
+    var sy: Pint = if y0 < y1: 1 else: -1
     var err: float = (if dx>dy: dx else: -dy).float/2.0
     var e2: float = 0
 
@@ -713,7 +732,7 @@ proc bresenham(x0,y0,x1,y1: cint): LineIterator =
         yield (x,y)
   return p1
 
-proc trifill*(x1,y1,x2,y2,x3,y3: cint) =
+proc trifill*(x1,y1,x2,y2,x3,y3: Pint) =
   var x1 = x1
   var x2 = x2
   var x3 = x3
@@ -767,7 +786,7 @@ proc trifill*(x1,y1,x2,y2,x3,y3: cint) =
 {.pop.}
 
 
-proc trifill2*(x1,y1,x2,y2,x3,y3: cint) =
+proc trifill2*(x1,y1,x2,y2,x3,y3: Pint) =
   var x1 = x1
   var x2 = x2
   var x3 = x3
@@ -794,7 +813,6 @@ proc trifill2*(x1,y1,x2,y2,x3,y3: cint) =
   assert(y2<=y3)
   assert(y1<=y3)
 
-  type Edge = tuple[xint, xfrac, dxint, dxfrac, dy, life: int]
 
   proc initEdge(px,py,qx,qy: int): Edge =
     var x: int
@@ -860,15 +878,12 @@ proc trifill2*(x1,y1,x2,y2,x3,y3: cint) =
   line(x2,y2,x3,y3)
   line(x3,y3,x1,y1)
 
-proc trifill*(a,b,c: IntPoint2d) =
-  trifill(a.x,a.y,b.x,b.y,c.x,c.y)
-
-proc plot4pointsfill(cx,cy,x,y: cint) =
+proc plot4pointsfill(cx,cy,x,y: Pint) =
   hline(cx - x, cy + y, cx + x)
   if x != 0 and y != 0:
     hline(cx - x, cy - y, cx + x)
 
-proc circfill*(cx,cy,r: cint) =
+proc circfill*(cx,cy,r: Pint) =
   if r == 1:
       pset(cx,cy)
       pset(cx-1,cy)
@@ -879,7 +894,7 @@ proc circfill*(cx,cy,r: cint) =
 
   var err = -r
   var x = r
-  var y = cint(0)
+  var y = Pint(0)
 
   while x >= y:
       var lasty = y
@@ -896,7 +911,7 @@ proc circfill*(cx,cy,r: cint) =
         x -= 1
         err -= x
 
-proc circ*(cx,cy,r: cint) =
+proc circ*(cx,cy,r: Pint) =
   if r == 1:
       pset(cx-1,cy)
       pset(cx+1,cy)
@@ -906,7 +921,7 @@ proc circ*(cx,cy,r: cint) =
 
   var err = -r
   var x = r
-  var y = cint(0)
+  var y = Pint(0)
 
   while x >= y:
     pset(cx + x, cy + y)
@@ -925,7 +940,7 @@ proc circ*(cx,cy,r: cint) =
       x -= 1
       err += 1 - 2*x
 
-proc arc*(cx,cy,r: cint, startAngle, endAngle: float) =
+proc arc*(cx,cy,r: Pint, startAngle, endAngle: float) =
   let startX = cos(startAngle) * r
   let startY = sin(startAngle) * r
   let endX = cos(endAngle) * r
@@ -940,7 +955,7 @@ proc arc*(cx,cy,r: cint, startAngle, endAngle: float) =
 
   var err = -r
   var x = r
-  var y = cint(0)
+  var y = Pint(0)
 
   while x >= y:
     if x >= startX and x < endX and y >= startY and y < endY:
@@ -983,7 +998,7 @@ proc fontBlit(src, dst: SurfacePtr, srcRect, dstRect: Rect, color: ColorId) =
       if dx < clipMinX or dy < clipMinY or dx > min(dst.w,clipMaxX) or dy > min(dst.h,clipMaxY):
         continue
       let srcCol = srcPixels[sy * sPitch + sx]
-      if srcCol == 9:
+      if srcCol != 0:
         dstPixels[dy * dPitch + dx] = currentColor
       sx += 1.0 * (sw/dw)
       dx += 1.0
@@ -993,7 +1008,82 @@ proc fontBlit(src, dst: SurfacePtr, srcRect, dstRect: Rect, color: ColorId) =
 proc overlap(a,b: Rect): bool =
   return not ( a.x > b.x + b.w or a.y > b.y + b.h or a.x + a.w < b.x or a.y + a.h < b.y )
 
-proc blit(src, dst: SurfacePtr, srcRect, dstRect: Rect, hflip, vflip: bool = false, raw: bool = false) =
+proc blitFastRaw(src, dst: SurfacePtr, sx,sy, dx,dy, w,h: Pint) =
+  # used for tile drawing, no stretch or flipping
+  var srcPixels = src.getPixels()
+  var dstPixels = dst.getPixels()
+
+  let sPitch = src.pitch
+  let dPitch = dst.pitch
+
+  var sxi = sx
+  var syi = sy
+  var dxi = dx
+  var dyi = dy
+
+  while dyi < dy + h:
+    if syi < 0 or syi > src.h-1 or dyi < clipMinY or dyi > min(dst.h-1,clipMaxY):
+      syi += 1
+      dyi += 1
+      sxi = sx
+      dxi = dx
+      continue
+    while dxi < dx + w:
+      if sxi < 0 or sxi > src.w-1 or dxi < clipMinX or dxi > min(dst.w-1,clipMaxX):
+        # ignore if it goes outside the source size
+        dxi += 1
+        sxi += 1
+        continue
+      let srcCol = srcPixels[syi * sPitch + sxi]
+      dstPixels[dyi * dPitch + dxi] = srcCol
+      sxi += 1
+      dxi += 1
+    syi += 1
+    dyi += 1
+    sxi = sx
+    dxi = dx
+
+proc blitFast(src, dst: SurfacePtr, sx,sy, dx,dy, w,h: Pint) =
+  # used for tile drawing, no stretch or flipping
+  var srcPixels = src.getPixels()
+  var dstPixels = dst.getPixels()
+
+  let sPitch = src.pitch
+  let dPitch = dst.pitch
+
+  var sxi = sx
+  var syi = sy
+  var dxi = dx
+  var dyi = dy
+
+  while dyi < dy + h:
+    if syi < 0 or syi > src.h-1 or dyi < clipMinY or dyi > min(dst.h-1,clipMaxY):
+      syi += 1
+      dyi += 1
+      sxi = sx
+      dxi = dx
+      continue
+    while dxi < dx + w:
+      if sxi < 0 or sxi > src.w-1 or dxi < clipMinX or dxi > min(dst.w-1,clipMaxX):
+        # ignore if it goes outside the source size
+        dxi += 1
+        sxi += 1
+        continue
+      let srcCol = srcPixels[syi * sPitch + sxi]
+      if not paletteTransparent[srcCol]:
+        dstPixels[dyi * dPitch + dxi] = paletteMapDraw[srcCol]
+      sxi += 1
+      dxi += 1
+    syi += 1
+    dyi += 1
+    sxi = sx
+    dxi = dx
+
+proc blit(src, dst: SurfacePtr, srcRect, dstRect: Rect, hflip, vflip: bool = false) =
+  # if dstrect doesn't overlap clipping rect, skip it
+  if not overlap(dstrect, clippingRect):
+    return
+
   var srcPixels = src.getPixels()
   var dstPixels = dst.getPixels()
 
@@ -1009,10 +1099,6 @@ proc blit(src, dst: SurfacePtr, srcRect, dstRect: Rect, hflip, vflip: bool = fal
   var sy = srcRect.y.float
   var sw = srcRect.w.float
   var sh = srcRect.h.float
-
-  # if dstrect doesn't overlap clipping rect, skip it
-  if not overlap(dstrect, clippingRect):
-    return
 
   if vflip:
     dy = dy + (dstRect.h - 1).float
@@ -1030,11 +1116,8 @@ proc blit(src, dst: SurfacePtr, srcRect, dstRect: Rect, hflip, vflip: bool = fal
         continue
       if not (dx < clipMinX or dy < clipMinY or dx > min(dst.w,clipMaxX) or dy > min(dst.h,clipMaxY)):
         let srcCol = srcPixels[sy * sPitch + sx]
-        if raw:
-          dstPixels[dy * dPitch + dx] = srcCol
-        else:
-          if not paletteTransparent[srcCol]:
-            dstPixels[dy * dPitch + dx] = paletteMapDraw[srcCol]
+        if not paletteTransparent[srcCol]:
+          dstPixels[dy * dPitch + dx] = paletteMapDraw[srcCol]
       if hflip:
         sx -= 1.0 * (sw/dw)
         dx -= 1.0
@@ -1048,10 +1131,66 @@ proc blit(src, dst: SurfacePtr, srcRect, dstRect: Rect, hflip, vflip: bool = fal
       sy += 1.0 * (sh/dh)
       dy += 1.0
 
-proc mset*(tx,ty: int, t: uint8) =
+
+
+
+
+proc blitStretch(src, dst: SurfacePtr, srcRect, dstRect: Rect, hflip, vflip: bool = false) =
+  # if dstrect doesn't overlap clipping rect, skip it
+  if not overlap(dstrect, clippingRect):
+    return
+
+  var srcPixels = src.getPixels()
+  var dstPixels = dst.getPixels()
+
+  let sPitch = src.pitch
+  let dPitch = dst.pitch
+
+  var dx = dstRect.x.float
+  var dy = dstRect.y.float
+  var dw = dstRect.w.float
+  var dh = dstRect.h.float
+
+  var sx = srcRect.x.float
+  var sy = srcRect.y.float
+  var sw = srcRect.w.float
+  var sh = srcRect.h.float
+
+  if vflip:
+    dy = dy + (dstRect.h - 1).float
+    sy = sy + (srcRect.h - 1).float
+
+  for y in 0..dstRect.h-1:
+    if hflip:
+      sx = (srcRect.x + srcRect.w-1).float
+      dx = (dstRect.x + dstRect.w-1).float
+    else:
+      sx = srcRect.x.float
+      dx = dstRect.x.float
+    for x in 0..dstRect.w-1:
+      if sx < 0 or sy < 0 or sx > src.w-1 or sy > src.h-1:
+        continue
+      if not (dx < clipMinX or dy < clipMinY or dx > min(dst.w,clipMaxX) or dy > min(dst.h,clipMaxY)):
+        let srcCol = srcPixels[sy * sPitch + sx]
+        if not paletteTransparent[srcCol]:
+          dstPixels[dy * dPitch + dx] = paletteMapDraw[srcCol]
+      if hflip:
+        sx -= 1.0 * (sw/dw)
+        dx -= 1.0
+      else:
+        sx += 1.0 * (sw/dw)
+        dx += 1.0
+    if vflip:
+      sy -= 1.0 * (sh/dh)
+      dy -= 1.0
+    else:
+      sy += 1.0 * (sh/dh)
+      dy += 1.0
+
+proc mset*(tx,ty: Pint, t: uint8) =
   mapData[ty * mapWidth + tx] = t
 
-proc mget*(tx,ty: int): uint8 =
+proc mget*(tx,ty: Pint): uint8 =
   return mapData[ty * mapWidth + tx]
 
 proc contains[T](flags: T, bit: T): bool =
@@ -1081,13 +1220,12 @@ proc fset*(s: uint8, f: range[0..7], v: bool) =
 proc takeScreenshot*() =
   render.setRenderTarget(hwCanvas)
   var surface = sdl2.createRGBSurface(0, screenWidth, screenHeight, 32, 0,0,0,0)
-  discard render.readPixels(srcrect, SDL_PIXELFORMAT_RGB888, surface[].pixels, cint(screenWidth*4))
+  discard render.readPixels(srcrect.addr, SDL_PIXELFORMAT_RGB888.cint, surface[].pixels, cint(screenWidth*4))
   discard write_png("screenshot.png", screenWidth, screenHeight, Rgb, surface.pixels, screenWidth*screenHeight*ord(Rgb))
   echo "saved screenshot"
   freeSurface(surface)
 
-proc setFont(filename: string, chars: string): Font =
-  var font = new(Font)
+proc loadFont*(filename: string, chars: string) =
   var w,h: cint
   var components: Components
   var raw_pixels = load(filename.cstring(), addr(w), addr(h), addr(components), RgbAlpha)
@@ -1098,8 +1236,8 @@ proc setFont(filename: string, chars: string): Font =
 
   # load pixels into a texture
   var surface = createRGBSurfaceFrom(pixels, w, h, 32, w*4, 0xff000000'u32, 0x00ff0000'u32, 0x0000ff00'u32, 0x000000ff'u32)
-  font.surface = convertSurface(surface, swCanvas.format, 0)
-  if font.surface == nil:
+  font[].surface = convertSurface(surface, swCanvas.format, 0)
+  if font[].surface == nil:
     echo getError()
     quit(1)
 
@@ -1119,46 +1257,60 @@ proc setFont(filename: string, chars: string): Font =
           let color: Color = (pixels[y*stride+x*4],pixels[y*stride+x*4+1],pixels[y*stride+x*4+2],pixels[y*stride+x*4+3])
           if color == blankColor:
             currentRect.h = y-2
-        font.rects[cast[uint](chars[i])] = currentRect
+        font[].rects[cast[uint](chars[i])] = currentRect
         i += 1
       newChar = true
       currentRect.x = x + 1
-  return font
 
-proc print*(text: string, x,y: cint, scale: cint = 1) =
+proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint =
+  var src: Rect = font[].rects[cast[uint8](c)]
+  var dst = sdl2.rect(x,y, src.w * scale, src.h * scale)
+  fontBlit(font[].surface, swCanvas, src, dst, currentColor)
+  return src.w * scale + scale
+
+proc print*(text: string, x,y: Pint, scale: Pint = 1) =
   var x = x - cameraX
   let y = y - cameraY
   for c in text:
-    var src: Rect = font.rects[cast[uint8](c)]
-    var dst: Rect = (x.cint, y.cint, src.w*scale, src.h*scale)
-    fontBlit(font.surface, swCanvas, src, dst, currentColor)
-    x += dst.w + scale
+    x += glyph(c, x, y, scale)
 
-proc printr*(text: string, x,y: cint, scale: cint = 1) =
-  let width = text.len() * 4 * scale
+proc glyphWidth*(c: char, scale: Pint = 1): Pint =
+  var src: Rect = font[].rects[cast[uint8](c)]
+  result += src.w*scale + scale
+
+proc textWidth*(text: string, scale: Pint = 1): Pint =
+  for c in text:
+    var src: Rect = font[].rects[cast[uint8](c)]
+    result += src.w*scale + scale
+
+proc printr*(text: string, x,y: Pint, scale: Pint = 1) =
+  let width = textWidth(text, scale)
   print(text, x-width, y, scale)
 
-proc printc*(text: string, x,y: cint, scale: cint = 1) =
-  let width = text.len() * 4 * scale
-  print(text, x-int(width/2), y, scale)
+proc printc*(text: string, x,y: Pint, scale: Pint = 1) =
+  let width = textWidth(text, scale)
+  print(text, x-(width div 2), y, scale)
 
-proc copy*(x1,y1,x2,y2,x3,y3,x4,y4: int) =
-  var src: Rect = (x:cint(x1),y:cint(y1),w:cint(x2-x1),h:cint(y2-y1))
-  var dst: Rect = (x:cint(x3),y:cint(y3),w:cint(x4-x3),h:cint(y4-y3))
-  blit(swCanvas, swCanvas, src, dst, false, false, true)
+proc copy*(sx,sy,dx,dy,w,h: Pint) =
+  blitFastRaw(swCanvas, swCanvas, sx, sy, dx, dy, w, h)
 
-proc mouse*(): IntPoint2d =
-  var x,y, w,h: cint
+proc copyPixelsToMem*(sx,sy,n: Pint, buffer: pointer) =
+  var pixels = swCanvas.getPixels()
+  copyMem(buffer, pixels[sy*swCanvas.pitch+sx].addr, n)
+
+proc copyMemToScreen*(dx,dy,n: Pint, buffer: pointer) =
+  var pixels = swCanvas.getPixels()
+  copyMem(pixels[dy*swCanvas.pitch+dx].addr, buffer, min(n, swCanvas.pitch * swCanvas.h))
+
+
+proc mouse*(): (Pint,Pint) =
+  var x,y: cint
   sdl2.getMouseState(addr(x),addr(y))
-  x -= screenPaddingX*2
-  y -= screenPaddingY*2
-  x = x / screenScale
-  y = y / screenScale
-  return intPoint2d(x,y)
-
-var mouseButtonState: int
-var mouseButtonPState: int
-var mouseWheelState: int
+  #x -= screenPaddingX*2
+  #y -= screenPaddingY*2
+  x = x.float / screenScale
+  y = y.float / screenScale
+  return (x.Pint,y.Pint)
 
 proc mousebtn*(filter: range[0..2]): bool =
   return (mouseButtonState and (1 shl filter)) != 0
@@ -1176,63 +1328,104 @@ proc mousebtnp*(filter: range[0..2]): bool =
 proc mousebtnp*(): int =
   return mouseButtonPState
 
-var keepRunning = true
-var mute = false
-
 proc shutdown*() =
   keepRunning = false
 
 proc setFullscreen*(fullscreen: bool) =
   if fullscreen:
+    echo "setting fullscreen"
     discard window.setFullscreen(SDL_WINDOW_FULLSCREEN_DESKTOP)
   else:
+    echo "setting windowed"
     discard window.setFullscreen(0)
+
+proc getFullscreen*(): bool =
+  return (window.getFlags() and SDL_WINDOW_FULLSCREEN_DESKTOP) != 0
 
 proc resize(w,h: int) =
   # calculate screenScale based on size
-  screenScale = max(1, min(
-    (w.float / targetScreenWidth.float).ceil.int,
-    (h.float / targetScreenHeight.float).ceil.int,
-  ))
 
-  let ratio = w.float / h.float
-  let targetRatio = targetScreenWidth.float / targetScreenHeight.float
+  if integerScreenScale:
+    screenScale = max(1.0, min(
+      (w.float / targetScreenWidth.float).floor,
+      (h.float / targetScreenHeight.float).floor,
+    ))
+  else:
+    screenScale = max(1.0, min(
+      (w.float / targetScreenWidth.float),
+      (h.float / targetScreenHeight.float),
+    ))
 
-  screenWidth = targetScreenWidth
-  screenHeight = (screenWidth.float * targetRatio).int
+  var displayW,displayH: int
 
-  echo "w: ", (screenWidth * screenScale), " of ", w
-  screenPaddingX = (w - screenWidth * screenScale) div 2
-  screenPaddingY = (h - screenHeight * screenScale) div 2
+  if fixedScreenSize:
+    displayW = (targetScreenWidth.float * screenScale).int
+    displayH = (targetScreenHeight.float * screenScale).int
 
-  echo "padding: ", screenPaddingX, " x ", screenPaddingY
+    # add padding
+    screenPaddingX = ((w - displayW)) div 2
+    screenPaddingY = ((h - displayH)) div 2
+  else:
+    screenPaddingX = 0
+    screenPaddingY = 0
 
-  echo "resize event: scale: ", screenScale, ": ", w, " x ", h, " ( ", screenWidth, " x ", screenHeight, " )"
+    displayW = w
+    displayH = h
+
+    if integerScreenScale:
+      screenWidth = displayW div screenScale
+      screenHeight = displayH div screenScale
+    else:
+      screenWidth = (displayW.float / screenScale).int
+      screenHeight = (displayH.float / screenScale).int
+
+
+  echo "resize event: scale: ", screenScale, ": ", displayW, " x ", displayH, " ( ", screenWidth, " x ", screenHeight, " )"
   # resize the buffers
   srcRect = sdl2.rect(0,0,screenWidth,screenHeight)
-  dstRect = sdl2.rect(0,0,screenWidth,screenHeight)
+  dstRect = sdl2.rect(screenPaddingX,screenPaddingY,displayW, displayH)
 
   hwCanvas = render.createTexture(SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, screenWidth, screenHeight)
   swCanvas = createRGBSurface(0, screenWidth, screenHeight, 8, 0, 0, 0, 0)
   swCanvas.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
   swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
-  discard render.setLogicalSize(screenWidth, screenHeight)
   render.setRenderTarget(hwCanvas)
+
   clip()
   cls()
   flipQuick()
 
   # clear the replay buffer
-  recordFrames = newRingBuffer[Frame](recordSeconds * int(frameRate / 2))
+  createRecordBuffer()
+
+proc resize() =
+  var windowW, windowH: cint
+  window.getSize(windowW, windowH)
+  resize(windowW,windowH)
 
 proc setTargetSize*(w,h: int) =
   targetScreenWidth = w
   targetScreenHeight = h
-  resize(screenWidth, screenHeight)
+  resize()
+
+proc fixedSize*(): bool =
+  return fixedScreenSize
+
+proc fixedSize*(enabled: bool) =
+  fixedScreenSize = enabled
+  resize()
+
+proc integerScale*(): bool =
+  return integerScreenScale
+
+proc integerScale*(enabled: bool) =
+  integerScreenScale = enabled
+  resize()
+
 
 proc setScreenSize*(w,h: int) =
   window.setSize(w,h)
-  resize(w,h)
+  resize()
 
 proc appHandleEvent(evt: Event) =
   if evt.kind == QuitEvent:
@@ -1241,7 +1434,7 @@ proc appHandleEvent(evt: Event) =
   elif evt.kind == MouseWheel:
     mouseWheelState = evt.wheel.y
   elif evt.kind == MouseButtonDown:
-    discard captureMouse(true)
+    discard captureMouse(True32)
     if evt.button.button == BUTTON_LEFT:
       mouseButtonState = mouseButtonState or 1
       mouseButtonPState = mouseButtonPState or 1
@@ -1253,7 +1446,7 @@ proc appHandleEvent(evt: Event) =
       mouseButtonPState = mouseButtonPState or 4
 
   elif evt.kind == MouseButtonUp:
-    discard captureMouse(false)
+    discard captureMouse(False32)
     if evt.button.button == BUTTON_LEFT:
       mouseButtonState = mouseButtonState and not 1
     elif evt.button.button == BUTTON_RIGHT:
@@ -1264,10 +1457,12 @@ proc appHandleEvent(evt: Event) =
   elif evt.kind == ControllerDeviceAdded:
     for v in controllers:
       if v.sdlControllerId == evt.cdevice.which:
+        echo "controller already exists"
         return
     try:
       var controller = newNicoController(evt.cdevice.which)
-      controllers.add(newNicoController(evt.cdevice.which))
+      controllers.add(controller)
+      echo "added controller"
       if controllerAddedFunc != nil:
         controllerAddedFunc(controller)
     except:
@@ -1356,31 +1551,46 @@ proc appHandleEvent(evt: Event) =
       # ctrl+q to quit
       keepRunning = false
 
-    elif sym == K_f and down and (int16(evt.key.keysym.modstate) and int16(KMOD_CTRL)) != 0:
-      let flags = window.getFlags()
-      if (flags and SDL_WINDOW_FULLSCREEN_DESKTOP) != 0:
-        discard window.setFullscreen(0)
+    elif sym == K_f and not down and (int16(evt.key.keysym.modstate) and int16(KMOD_CTRL)) != 0:
+      if getFullscreen():
+        setFullscreen(false)
       else:
-        discard window.setFullscreen(SDL_WINDOW_FULLSCREEN_DESKTOP)
+        setFullscreen(true)
+      return
+
+    elif sym == K_return and not down and (int16(evt.key.keysym.modstate) and int16(KMOD_ALT)) != 0:
+      if getFullscreen():
+        setFullscreen(false)
+      else:
+        setFullscreen(true)
+      return
 
     elif sym == K_m and down:
       when not defined(emscripten):
         if (int16(evt.key.keysym.modstate) and int16(KMOD_CTRL)) != 0:
           mute = not mute
           if mute:
-            discard mixer.volume(0, 0)
-            discard mixer.volume(1, 0)
-            discard mixer.volume(2, 0)
-            discard mixer.volume(3, 0)
+            for i in 0..<mixerChannels:
+              discard mixer.volume(i, 0)
             discard mixer.volumeMusic(0)
           else:
-            discard mixer.volume(0, 255)
-            discard mixer.volume(1, 255)
-            discard mixer.volume(2, 255)
-            discard mixer.volume(3, 255)
+            for i in 0..<mixerChannels:
+              discard mixer.volume(i, 255)
             discard mixer.volumeMusic(255)
+
     elif sym == K_F9 and down:
       saveRecording()
+
+    elif sym == K_F10 and down:
+      saveScreenshot()
+
+    elif sym == K_F11 and down:
+      when system.hostOS == "windows":
+        discard startProcess("start", writePath, [writePath], nil, {poUsePath})
+      elif system.hostOS == "macosx":
+        discard startProcess("open", writePath, [writePath], nil, {poUsePath})
+      elif system.hostOS == "linux":
+        discard startProcess("xdg-open", writePath, [writePath], nil, {poUsePath})
 
     if not evt.key.repeat:
       case scancode:
@@ -1396,34 +1606,46 @@ proc appHandleEvent(evt: Event) =
       of SDL_SCANCODE_Z:
         controllers[0].setButtonState(pcA, down)
       of SDL_SCANCODE_X:
-        controllers[0].setButtonState(pcX, down)
-      of SDL_SCANCODE_LSHIFT:
         controllers[0].setButtonState(pcB, down)
+      of SDL_SCANCODE_LSHIFT, SDL_SCANCODE_RSHIFT:
+        controllers[0].setButtonState(pcX, down)
       of SDL_SCANCODE_C:
         controllers[0].setButtonState(pcY, down)
       of SDL_SCANCODE_RETURN:
         controllers[0].setButtonState(pcStart, down)
-      of SDL_SCANCODE_BACKSPACE, SDL_SCANCODE_DELETE:
+      of SDL_SCANCODE_BACKSPACE, SDL_SCANCODE_DELETE, SDL_SCANCODE_ESCAPE:
         controllers[0].setButtonState(pcBack, down)
+      of SDL_SCANCODE_F:
+        controllers[0].setButtonState(pcL1, down)
+      of SDL_SCANCODE_V:
+        controllers[0].setButtonState(pcR1, down)
+      of SDL_SCANCODE_G:
+        controllers[0].setButtonState(pcL2, down)
+      of SDL_SCANCODE_B:
+        controllers[0].setButtonState(pcR2, down)
       else:
         discard
 
 
-var current_time = sdl2.getTicks()
-var acc = 0.0
-var next_time: uint32
+proc getPerformanceCounter*(): uint64 {.inline.} =
+  return sdl2.getPerformanceCounter()
+
+proc getPerformanceFrequency*(): uint64 {.inline.} =
+  return sdl2.getPerformanceFrequency()
 
 when defined(emscripten):
   proc emscripten_set_main_loop(fun: proc() {.cdecl.}, fps,
     simulate_infinite_loop: cint) {.header: "<emscripten.h>".}
   proc emscripten_cancel_main_loop() {.header: "<emscripten.h>".}
 
-proc step() {.cdecl.} =
+proc checkInput() =
   var evt: Event
   zeroMem(addr(evt), sizeof(Event))
-
   while pollEvent(evt):
     appHandleEvent(evt)
+
+proc step() {.cdecl.} =
+  checkInput()
 
   next_time = getTicks()
   var diff = float(next_time - current_time)/1000.0 * frameMult.float
@@ -1450,7 +1672,7 @@ proc step() {.cdecl.} =
     mouseButtonPState = 0
     mouseWheelState = 0
     acc -= timeStep
-    #delay(0)
+    sdl2.delay(0)
 
 proc setWindowTitle*(title: string) =
   window.setTitle(title)
@@ -1482,42 +1704,65 @@ proc loadSpriteSheet*(filename: string) =
       let c = mapRGB(spriteSheet.format, r,g,b)
       ipixels[y*spriteSheet.pitch+x] = c.uint8
 
-proc getSprRect(spr: range[0..255], w,h: cint = 1): Rect {.inline.} =
+proc getSprRect(spr: range[0..255], w,h: Pint = 1): Rect {.inline.} =
   result.x = spr%%16 * 8
   result.y = spr div 16 * 8
   result.w = w * 8
   result.h = h * 8
 
-proc spr*(spr: range[0..255], x,y: cint, w,h: cint = 1, hflip, vflip: bool = false) =
+proc spr*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false) =
+  # draw a sprite
   var src = getSprRect(spr, w, h)
-  var dst: Rect = sdl2.rect(x-cameraX,y-cameraY,8*w,8*h)
-  let flip = (if hflip: SDL_FLIP_HORIZONTAL else: 0) or (if vflip: SDL_FLIP_VERTICAL else: 0)
+  var dst: Rect = sdl2.rect(x-cameraX,y-cameraY,src.w,src.h)
+  if hflip or vflip:
+    blit(spriteSheet[], swCanvas, src, dst, hflip, vflip)
+  else:
+    blitFast(spriteSheet[], swCanvas, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
+
+proc sprBlit*(spr: range[0..255], x,y: Pint, w,h: Pint = 1) =
+  # draw a sprite
+  let src = getSprRect(spr, w, h)
+  let dst: Rect = sdl2.rect(x-cameraX,y-cameraY,src.w,src.h)
   blit(spriteSheet[], swCanvas, src, dst)
 
-proc sprs*(spr: range[0..255], x,y: cint, w,h: cint = 1, dw,dh: cint = 1, hflip, vflip: bool = false) =
+proc sprBlitFast*(spr: range[0..255], x,y: Pint, w,h: Pint = 1) =
+  # draw a sprite
+  let src = getSprRect(spr, w, h)
+  blitFast(spriteSheet[], swCanvas, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
+
+proc sprBlitFastRaw*(spr: range[0..255], x,y: Pint, w,h: Pint = 1) =
+  # draw a sprite
+  let src = getSprRect(spr, w, h)
+  blitFastRaw(spriteSheet[], swCanvas, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
+
+proc sprBlitStretch*(spr: range[0..255], x,y: Pint, w,h: Pint = 1) =
+  # draw a sprite
+  let src = getSprRect(spr, w, h)
+  let dst: Rect = sdl2.rect(x-cameraX,y-cameraY,src.w,src.h)
+  blitStretch(spriteSheet[], swCanvas, src, dst)
+
+proc sprs*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip, vflip: bool = false) =
+  # draw an integer scaled sprite
   var src = getSprRect(spr, w, h)
   var dst: Rect = sdl2.rect(x-cameraX,y-cameraY,dw*8,dh*8)
-  let flip = (if hflip: SDL_FLIP_HORIZONTAL else: 0) or (if vflip: SDL_FLIP_VERTICAL else: 0)
-  blit(spriteSheet[], swCanvas, src, dst)
+  blit(spriteSheet[], swCanvas, src, dst, hflip, vflip)
 
-proc drawTile(spr: range[0..255], x,y: cint, tileSize = 8) =
+proc drawTile(spr: range[0..255], x,y: Pint, tileSize = 8) =
   var src = getSprRect(spr)
-  var dst: Rect = sdl2.rect(x-cameraX,y-cameraY,tileSize,tileSize)
-  blit(spriteSheet[], swCanvas, src, dst)
+  blitFast(spriteSheet[], swCanvas, src.x, src.y, x-cameraX, y-cameraY, tileSize, tileSize)
 
-proc sspr*(sx,sy: int, sw,sh: int, dx,dy: int, dw,dh: int = -1, hflip, vflip: bool = false) =
+proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = false) =
   var src: Rect = sdl2.rect(sx,sy,sw,sh)
   let dw = if dw >= 0: dw else: sw
   let dh = if dh >= 0: dh else: sh
   var dst: Rect = sdl2.rect(dx-cameraX,dy-cameraY,dw,dh)
-  let flip = (if hflip: SDL_FLIP_HORIZONTAL else: 0) or (if vflip: SDL_FLIP_VERTICAL else: 0)
-  blit(spriteSheet[], swCanvas, src, dst)
+  blitStretch(spriteSheet[], swCanvas, src, dst, hflip, vflip)
 
-proc mapDraw*(tx,ty, tw,th, dx,dy: int, scale: float = 1.0) =
+proc mapDraw*(tx,ty, tw,th, dx,dy: Pint) =
   # draw map tiles to the screen
   var xi = dx
   var yi = dy
-  var increment = (8.0 * scale).int
+  var increment = 8
   for y in ty..ty+th-1:
     if y >= 0 and y < mapHeight:
       for x in tx..tx+tw-1:
@@ -1533,8 +1778,8 @@ proc `%%/`[T](x,m: T): T =
   return (x mod m + m) mod m
 
 proc saveMap*(filename: string) =
-  createDir(basePath & "assets/maps")
-  var fs = newFileStream(basePath & "assets/maps/" & filename, fmWrite)
+  createDir(writePath & "/maps")
+  var fs = newFileStream(writePath & "/maps/" & filename, fmWrite)
   fs.write(mapWidth.int32)
   fs.write(mapHeight.int32)
   for y in 0..mapHeight-1:
@@ -1545,7 +1790,6 @@ proc saveMap*(filename: string) =
   echo "saved map: " & $mapWidth & " x " & $mapHeight & " to: " & filename
 
 proc loadMap*(filename: string) =
-  createDir(basePath & "assets/maps")
   var fs = newFileStream(basePath & "assets/maps/" & filename, fmRead)
   mapWidth = fs.readInt32()
   mapHeight = fs.readInt32()
@@ -1557,8 +1801,27 @@ proc loadMap*(filename: string) =
   fs.close()
   echo "loaded map: " & $mapWidth & " x " & $mapHeight
 
-proc rnd*(x: int): int =
-  return random(x)
+proc loadMapFromJson*(filename: string) =
+  # read tiled output format
+  var fp = newFileStream(basePath & "assets/maps/" & filename, fmRead)
+  if fp == nil:
+    raise newException(IOError, "Unable to open " & filename & " for reading")
+
+  var data = parseJson(fp, filename)
+  mapWidth = data["width"].getNum.int
+  mapHeight = data["height"].getNum.int
+  # only look at first layer
+  mapData = newSeq[uint8](mapWidth*mapHeight)
+  for i in 0..<(mapWidth*mapHeight):
+    let t = data["layers"][0]["data"][i].getNum().uint8 - 1
+    let x = i mod mapWidth
+    let y = i div mapWidth
+    mset(x,y,t)
+
+proc rnd*[T: Ordinal](x: T): T =
+  if x == 0:
+    return 0
+  return random(x.int).T
 
 proc rnd*(x: float): float =
   return random(x)
@@ -1571,18 +1834,19 @@ proc getControllers*(): seq[NicoController] =
 
 # Configuration
 
-import parseCfg
-var config: Config
-
 proc loadConfig*() =
   # TODO check for config file in user config directioy, use that first
-  config = loadConfig(basePath & "/config.ini")
-  echo "loaded config from " & basePath & "/config.ini"
+  try:
+    config = loadConfig(writePath & "/config.ini")
+    echo "loaded config from " & writePath & "/config.ini"
+  except IOError:
+    config = loadConfig(basePath & "/config.ini")
+    echo "loaded config from " & basePath & "/config.ini"
 
 proc saveConfig*() =
   # TODO write config file in user config directioy
-  config.writeConfig(basePath & "/config.ini")
-  echo "saved config to " & basePath & "/config.ini"
+  config.writeConfig(writePath & "/config.ini")
+  echo "saved config to " & writePath & "/config.ini"
 
 proc updateConfigValue*(section, key, value: string) =
   config.setSectionKey(section, key, value)
@@ -1590,12 +1854,17 @@ proc updateConfigValue*(section, key, value: string) =
 proc getConfigValue*(section, key: string): string =
   result = config.getSectionValue(section, key)
 
+proc setFont*(fontId: FontId) =
+  # sets the active font to be used by future print calls
+  if fontId > fonts.len:
+    return
+  font = fonts[fontId].addr
 
-type
-  MusicId = range[-1..63]
-  SfxId = range[-1..63]
-
-var currentMusicId: int = -1
+proc getFont*(): FontId =
+  for i, f in mpairs(fonts):
+    if font == f.addr:
+      return i
+  return 0
 
 when not defined(emscripten):
   var musicLibrary: array[64,ptr Music]
@@ -1633,6 +1902,8 @@ when not defined(emscripten):
       var sfx = sfxLibrary[sfxId]
       if sfx != nil:
         discard playChannel(channel, sfx, loop)
+      else:
+        echo "Warning: playing invalid sfx: " & $sfxId
 
   proc musicVol*(value: int) =
     discard mixer.volumeMusic(value)
@@ -1666,10 +1937,53 @@ else:
   proc musicVol*(): int =
     return 0
 
-var context: GlContextPtr
 
-proc init*() =
+proc createWindow*(title: string, w,h: Pint, scale: Pint = 2, fullscreen: bool = false) =
+  window = createWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w * scale, h * scale, SDL_WINDOW_RESIZABLE or (if fullscreen: SDL_WINDOW_FULLSCREEN_DESKTOP else: 0))
+  render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture)
 
+  targetScreenWidth = w
+  targetScreenHeight = h
+
+  screenWidth = w
+  screenHeight = h
+
+  swCanvas = createRGBSurface(0, screenWidth, screenHeight, 8, 0, 0, 0, 0)
+  swCanvas.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
+  swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
+
+  var displayW, displayH: cint
+  window.getSize(displayW, displayH)
+  resize(displayW,displayH)
+
+  spriteSheet = spriteSheets[0].addr
+  spriteSheet[] = createRGBSurface(0, 128, 128, 8, 0, 0, 0, 0)
+  spriteSheet.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
+
+  setFont(0)
+  loadFont(basePath & "/assets/font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{:}~")
+  discard sdl2.setHint("SDL_HINT_RENDER_VSYNC", "1")
+  discard sdl2.setHint("SDL_RENDER_SCALE_QUALITY", "0")
+  sdl2.showCursor(false)
+  render.setRenderTarget(hwCanvas)
+
+
+proc initMixer*(channels: Pint) =
+  when not defined(emscripten):
+    if mixer.init(MIX_INIT_OGG) == -1:
+      echo getError()
+    if mixer.openAudio(44100, AUDIO_S16, MIX_DEFAULT_CHANNELS, 1024) == -1:
+      echo "Error initialising audio: " & $sdl2.getError()
+    else:
+      addQuitProc(proc() {.noconv.} =
+        echo "closing audio"
+        discard mixer.closeAudio
+      )
+      discard mixer.allocateChannels(channels)
+      mixerChannels = channels
+
+proc init*(org: string, app: string) =
+  ## Initializes Nico ready to be used
   discard sdl2.setHint("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")
 
   if sdl2.init(INIT_EVERYTHING) != SDL_Return(0):
@@ -1678,6 +1992,9 @@ proc init*() =
 
   basePath = $sdl2.getBasePath()
   echo "basePath: ", basePath
+
+  writePath = $sdl2.getPrefPath(org,app)
+  echo "writePath: ", writePath
 
   addQuitProc(proc() {.noconv.} =
     echo "sdl2 quit"
@@ -1702,35 +2019,7 @@ proc init*() =
 
   randomize()
 
-  window = createWindow("nico", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (screenWidth+screenPaddingX*2)*screenScale, (screenHeight+screenPaddingY*2)*screenScale, SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE)
-  render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture)
-
-  swCanvas = createRGBSurface(0, screenWidth, screenHeight, 8, 0, 0, 0, 0)
-  swCanvas.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
-  swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
-
-  resize((screenWidth+screenPaddingX*2)*screenScale, (screenHeight+screenPaddingY*2)*screenScale)
-
-  spriteSheet = spriteSheets[0].addr
-  spriteSheet[] = createRGBSurface(0, 128, 128, 8, 0, 0, 0, 0)
-  spriteSheet.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
-
-  font = setFont(basePath & "/assets/font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{:}~")
-  discard sdl2.setHint("SDL_HINT_RENDER_VSYNC", "1")
-  discard sdl2.setHint("SDL_RENDER_SCALE_QUALITY", "0")
-  sdl2.showCursor(false)
-  render.setRenderTarget(hwCanvas)
-
-  when not defined(emscripten):
-    if mixer.init(MIX_INIT_OGG) == -1:
-      echo getError()
-    if mixer.openAudio(44100, AUDIO_S16, MIX_DEFAULT_CHANNELS, 1024) == -1:
-      echo "Error initialising audio: " & $sdl2.getError()
-    else:
-      addQuitProc(proc() {.noconv.} =
-        echo "closing audio"
-        discard mixer.closeAudio
-      )
+  loadConfig()
 
 proc setInitFunc*(init: (proc())) =
   initFunc = init
@@ -1763,15 +2052,37 @@ proc setControllerAdded*(cadded: proc(controller: NicoController)) =
 proc setControllerRemoved*(cremoved: proc(controller: NicoController)) =
   controllerRemovedFunc = cremoved
 
+proc createRecordBuffer() =
+  recordFrame = newSeq[uint8](swCanvas.pitch*screenHeight)
+  if recordSeconds <= 0:
+    recordFrames = newRingBuffer[Frame](1)
+  else:
+    recordFrames = newRingBuffer[Frame](if fullSpeedGif: recordSeconds * frameRate.int else: recordSeconds * int(frameRate / 2))
+
+proc setFullSpeedGif*(enabled: bool) =
+  fullSpeedGif = enabled
+  createRecordBuffer()
+
+proc getFullSpeedGif*(): bool =
+  return fullSpeedGif
+
+proc setRecordSeconds*(seconds: int) =
+  recordSeconds = seconds
+  createRecordBuffer()
+
+proc getRecordSeconds*(): int =
+  return recordSeconds
+
 proc run*(init: (proc()), update: (proc(dt:float)), draw: (proc())) =
-  assert(init != nil)
   assert(update != nil)
   assert(draw != nil)
+
   initFunc = init
   updateFunc = update
   drawFunc = draw
 
-  initFunc()
+  if initFunc != nil:
+    initFunc()
 
   when defined(emscripten):
     emscripten_set_main_loop(step, cint(frameRate), cint(1))

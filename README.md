@@ -2,7 +2,7 @@
 
 NICO is a simple game framework for the [Nim](http://nim-lang.org/) programming language inspired by the [PICO-8](http://www.lexaloffle.com/) API and built on top of SDL2.
 
-What it does:
+## What it does:
  * 16 Color Bitmap Graphics (you can load a custom palette)
  * Fixed or flexible custom display resolution with pixel scaling
  * Sprite drawing, load png spritesheets (can load multiple and switch between them)
@@ -37,6 +37,7 @@ What it does:
  * Replace SDL2_mixer with a built in mixer with support for crossfading
  * Built-in chip synthesiser / integrate [NimSynth](https://github.com/ftsf/nimsynth)
  * Editing tools
+ * Utility modules for common higher level tasks
  
 ## Games made using NICO:
  * [Vektor 2089](https://impbox.itch.io/vektor2089)

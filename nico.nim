@@ -80,6 +80,8 @@ converter toPint*(x: int): Pint {.inline.} =
 
 ## GLOBALS
 ##
+
+var focused = true
 var recordSeconds = 30
 var fullSpeedGif = true
 
@@ -1535,10 +1537,13 @@ proc appHandleEvent(evt: Event) =
   elif evt.kind == WindowEvent:
     if evt.window.event == WindowEvent_Resized or evt.window.event == WindowEvent_Size_Changed:
       resize(evt.window.data1, evt.window.data2)
-
-    render.setRenderTarget(nil)
-    render.setDrawColor(0,0,0,255)
-    render.clear()
+      render.setRenderTarget(nil)
+      render.setDrawColor(0,0,0,255)
+      render.clear()
+    elif evt.window.event == WindowEvent_FocusLost:
+      focused = false
+    elif evt.window.event == WindowEvent_FocusGained:
+      focused = true
 
   elif evt.kind == KeyDown or evt.kind == KeyUp:
     let sym = evt.key.keysym.sym
@@ -1676,7 +1681,7 @@ proc step() {.cdecl.} =
     mouseButtonPState = 0
     mouseWheelState = 0
     acc -= timeStep
-    sdl2.delay(0)
+    sdl2.delay(if focused: 0 else: 10)
 
 proc setWindowTitle*(title: string) =
   window.setTitle(title)

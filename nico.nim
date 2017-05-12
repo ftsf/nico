@@ -2107,3 +2107,23 @@ proc run*(init: (proc()), update: (proc(dt:float)), draw: (proc())) =
   when not defined(emscripten):
     mixer.closeAudio()
   sdl2.quit()
+
+when defined(android):
+  {.emit: """
+  #include <SDL_main.h>
+
+  extern int cmdCount;
+  extern char** cmdLine;
+  extern char** gEnv;
+
+  N_CDECL(void, NimMain)(void);
+
+  int main(int argc, char** args) {
+      cmdLine = args;
+      cmdCount = argc;
+      gEnv = NULL;
+      NimMain();
+      return nim_program_result;
+  }
+
+  """.}

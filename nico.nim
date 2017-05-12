@@ -1578,6 +1578,10 @@ proc appHandleEvent(evt: Event) =
               discard mixer.volume(i, 255)
             discard mixer.volumeMusic(255)
 
+    elif sym == K_F8 and down:
+      # restart recording from here
+      createRecordBuffer()
+
     elif sym == K_F9 and down:
       saveRecording()
 
@@ -2055,6 +2059,9 @@ proc setControllerRemoved*(cremoved: proc(controller: NicoController)) =
   controllerRemovedFunc = cremoved
 
 proc createRecordBuffer() =
+  if window == nil:
+    # this can happen later
+    return
   recordFrame = newSeq[uint8](swCanvas.pitch*screenHeight)
   if recordSeconds <= 0:
     recordFrames = newRingBuffer[Frame](1)

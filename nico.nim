@@ -48,7 +48,8 @@ type
   ColorId* = range[0..15]
   Font = object
     rects: array[256, Rect]
-    surface: SurfacePtr
+    pixels: seq[uint8]
+    width,height: int
   FontId* = range[0..3]
   MusicId* = range[-1..63]
   SfxId* = range[-1..63]
@@ -978,12 +979,10 @@ proc arc*(cx,cy,r: Pint, startAngle, endAngle: float) =
       err += 1 - 2*x
 
 
-proc fontBlit(src, dst: SurfacePtr, srcRect, dstRect: Rect, color: ColorId) =
-  let sPitch = src.pitch
+proc fontBlit(font: ptr Font, dst: SurfacePtr, srcRect, dstRect: Rect, color: ColorId) =
   let dPitch = dst.pitch
   var dx = dstRect.x.float
   var dy = dstRect.y.float
-  var srcPixels = src.getPixels()
   var dstPixels = dst.getPixels()
   var sx = srcRect.x.float
   var sy = srcRect.y.float
@@ -995,12 +994,11 @@ proc fontBlit(src, dst: SurfacePtr, srcRect, dstRect: Rect, color: ColorId) =
     dx = dstRect.x.float
     sx = srcRect.x.float
     for x in 0..dstRect.w-1:
-      if sx < 0 or sy < 0 or sx > src.w or sy > src.h:
+      if sx < 0 or sy < 0 or sx > font.width or sy > font.height:
         continue
       if dx < clipMinX or dy < clipMinY or dx > min(dst.w,clipMaxX) or dy > min(dst.h,clipMaxY):
         continue
-      let srcCol = srcPixels[sy * sPitch + sx]
-      if srcCol != 0:
+      if font.pixels[sy * font.width + sx] == 1:
         dstPixels[dy * dPitch + dx] = currentColor
       sx += 1.0 * (sw/dw)
       dx += 1.0
@@ -1233,30 +1231,38 @@ proc loadFont*(filename: string, chars: string) =
   var raw_pixels = load(filename.cstring(), addr(w), addr(h), addr(components), RgbAlpha)
   if raw_pixels == nil:
     echo "error loading font: ", filename
-    quit(1)
+    raise newException(IOError, "error loading font")
   var pixels = cast[ptr array[uint32.high, uint8]](raw_pixels)
 
-  # load pixels into a texture
-  var surface = createRGBSurfaceFrom(pixels, w, h, 32, w*4, 0xff000000'u32, 0x00ff0000'u32, 0x0000ff00'u32, 0x000000ff'u32)
-  font[].surface = convertSurface(surface, swCanvas.format, 0)
-  if font[].surface == nil:
-    echo getError()
-    quit(1)
+  font[].pixels = newSeq[uint8](w*h)
+  font[].width = w
+  font[].height = h
+  for i in 0..<w*h:
+    let r = pixels[i*4]
+    let g = pixels[i*4+1]
+    let b = pixels[i*4+2]
+    let a = pixels[i*4+3]
+    if a == 0:
+      font.pixels[i] = 0
+    elif r > 0.uint8:
+      font.pixels[i] = 2
+    else:
+      font.pixels[i] = 1
+    echo i, ": ", font.pixels[i]
 
   var newChar = false
-  let blankColor: Color = (pixels[0],pixels[1],pixels[2],pixels[3])
+  let blankColor = font.pixels[0]
   var currentRect: Rect = (cint(0),cint(0),cint(0),cint(0))
   var i = 0
-  let stride = w*4
   for x in 0..w-1:
-    let color: Color = (pixels[x*4],pixels[x*4+1],pixels[x*4+2],pixels[x*4+3])
+    let color = font.pixels[x]
     if color == blankColor:
       currentRect.w = x - currentRect.x
       if currentRect.w != 0:
         # go down until we find blank or h
         currentRect.h = h-1
         for y in 0..h-1:
-          let color: Color = (pixels[y*stride+x*4],pixels[y*stride+x*4+1],pixels[y*stride+x*4+2],pixels[y*stride+x*4+3])
+          let color = font.pixels[y*w+x]
           if color == blankColor:
             currentRect.h = y-2
         font[].rects[cast[uint](chars[i])] = currentRect
@@ -1267,7 +1273,7 @@ proc loadFont*(filename: string, chars: string) =
 proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint =
   var src: Rect = font[].rects[cast[uint8](c)]
   var dst = sdl2.rect(x,y, src.w * scale, src.h * scale)
-  fontBlit(font[].surface, swCanvas, src, dst, currentColor)
+  fontBlit(font, swCanvas, src, dst, currentColor)
   return src.w * scale + scale
 
 proc print*(text: string, x,y: Pint, scale: Pint = 1) =
@@ -1851,8 +1857,11 @@ proc loadConfig*() =
     config = loadConfig(writePath & "/config.ini")
     echo "loaded config from " & writePath & "/config.ini"
   except IOError:
-    config = loadConfig(basePath & "/config.ini")
-    echo "loaded config from " & basePath & "/config.ini"
+    try:
+      config = loadConfig(basePath & "/config.ini")
+      echo "loaded config from " & basePath & "/config.ini"
+    except IOError:
+      echo "no config file loaded"
 
 proc saveConfig*() =
   # TODO write config file in user config directioy
@@ -1971,8 +1980,6 @@ proc createWindow*(title: string, w,h: Pint, scale: Pint = 2, fullscreen: bool =
   spriteSheet[] = createRGBSurface(0, 128, 128, 8, 0, 0, 0, 0)
   spriteSheet.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
 
-  setFont(0)
-  loadFont(basePath & "/assets/font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{:}~")
   discard sdl2.setHint("SDL_HINT_RENDER_VSYNC", "1")
   discard sdl2.setHint("SDL_RENDER_SCALE_QUALITY", "0")
   sdl2.showCursor(false)
@@ -2001,6 +2008,11 @@ proc init*(org: string, app: string) =
     echo getError()
     quit(1)
 
+  addQuitProc(proc() {.noconv.} =
+    echo "sdl2 quit"
+    sdl2.quit()
+  )
+
   loadPalettePico8()
 
   basePath = $sdl2.getBasePath()
@@ -2009,10 +2021,11 @@ proc init*(org: string, app: string) =
   writePath = $sdl2.getPrefPath(org,app)
   echo "writePath: ", writePath
 
-  addQuitProc(proc() {.noconv.} =
-    echo "sdl2 quit"
-    sdl2.quit()
-  )
+  setFont(0)
+  try:
+    loadFont(basePath & "/assets/font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{:}~")
+  except IOError:
+    echo "no font loaded"
 
   controllers = newSeq[NicoController]()
 

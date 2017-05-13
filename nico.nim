@@ -1248,7 +1248,6 @@ proc loadFont*(filename: string, chars: string) =
       font.pixels[i] = 2
     else:
       font.pixels[i] = 1
-    echo i, ": ", font.pixels[i]
 
   var newChar = false
   let blankColor = font.pixels[0]

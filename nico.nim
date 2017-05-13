@@ -1304,13 +1304,15 @@ proc copy*(sx,sy,dx,dy,w,h: Pint) =
 
 proc copyPixelsToMem*(sx,sy,n: Pint, buffer: pointer) =
   var pixels = swCanvas.getPixels()
-  copyMem(buffer, pixels[sy*swCanvas.pitch+sx].addr, min(n, (swCanvas.pitch * (swCanvas.h-sy)) - sx))
+  let offset = max(0,sy*swCanvas.pitch+sx)
+  let endOffset = min(swCanvas.pitch * swCanvas.h, offset + n)
+  copyMem(buffer, pixels[offset].addr, max(0,min(endOffset-offset,n)))
 
 proc copyMemToScreen*(dx,dy,n: Pint, buffer: pointer) =
   var pixels = swCanvas.getPixels()
   let offset = max(0,dy*swCanvas.pitch+dx)
-  let start = pixels[offset].addr
-  copyMem(start, buffer, min(n, max(0,(swCanvas.pitch * swCanvas.h) - offset)))
+  let endOffset = min(swCanvas.pitch * swCanvas.h, offset + n)
+  copyMem(pixels[offset].addr, buffer, max(0,min(endOffset-offset,n)))
 
 
 proc mouse*(): (Pint,Pint) =

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>SmallTrek - a game by Impbox</title>
+		<meta content='width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;' name='viewport' />
+		<meta name="viewport" content="width=device-width" />
+		<style>
+			body {
+				overflow-x:hidden;
+				position: relative;
+				background: #050510;
+				width: 512px;
+				margin: 1em auto;
+				font-family: sans-serif;
+				color: #aaa;
+				text-align: center;
+			}
+			a:link, a:visited {
+				color: #fff;
+			}
+			canvas {
+				image-rendering: -moz-crisp-edges;
+				image-rendering: -webkit-crisp-edges;
+				image-rendering: pixelated;
+			}
+			div {
+				padding: 4px;
+			}
+			div#controls > button {
+				padding: 10px;
+				width: 80px;
+				height: 80px;
+				font-size: 200%;
+			}
+			button {
+				border: 2px solid #ccc;
+				background: #000;
+				color: #ccc;
+			}
+			button:active {
+				border: 4px solid #fff;
+				color: #fff;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="nicogame"></div>
+		<div id="controls">
+			<div id="dpad"></div>
+			<button onclick="setBtn(4,true); setTimeout(function() { setBtn(4,false); }, 300);" onmousedown="setBtn(4,true); return false;" onmouseup="setBtn(4,false); return false;">Z</button>
+			<button onclick="setBtn(6,true); setTimeout(function() { setBtn(6,false); }, 300);" onmousedown="setBtn(6,true); return false;" onmouseup="setBtn(6,false); return false;">X</button>
+			<button onclick="setBtn(7,true); setTimeout(function() { setBtn(7,false); }, 300);" onmousedown="setBtn(7,true); return false;" onmouseup="setBtn(7,false); return false;">C</button>
+		</div>
+		<div><a href="https://impbox.itch.io/smalltrek/" target="_blank">SmallTrek</a> by <a href="https://impbox.itch.io/" target="_blank">Impbox</a></div>
+		<div>A game made in 48 hours for <a href="https://ldjam.com/events/ludum-dare/38/">Ludum Dare 38</a></div>
+		<div><a href="https://ldjam.com/events/ludum-dare/38/smalltrek" target="_blank">LD Judging Page</a>
+		<div>Developed using <a href="http://nim-lang.org/">Nim</a> and <a href="https://github.com/ftsf/nico/">Nico</a>
+		<div id="options">
+			<button onclick="mute()">mute</button>
+			<button onclick="clearSaveData()">clear save data</button>
+		</div>
+		<script type="text/javascript" src="nicojs.js"></script>
+	</body>
+</html>

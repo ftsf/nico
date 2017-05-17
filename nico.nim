@@ -1603,7 +1603,7 @@ proc appHandleEvent(evt: Event) =
 
     elif sym == K_F11 and down:
       when system.hostOS == "windows":
-        discard startProcess("start", writePath, [writePath], nil, {poUsePath})
+        discard startProcess("explorer", writePath, [writePath], nil, {poUsePath})
       elif system.hostOS == "macosx":
         discard startProcess("open", writePath, [writePath], nil, {poUsePath})
       elif system.hostOS == "linux":

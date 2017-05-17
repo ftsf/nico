@@ -722,38 +722,52 @@ proc lerp[T](a, b: T, t: float): T =
   return a + (b - a) * t
 
 {.push checks: off, optimization: speed.}
-proc bresenham(x0,y0,x1,y1: Pint): LineIterator =
-  iterator p1(): (Pint,Pint) =
-    var x = x0
-    var y = y0
-    var dx: Pint = abs(x1-x0)
-    var sx: Pint = if x0 < x1: 1 else: -1
-    var dy: Pint = abs(y1-y0)
-    var sy: Pint = if y0 < y1: 1 else: -1
-    var err: float = (if dx>dy: dx else: -dy).float/2.0
-    var e2: float = 0
+type Bresenham = object
+  x,y: int
+  x1,y1: int
+  dx,sx: int
+  dy,sy: int
+  err: float
+  e2: float
+  finished: bool
 
-    while true:
-      if x == x1 and y == y1:
-        yield (x,y)
-        break
-      e2 = err
-      if e2 > -dx:
-        err -= dy.float
-        x += sx
-      if e2 < dy:
-        err += dx.float
-        y += sy
-        yield (x,y)
-  return p1
+proc initBresenham(x0,y0,x1,y1: int): Bresenham =
+  result.x = x0
+  result.y = y0
+  result.x1 = x1
+  result.y1 = y1
+  result.dx = abs(x1-x0)
+  result.sx = if x0 < x1: 1 else: -1
+  result.dy = abs(y1-y0)
+  result.sy = if y0 < y1: 1 else: -1
+  result.err = (if result.dx > result.dy: result.dx else: -result.dy).float / 2.0
+  result.e2 = 0.0
+  result.finished = false
+
+{.this:self.}
+proc step(self: var Bresenham): (int,int) =
+  if finished:
+    return (x,y)
+  while true:
+    if x == x1 and y == y1:
+      finished = true
+      return (x,y)
+    e2 = err
+    if e2 > -dx:
+      err -= dy.float
+      x += sx
+    if e2 < dy:
+      err += dx.float
+      y += sy
+      return (x,y)
 
 proc trifill*(x1,y1,x2,y2,x3,y3: Pint) =
-  var x1 = x1
-  var x2 = x2
-  var x3 = x3
-  var y1 = y1
-  var y2 = y2
-  var y3 = y3
+  var x1 = x1 - cameraX
+  var x2 = x2 - cameraX
+  var x3 = x3 - cameraX
+  var y1 = y1 - cameraY
+  var y2 = y2 - cameraY
+  var y3 = y3 - cameraY
 
   if y2<y1:
     if y3<y2:
@@ -769,129 +783,58 @@ proc trifill*(x1,y1,x2,y2,x3,y3: Pint) =
   if y2>y3:
     swap(y3,y2)
     swap(x3,x2)
+
+  let minx = min(x1,x2,x3)
+  let maxx = max(x1,x2,x3)
+
+  if maxx < clipMinX or minx > clipMaxX or y3 < clipMinY or y1 > clipMaxY:
+    # if the tri is on screen skip it
+    return
 
   var sx = x1
   var ex = x1
   var sy = y1
   var ey = y1
 
-  var ac = bresenham(x1,y1,x3,y3)
-  var ab = bresenham(x1,y1,x2,y2)
-  var bc = bresenham(x2,y2,x3,y3)
+  # create the three lines of the triangle AC, AB, BC
+  # A is the highest point
+  # C is the lowest point
+  var ab = initBresenham(x1,y1, x2,y2)
+  var ac = initBresenham(x1,y1, x3,y3)
+  var bc = initBresenham(x2,y2, x3,y3)
+
+  let c = paletteMapDraw[currentColor]
+
+  if sx >= clipMinX and sx <= clipMaxX and sy >= clipMinY and sy <= clipMaxY:
+    psetRaw(sx,sy, c)
+
   if y1 != y2:
     # draw flat bottom tri
     while true:
-      (sx,sy) = ab()
-      (ex,ey) = ac()
-      hline(sx,sy,ex)
-      if sy == y2:
-        #discard bc()
+      (sx,sy) = ab.step()
+      (ex,ey) = ac.step()
+      let ax = min(sx,ex)
+      let bx = max(sx,ex)
+      if not(ax > clipMaxX or bx < clipMinX or sy < clipMinY or sy > clipMaxY):
+        hlineFast(clamp(ax,clipMinX,clipMaxX),sy,clamp(bx,clipMinX,clipMaxX), c)
+      if sy == y2 or sy >= clipMaxY:
         break
 
-  hline(sx,sy,x2)
+  if sy >= clipMinY and sy <= clipMaxY:
+    hlineFast(clamp(sx,clipMinX,clipMaxX),sy,clamp(x2,clipMinX,clipMaxX), c)
 
   if y2 != y3:
     # draw flat top tri
     while true:
-      (sx,sy) = ac()
-      (ex,ey) = bc()
-      hline(sx,sy,ex)
-      if sy == y3:
+      (sx,sy) = ac.step()
+      (ex,ey) = bc.step()
+      let ax = min(sx,ex)
+      let bx = max(sx,ex)
+      if not (ax > clipMaxX or bx < clipMinX or sy < clipMinY or sy > clipMaxY):
+        hlineFast(clamp(ax,clipMinX,clipMaxX),sy,clamp(bx,clipMinX,clipMaxX), c)
+      if sy == y3 or sy >= clipMaxY:
         break
 {.pop.}
-
-
-proc trifill2*(x1,y1,x2,y2,x3,y3: Pint) =
-  var x1 = x1
-  var x2 = x2
-  var x3 = x3
-  var y1 = y1
-  var y2 = y2
-  var y3 = y3
-
-  if y2<y1:
-    if y3<y2:
-      swap(y1,y3)
-      swap(x1,x3)
-    else:
-      swap(y1,y2)
-      swap(x1,x2)
-  else:
-    if y3<y1:
-      swap(y1,y3)
-      swap(x1,x3)
-  if y2>y3:
-    swap(y3,y2)
-    swap(x3,x2)
-
-  assert(y1<=y2)
-  assert(y2<=y3)
-  assert(y1<=y3)
-
-
-  proc initEdge(px,py,qx,qy: int): Edge =
-    var x: int
-    var dx, dy: int
-
-    var e: Edge
-
-    dx = qx - px
-    dy = qy - py
-
-    e.life = dy
-    dy += dy
-    e.dy = dy
-
-    if dy == 0:
-      return e
-
-    x = px * e.dy + dx
-
-    e.xint = int(x / dy)
-    e.xfrac = int(x mod dy)
-
-    if e.xfrac < 0:
-      e.xint -= 1
-      e.xfrac += dy
-
-    dx += dx
-    e.dxint = int(dx / dy)
-    e.dxfrac = int(dx mod dy)
-
-    if e.dxfrac < 0:
-      e.dxint -= 1
-      e.dxfrac += dy
-    return e
-
-  proc advanceEdge(e: var Edge) =
-    e.xint += e.dxint
-    e.xfrac += e.dxfrac
-    if e.xfrac >= e.dy:
-      e.xfrac -= e.dy
-      e.xint += 1
-    e.life -= 1
-
-
-  var longEdge  = initEdge(x1,y1,x3,y3)
-  var shortEdge = initEdge(x1,y1,x2,y2)
-  var line = y1
-
-  while shortEdge.life > 0:
-    hline(longEdge.xint, line, shortEdge.xint)
-    line += 1
-    advanceEdge(longEdge)
-    advanceEdge(shortEdge)
-
-  shortEdge = initEdge(x2,y2,x3,y3)
-  while longEdge.life > 0:
-    hline(longEdge.xint, line, shortEdge.xint)
-    line += 1
-    advanceEdge(longEdge)
-    advanceEdge(shortEdge)
-
-  line(x1,y1,x2,y2)
-  line(x2,y2,x3,y3)
-  line(x3,y3,x1,y1)
 
 proc plot4pointsfill(cx,cy,x,y: Pint) =
   hline(cx - x, cy + y, cx + x)

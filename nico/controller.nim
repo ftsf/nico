@@ -51,16 +51,17 @@ proc newNicoController*(sdlControllerId: cint): NicoController =
 
 proc update*(self: NicoController) =
   for i in 0..self.buttons.high:
-    if i == pcL2:
-      if self.axes[pcLTrigger].current > 0.5:
-        self.buttons[i] += 1
-      else:
-        self.buttons[i] = 0
-    elif i == pcR2:
-      if self.axes[pcRTrigger].current > 0.5:
-        self.buttons[i] += 1
-      else:
-        self.buttons[i] = 0
+    if self.kind == Gamepad:
+      if i == pcL2:
+        if self.axes[pcLTrigger].current > 0.5:
+          self.buttons[i] += 1
+        else:
+          self.buttons[i] = 0
+      elif i == pcR2:
+        if self.axes[pcRTrigger].current > 0.5:
+          self.buttons[i] += 1
+        else:
+          self.buttons[i] = 0
 
     if self.buttons[i] >= 1:
       self.buttons[i] += 1

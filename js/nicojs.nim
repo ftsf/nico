@@ -756,20 +756,24 @@ proc mute*() {.exportc:"mute".} =
     sfxGain.gain.value = 1.0
 
 proc sfx*(sfx: SfxId, channel: int = -1) =
-  var source = audioContext.createBufferSource()
-  source.buffer = sfxData[sfx]
-  source.connect(sfxGain)
-  source.start()
+  if sfxData[sfx] != nil:
+    var source = audioContext.createBufferSource()
+    source.buffer = sfxData[sfx]
+    source.connect(sfxGain)
+    source.start()
 
 proc music*(music: MusicId) =
   if currentMusic != nil:
     currentMusic.stop()
-  var source = audioContext.createBufferSource()
-  source.buffer = musicData[music]
-  source.loop = true
-  source.connect(musicGain)
-  source.start()
-  currentMusic = source
+    currentMusic = nil
+
+  if musicData[music] != nil:
+    var source = audioContext.createBufferSource()
+    source.buffer = musicData[music]
+    source.loop = true
+    source.connect(musicGain)
+    source.start()
+    currentMusic = source
 
 proc fadeMusicOut*(ms: int) =
   discard

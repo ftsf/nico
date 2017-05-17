@@ -1892,51 +1892,63 @@ when not defined(emscripten):
   var sfxLibrary: array[64,ptr Chunk]
 
   proc loadMusic*(musicId: MusicId, filename: string) =
-    var music = mixer.loadMUS(basePath & "/assets/" & filename)
-    if music != nil:
-      musicLibrary[musicId] = music
-      echo "loaded music[" & $musicId & ": " & $filename
-    else:
-      echo "Warning: error loading ", filename
+    if mixerChannels > 0:
+      var music = mixer.loadMUS(basePath & "/assets/" & filename)
+      if music != nil:
+        musicLibrary[musicId] = music
+        echo "loaded music[" & $musicId & ": " & $filename
+      else:
+        echo "Warning: error loading ", filename
 
 
   proc music*(musicId: MusicId) =
-    var music = musicLibrary[musicId]
-    if music != nil:
-      currentMusicId = musicId
-      discard mixer.playMusic(music, -1)
+    if mixerChannels > 0:
+      var music = musicLibrary[musicId]
+      if music != nil:
+        currentMusicId = musicId
+        discard mixer.playMusic(music, -1)
 
   proc getMusic*(): MusicId =
-    return currentMusicId
+    if mixerChannels > 0:
+      return currentMusicId
+    return 0
 
   proc loadSfx*(sfxId: SfxId, filename: string) =
-    var sfx = mixer.loadWAV(basePath & "/assets/" & filename)
-    if sfx != nil:
-      sfxLibrary[sfxId] = sfx
-    else:
-      echo "Warning: error loading ", filename
+    if mixerChannels > 0:
+      var sfx = mixer.loadWAV(basePath & "/assets/" & filename)
+      if sfx != nil:
+        sfxLibrary[sfxId] = sfx
+      else:
+        echo "Warning: error loading ", filename
 
   proc sfx*(sfxId: SfxId, channel: range[-1..15] = -1, loop = 0) =
-    if sfxId == -1:
-      discard haltChannel(channel)
-    else:
-      var sfx = sfxLibrary[sfxId]
-      if sfx != nil:
-        discard playChannel(channel, sfx, loop)
+    if mixerChannels > 0:
+      if sfxId == -1:
+        discard haltChannel(channel)
       else:
-        echo "Warning: playing invalid sfx: " & $sfxId
+        var sfx = sfxLibrary[sfxId]
+        if sfx != nil:
+          discard playChannel(channel, sfx, loop)
+        else:
+          echo "Warning: playing invalid sfx: " & $sfxId
 
   proc musicVol*(value: int) =
-    discard mixer.volumeMusic(value)
+    if mixerChannels > 0:
+      discard mixer.volumeMusic(value)
 
   proc musicVol*(): int =
-    return mixer.volumeMusic(-1)
+    if mixerChannels > 0:
+      return mixer.volumeMusic(-1)
+    return 0
 
   proc sfxVol*(value: int) =
-    discard mixer.volume(-1, value)
+    if mixerChannels > 0:
+      discard mixer.volume(-1, value)
 
   proc sfxVol*(): int =
-    return mixer.volume(-1, -1)
+    if mixerChannels > 0:
+      return mixer.volume(-1, -1)
+    return 0
 
 else:
   proc loadMusic*(musicId: MusicId, filename: string) =

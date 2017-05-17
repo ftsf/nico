@@ -1359,21 +1359,24 @@ proc resize() =
 proc setTargetSize*(w,h: int) =
   targetScreenWidth = w
   targetScreenHeight = h
-  resize()
+  if window != nil:
+    resize()
 
 proc fixedSize*(): bool =
   return fixedScreenSize
 
 proc fixedSize*(enabled: bool) =
   fixedScreenSize = enabled
-  resize()
+  if window != nil:
+    resize()
 
 proc integerScale*(): bool =
   return integerScreenScale
 
 proc integerScale*(enabled: bool) =
   integerScreenScale = enabled
-  resize()
+  if window != nil:
+    resize()
 
 
 proc setScreenSize*(w,h: int) =
@@ -1486,11 +1489,14 @@ proc appHandleEvent(evt: Event) =
         break
 
   elif evt.kind == WindowEvent:
-    if evt.window.event == WindowEvent_Resized or evt.window.event == WindowEvent_Size_Changed:
+    if evt.window.event == WindowEvent_Resized:
+      echo "resize event"
       resize(evt.window.data1, evt.window.data2)
       render.setRenderTarget(nil)
       render.setDrawColor(0,0,0,255)
       render.clear()
+    elif evt.window.event == WindowEvent_Size_Changed:
+      echo "size changed event"
     elif evt.window.event == WindowEvent_FocusLost:
       focused = false
     elif evt.window.event == WindowEvent_FocusGained:

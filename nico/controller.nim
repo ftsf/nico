@@ -8,32 +8,38 @@ type NicoControllerKind* = enum
 type NicoAxis* = enum
   pcXAxis
   pcYAxis
+  pcXAxis2
+  pcYAxis2
   pcLTrigger
   pcRTrigger
 
 type NicoButton* = enum
-  pcUp
-  pcDown
-  pcLeft
-  pcRight
-  pcA
-  pcB
-  pcX
-  pcY
-  pcL1
-  pcL2
-  pcR1
-  pcR2
-  pcStart
-  pcBack
+  pcUp = "Up"
+  pcDown = "Down"
+  pcLeft = "Left"
+  pcRight = "Right"
+  pcA = "A"
+  pcB = "B"
+  pcX = "X"
+  pcY = "Y"
+  pcL1 = "L1"
+  pcL2 = "L2"
+  pcR1 = "R1"
+  pcR2 = "R2"
+  pcStart = "Start"
+  pcBack = "Back"
 
 type NicoController* = ref object of RootObj
   kind*: NicoControllerKind
   name*: string
   sdlController*: GameControllerPtr # nil for keyboard
   sdlControllerId*: int # -1 for keyboard
-  axes*: array[NicoAxis.low..NicoAxis.high, tuple[current, previous: float]]
-  buttons*: array[NicoButton.low..NicoButton.high, int]
+  axes*: array[NicoAxis, tuple[current, previous: float]]
+  buttons*: array[NicoButton, int]
+  deadzone*: float
+  invertX*: bool
+  invertY*: bool
+  useRightStick*: bool
 
 proc newNicoController*(sdlControllerId: cint): NicoController =
   result = new(NicoController)
@@ -44,6 +50,7 @@ proc newNicoController*(sdlControllerId: cint): NicoController =
       raise newException(Exception, "error opening game controller: " & $sdlControllerId)
     result.kind = Gamepad
     result.name = $result.sdlController.name
+    result.deadzone = 0.25
   else:
     result.kind = Keyboard
     result.name = "KEYBOARD"
@@ -53,12 +60,12 @@ proc update*(self: NicoController) =
   for i in 0..self.buttons.high:
     if self.kind == Gamepad:
       if i == pcL2:
-        if self.axes[pcLTrigger].current > 0.5:
+        if self.axes[pcLTrigger].current > self.deadzone:
           self.buttons[i] += 1
         else:
           self.buttons[i] = 0
       elif i == pcR2:
-        if self.axes[pcRTrigger].current > 0.5:
+        if self.axes[pcRTrigger].current > self.deadzone:
           self.buttons[i] += 1
         else:
           self.buttons[i] = 0
@@ -88,15 +95,18 @@ proc setButtonState*(self: NicoController, button: NicoButton, down: bool) =
 proc setAxisValue*(self: NicoController, axis: NicoAxis, value: float) =
   if axis > NicoAxis.high:
     return
-  self.axes[axis].current = value
+  if (axis == pcXAxis and self.invertX) or (axis == pcYAxis and self.invertY):
+    self.axes[axis].current = -value
+  else:
+    self.axes[axis].current = value
 
 proc axis*(self: NicoController, axis: NicoAxis): float =
   return self.axes[axis].current
 
 proc axisp*(self: NicoController, axis: NicoAxis, value: float): bool =
   if value == -1.0:
-    return self.axes[axis].current < -0.5 and not (self.axes[axis].previous < -0.5)
+    return self.axes[axis].current < -0.5 and not (self.axes[axis].previous < -self.deadzone)
   if value == 1.0:
-    return self.axes[axis].current > 0.5 and not (self.axes[axis].previous > 0.5)
+    return self.axes[axis].current > 0.5 and not (self.axes[axis].previous > self.deadzone)
   if value == 0.0:
-    return abs(self.axes[axis].current) < 0.5 and not (abs(self.axes[axis].previous) < 0.5)
+    return abs(self.axes[axis].current) < 0.5 and not (abs(self.axes[axis].previous) < self.deadzone)

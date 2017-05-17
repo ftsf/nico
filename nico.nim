@@ -86,6 +86,26 @@ converter toPint*(x: int): Pint {.inline.} =
 ## GLOBALS
 ##
 
+# map of scancodes to NicoButton
+var keymap: array[NicoButton, seq[Scancode]]
+
+keymap = [
+  @[SDL_SCANCODE_UP,    SDL_SCANCODE_W], # up
+  @[SDL_SCANCODE_DOWN,  SDL_SCANCODE_S], # up
+  @[SDL_SCANCODE_LEFT,  SDL_SCANCODE_A], # left
+  @[SDL_SCANCODE_RIGHT, SDL_SCANCODE_D], # right
+  @[SDL_SCANCODE_Z], # A
+  @[SDL_SCANCODE_X], # B
+  @[SDL_SCANCODE_LSHIFT, SDL_SCANCODE_RSHIFT], # X
+  @[SDL_SCANCODE_C], # Y
+  @[SDL_SCANCODE_F], # L1
+  @[SDL_SCANCODE_V], # R1
+  @[SDL_SCANCODE_G], # L2
+  @[SDL_SCANCODE_B], # R2
+  @[SDL_SCANCODE_RETURN], # Start
+  @[SDL_SCANCODE_ESCAPE, SDL_SCANCODE_BACKSPACE], # Back
+]
+
 var focused = true
 var recordSeconds = 30
 var fullSpeedGif = true
@@ -231,6 +251,11 @@ proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers] = 0): float
 proc mouse*(): (Pint,Pint)
 proc mousebtn*(filter: range[0..2]): bool
 proc mousebtnp*(filter: range[0..2]): bool
+
+# Control Editing
+proc clearKeysForBtn*(btn: NicoButton)
+proc addKeyForBtn*(btn: NicoButton, scancode: Scancode)
+proc getKeyNamesForBtn*(btn: NicoButton): seq[string]
 
 ## Drawing API
 
@@ -1278,6 +1303,45 @@ proc mousebtnp*(filter: range[0..2]): bool =
 proc mousebtnp*(): int =
   return mouseButtonPState
 
+proc clearKeysForBtn*(btn: NicoButton) =
+  keymap[btn] = @[]
+
+proc addKeyForBtn*(btn: NicoButton, scancode: Scancode) =
+  if not (scancode in keymap[btn]):
+    keymap[btn].add(scancode)
+
+proc getKeyNamesForBtn*(btn: NicoButton): seq[string] =
+  result = newSeq[string]()
+  for scancode in keymap[btn]:
+    result.add($(getKeyFromScancode(scancode).getKeyName()))
+
+proc getKeyMap*(): string =
+  result = ""
+  for btn,scancodes in keymap:
+    result.add($btn & ":")
+    for i,scancode in scancodes:
+      result.add(getKeyFromScancode(scancode).getKeyName())
+      if i < scancodes.high:
+        result.add(",")
+    if btn != NicoButton.high:
+      result.add(";")
+
+proc setKeyMap*(mapstr: string) =
+  for btnkeysstr in mapstr.split(";"):
+    var b = btnkeysstr.split(":",1)
+    var btnstr = b[0]
+    var keysstr = b[1]
+    var btn: NicoButton
+    try:
+      btn = parseEnum[NicoButton](btnstr)
+    except ValueError:
+      echo "invalid button name: ", btnstr
+      return
+    keymap[btn] = @[]
+    for keystr in keysstr.split(","):
+      let scancode = getKeyFromName(keystr).getScancodeFromKey()
+      keymap[btn].add(scancode)
+
 proc shutdown*() =
   keepRunning = false
 
@@ -1480,6 +1544,10 @@ proc appHandleEvent(evt: Event) =
           controller.setAxisValue(pcXAxis, value)
         of SDL_CONTROLLER_AXIS_LEFTY:
           controller.setAxisValue(pcYAxis, value)
+        of SDL_CONTROLLER_AXIS_RIGHTX:
+          controller.setAxisValue(pcXAxis2, value)
+        of SDL_CONTROLLER_AXIS_RIGHTY:
+          controller.setAxisValue(pcYAxis2, value)
         of SDL_CONTROLLER_AXIS_TRIGGERLEFT:
           controller.setAxisValue(pcLTrigger, value)
         of SDL_CONTROLLER_AXIS_TRIGGERRIGHT:
@@ -1559,38 +1627,10 @@ proc appHandleEvent(evt: Event) =
         discard startProcess("xdg-open", writePath, [writePath], nil, {poUsePath})
 
     if not evt.key.repeat:
-      case scancode:
-      of SDL_SCANCODE_UP:
-        controllers[0].setButtonState(pcUp, down)
-      of SDL_SCANCODE_DOWN:
-        controllers[0].setButtonState(pcDown, down)
-      of SDL_SCANCODE_LEFT:
-        controllers[0].setButtonState(pcLeft, down)
-      of SDL_SCANCODE_RIGHT:
-        controllers[0].setButtonState(pcRight, down)
-
-      of SDL_SCANCODE_Z:
-        controllers[0].setButtonState(pcA, down)
-      of SDL_SCANCODE_X:
-        controllers[0].setButtonState(pcB, down)
-      of SDL_SCANCODE_LSHIFT, SDL_SCANCODE_RSHIFT:
-        controllers[0].setButtonState(pcX, down)
-      of SDL_SCANCODE_C:
-        controllers[0].setButtonState(pcY, down)
-      of SDL_SCANCODE_RETURN:
-        controllers[0].setButtonState(pcStart, down)
-      of SDL_SCANCODE_BACKSPACE, SDL_SCANCODE_DELETE, SDL_SCANCODE_ESCAPE:
-        controllers[0].setButtonState(pcBack, down)
-      of SDL_SCANCODE_F:
-        controllers[0].setButtonState(pcL1, down)
-      of SDL_SCANCODE_V:
-        controllers[0].setButtonState(pcR1, down)
-      of SDL_SCANCODE_G:
-        controllers[0].setButtonState(pcL2, down)
-      of SDL_SCANCODE_B:
-        controllers[0].setButtonState(pcR2, down)
-      else:
-        discard
+      for btn,btnScancodes in keymap:
+        for btnScancode in btnScancodes:
+          if scancode == btnScancode:
+            controllers[0].setButtonState(btn, down)
 
 
 proc getPerformanceCounter*(): uint64 {.inline.} =
@@ -1802,6 +1842,14 @@ proc rnd*[T](a: openarray[T]): T =
 proc getControllers*(): seq[NicoController] =
   return controllers
 
+proc getUnmappedJoysticks*(): seq[JoystickPtr] =
+  result = newSeq[JoystickPtr]()
+  let n = numJoysticks()
+  for i in 0..<n:
+    if not isGameController(i):
+      var j = joystickOpen(i)
+      result.add(j)
+
 # Configuration
 
 proc loadConfig*() =
@@ -2000,6 +2048,7 @@ proc init*(org: string, app: string) =
   controllers.add(keyboardController)
 
   discard gameControllerAddMappingsFromFile(basePath & "/assets/gamecontrollerdb.txt")
+  discard gameControllerAddMappingsFromFile(writePath & "/gamecontrollerdb.txt")
 
   for i in 0..numJoysticks():
     if isGameController(i):

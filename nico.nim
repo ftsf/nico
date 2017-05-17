@@ -506,7 +506,7 @@ proc saveRecording*() =
   for i in 0..15:
     palette[i] = [colors[i].r, colors[i].g, colors[i].b]
 
-  let filename = writePath & "/video/video-$1T$2.gif".format(getDateStr(), getClockStr())
+  let filename = writePath & "/video/video-$1T$2.gif".format(getDateStr(), getClockStr().replace(":","-"))
 
   var gif = newGIF(
     filename.cstring,

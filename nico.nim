@@ -496,7 +496,11 @@ proc saveScreenshot*() =
 proc saveRecording*() =
   # TODO: do this in another thread?
   echo "saveRecording"
-  createDir(writePath & "/video")
+  try:
+    createDir(writePath & "/video")
+  except OSError:
+    echo "unable to create video output directory"
+    return
 
   var palette: array[16,array[3,uint8]]
   for i in 0..15:
@@ -510,6 +514,10 @@ proc saveRecording*() =
     (screenHeight*gifScale).uint16,
     palette[0][0].addr, 4, 0
   )
+
+  if gif == nil:
+    echo "unable to create gif"
+    return
 
   echo "created gif"
   var pixels: ptr[array[int32.high, uint8]]

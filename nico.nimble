@@ -10,9 +10,11 @@ license       = "MIT"
 requires "nim >= 0.16.0"
 requires "sdl2 >= 1.1"
 requires "gifenc >= 0.1.0"
+requires "webaudio >= 0.1.0"
 
 skipDirs = @["examples","tests"]
 
-task test, "run tests":
-  exec "nim c --path:. -d:debug -r tests/copymem.nim"
-  exec "nim c --path:. -d:debug -r tests/fonts.nim"
+#task test, "run tests":
+#  exec "nim c --path:. -d:debug -r tests/copymem.nim"
+#  exec "nim c --path:. -d:debug -r tests/fonts.nim"
+#  exec "nim c --path:. -d:debug -r tests/config.nim"

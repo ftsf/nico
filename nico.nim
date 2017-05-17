@@ -47,13 +47,17 @@ type
   Pint* = int32
   ColorId* = range[0..15]
   Font = object
-    rects: array[256, Rect]
+    rects: array[256.char, Rect]
     pixels: seq[uint8]
     width,height: int
   FontId* = range[0..3]
   MusicId* = range[-1..63]
   SfxId* = range[-1..63]
-  Frame = seq[uint8]
+
+type
+  Surface = object
+    data: seq[uint8]
+    w,h: int
 
 type
   LineIterator = iterator(): (Pint,Pint)
@@ -105,8 +109,8 @@ var writePath*: string # should be a writable dir
 
 var screenScale = 4.0
 var window: WindowPtr
-var spriteSheets: array[16,SurfacePtr]
-var spriteSheet: ptr SurfacePtr
+var spriteSheets: array[16,Surface]
+var spriteSheet: ptr Surface
 
 var initFunc: proc()
 var updateFunc: proc(dt:float)
@@ -123,7 +127,7 @@ var font: ptr Font
 
 var render: RendererPtr
 var hwCanvas: TexturePtr
-var swCanvas: SurfacePtr
+var swCanvas: Surface
 var swCanvas32: SurfacePtr
 
 var targetScreenWidth = 128
@@ -145,8 +149,8 @@ var frame* = 0
 
 var colors: array[16, Color]
 
-var recordFrame: Frame
-var recordFrames: RingBuffer[Frame]
+var recordFrame: Surface
+var recordFrames: RingBuffer[Surface]
 
 var cameraX: Pint = 0
 var cameraY: Pint = 0
@@ -297,6 +301,12 @@ proc checkInput()
 proc setRecordSeconds*(seconds: int)
 proc setFullSpeedGif*(enabled: bool)
 proc createRecordBuffer()
+proc psetRaw*(x,y: int, c: ColorId) {.inline.}
+
+proc newSurface(w,h: int): Surface =
+  result.data = newSeq[uint8](w*h)
+  result.w = w
+  result.h = h
 
 proc fps*(fps: int) =
   frameRate = fps
@@ -425,33 +435,33 @@ proc palt*() =
   for i in 0..<paletteSize.int:
     paletteTransparent[i] = if i == 0: true else: false
 
-proc convertToRGBA(indexPixels, rgbaPixels: pointer, spitch, dpitch, w,h: cint) =
-  var indexPixels = cast[ptr array[int.high, uint8]](indexPixels)
+proc convertToABGR(src: Surface, rgbaPixels: pointer, dpitch, w,h: cint) =
+  assert(src.w == w and src.h == h)
   var rgbaPixels = cast[ptr array[int.high, uint8]](rgbaPixels)
   for y in 0..h-1:
     for x in 0..w-1:
-      let c = colors[paletteMapDisplay[indexPixels[y*spitch+x]]]
-      rgbaPixels[y*dpitch+(x*4)+3] = c.r
-      rgbaPixels[y*dpitch+(x*4)+2] = c.g
-      rgbaPixels[y*dpitch+(x*4)+1] = c.b
+      let c = colors[paletteMapDisplay[src.data[y*src.w+x]]]
       rgbaPixels[y*dpitch+(x*4)] = c.a
+      rgbaPixels[y*dpitch+(x*4)+1] = c.b
+      rgbaPixels[y*dpitch+(x*4)+2] = c.g
+      rgbaPixels[y*dpitch+(x*4)+3] = c.r
 
-proc convertToABGR(indexPixels, abgrPixels: pointer, spitch, dpitch, w,h: cint) =
-  var indexPixels = cast[ptr array[int.high, uint8]](indexPixels)
+proc convertToRGBA(src: Surface, abgrPixels: pointer, dpitch, w,h: cint) =
   var abgrPixels = cast[ptr array[int.high, uint8]](abgrPixels)
   for y in 0..h-1:
     for x in 0..w-1:
-      let c = colors[paletteMapDisplay[indexPixels[y*spitch+x]]]
-      abgrPixels[y*dpitch+(x*4)+3] = c.a
-      abgrPixels[y*dpitch+(x*4)+2] = c.b
-      abgrPixels[y*dpitch+(x*4)+1] = c.g
+      let c = colors[paletteMapDisplay[src.data[y*src.w+x]]]
       abgrPixels[y*dpitch+(x*4)] = c.r
+      abgrPixels[y*dpitch+(x*4)+1] = c.g
+      abgrPixels[y*dpitch+(x*4)+2] = c.b
+      abgrPixels[y*dpitch+(x*4)+3] = c.a
 
 proc flipQuick() =
   render.setRenderTarget(nil)
   # copy swCanvas to hwCanvas
 
-  convertToRGBA(swCanvas.pixels, swCanvas32.pixels, swCanvas.pitch, swCanvas32.pitch, screenWidth, screenHeight)
+  convertToABGR(swCanvas, swCanvas32.pixels, swCanvas32.pitch, screenWidth, screenHeight)
+
   updateTexture(hwCanvas, nil, swCanvas32.pixels, swCanvas32.pitch)
 
   # copy hwCanvas to screen
@@ -467,8 +477,8 @@ proc flip*() =
   when recordingEnabled:
     if recordSeconds > 0:
       if fullSpeedGif or frame mod 2 == 0:
-        if recordFrame != nil:
-          copyMem(recordFrame[0].addr, swCanvas.pixels, swCanvas.pitch * swCanvas.h)
+        if recordFrame.data != nil:
+          copyMem(recordFrame.data[0].addr, swCanvas.data[0].addr, swCanvas.w * swCanvas.h)
           recordFrames.add([recordFrame])
 
   sdl2.delay(0)
@@ -478,7 +488,7 @@ proc saveScreenshot*() =
   var frame = recordFrames[recordFrames.size-1]
   var abgr = newSeq[uint8](screenWidth*screenHeight*4)
   # convert RGBA to BGRA
-  convertToABGR(frame[0].addr, abgr[0].addr, swCanvas.pitch, screenWidth*4, screenWidth, screenHeight)
+  convertToRGBA(frame, abgr[0].addr, screenWidth*4, screenWidth, screenHeight)
   let filename = writePath & "/screenshots/screenshot-$1T$2.png".format(getDateStr(), getClockStr())
   discard write_png(filename.cstring, screenWidth, screenHeight, RgbAlpha, abgr[0].addr, screenWidth*4)
   echo "saved screenshot to: ", filename
@@ -508,7 +518,7 @@ proc saveRecording*() =
 
   for j in 0..recordFrames.size:
     var frame = recordFrames[j]
-    if frame == nil:
+    if frame.data == nil:
       echo "empty frame. breaking."
       break
 
@@ -519,9 +529,9 @@ proc saveRecording*() =
         for x in 0..<screenWidth*gifScale:
           let sx = x div gifScale
           let sy = y div gifScale
-          pixels[y*screenWidth*gifScale+x] = frame[sy*swCanvas.pitch+sx]
+          pixels[y*screenWidth*gifScale+x] = frame.data[sy*frame.w+sx]
     else:
-      copyMem(gif.frame, frame[0].addr, screenWidth*screenHeight)
+      copyMem(gif.frame, frame.data[0].addr, screenWidth*screenHeight)
     gif.add_frame(if fullSpeedGif: 2 else: 3)
 
     setColor(13)
@@ -544,8 +554,9 @@ proc saveRecording*() =
   setColor(oldColor)
 
 proc cls*() =
-  var rect = sdl2.rect(clipMinX,clipMinY,clipMaxX-clipMinX+1,clipMaxY-clipMinY+1)
-  swCanvas.fillRect(addr(rect),0)
+  for y in clipMinY..clipMaxY:
+    for x in clipMinX..clipMaxX:
+      psetRaw(x,y,0)
 
 proc setCamera*(x,y: Pint = 0) =
   cameraX = x
@@ -561,52 +572,41 @@ proc setColor*(colId: ColorId) =
 proc getColor*(): ColorId =
   return currentColor
 
-proc getPixels(surface: SurfacePtr): ptr array[int.high, uint8] {.inline.} =
-  return cast[ptr array[int.high, uint8]](surface.pixels)
-
 {.push checks: off, optimization: speed.}
 proc pset*(x,y: Pint) =
-  var pixels = swCanvas.getPixels()
   let x = x-cameraX
   let y = y-cameraY
   if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
     return
-  pixels[y*swCanvas.pitch+x] = paletteMapDraw[currentColor]
+  swCanvas.data[y*swCanvas.w+x] = paletteMapDraw[currentColor]
 
 proc pset*(x,y: Pint, c: int) =
-  var pixels = swCanvas.getPixels()
   let x = x-cameraX
   let y = y-cameraY
   if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
     return
-  pixels[y*swCanvas.pitch+x] = paletteMapDraw[c]
+  swCanvas.data[y*swCanvas.w+x] = paletteMapDraw[c]
 
 proc psetRaw*(x,y: int, c: ColorId) =
-  var pixels = swCanvas.getPixels()
-  let i = y*swCanvas.pitch+x
-  if i >= 0 and i < swCanvas.pitch*swCanvas.h:
-    pixels[i] = c
+  swCanvas.data[y*swCanvas.w+x] = c
 {.pop.}
 
 proc sset*(x,y: Pint, c: int = -1) =
   let c = if c == -1: currentColor else: c
-  var pixels = spriteSheet[].getPixels()
   if x < 0 or y < 0 or x > spriteSheet.w-1 or y > spriteSheet.h-1:
     raise newException(RangeError, "sset ($1,$2) out of bounds".format(x,y))
-  pixels[y*spriteSheet.pitch+x] = paletteMapDraw[c]
+  spriteSheet[].data[y*spriteSheet[].w+x] = paletteMapDraw[c]
 
 proc sget*(x,y: Pint): ColorId =
   if x > spriteSheet.w-1 or x < 0 or y > spriteSheet.h-1 or y < 0:
     return 0
-  var pixels = spriteSheet[].getPixels()
-  let color = pixels[y*spriteSheet.pitch+x]
+  let color = spriteSheet[].data[y*spriteSheet.w+x]
   return color
 
 proc pget*(x,y: Pint): ColorId =
   if x > swCanvas.w-1 or x < 0 or y > swCanvas.h-1 or y < 0:
     return 0
-  var pixels = swCanvas.getPixels()
-  return pixels[y*swCanvas.pitch+x]
+  return swCanvas.data[y*swCanvas.w+x]
 
 proc rectfill*(x1,y1,x2,y2: Pint) =
   let minx = min(x1,x2)
@@ -666,6 +666,10 @@ proc line*(x0,y0,x1,y1: Pint) =
     pset(x0,y0)
   else:
     innerLine(x0,y0,x1,y1)
+
+proc hlineFast(x0,y,x1: Pint, c: ColorId) =
+  for x in x0..x1:
+    psetRaw(x,y,c)
 
 proc hline*(x0,y,x1: Pint) =
   var x0 = x0
@@ -979,11 +983,9 @@ proc arc*(cx,cy,r: Pint, startAngle, endAngle: float) =
       err += 1 - 2*x
 
 
-proc fontBlit(font: ptr Font, dst: SurfacePtr, srcRect, dstRect: Rect, color: ColorId) =
-  let dPitch = dst.pitch
+proc fontBlit(font: ptr Font, srcRect, dstRect: Rect, color: ColorId) =
   var dx = dstRect.x.float
   var dy = dstRect.y.float
-  var dstPixels = dst.getPixels()
   var sx = srcRect.x.float
   var sy = srcRect.y.float
   let dw = dstRect.w.float
@@ -994,12 +996,12 @@ proc fontBlit(font: ptr Font, dst: SurfacePtr, srcRect, dstRect: Rect, color: Co
     dx = dstRect.x.float
     sx = srcRect.x.float
     for x in 0..dstRect.w-1:
-      if sx < 0 or sy < 0 or sx > font.width or sy > font.height:
+      if sx < 0 or sy < 0 or sx > font.width - 1 or sy > font.height - 1:
         continue
-      if dx < clipMinX or dy < clipMinY or dx > min(dst.w,clipMaxX) or dy > min(dst.h,clipMaxY):
+      if dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY:
         continue
       if font.pixels[sy * font.width + sx] == 1:
-        dstPixels[dy * dPitch + dx] = currentColor
+        swCanvas.data[dy * swCanvas.w + dx] = currentColor
       sx += 1.0 * (sw/dw)
       dx += 1.0
     sy += 1.0 * (sh/dh)
@@ -1008,34 +1010,28 @@ proc fontBlit(font: ptr Font, dst: SurfacePtr, srcRect, dstRect: Rect, color: Co
 proc overlap(a,b: Rect): bool =
   return not ( a.x > b.x + b.w or a.y > b.y + b.h or a.x + a.w < b.x or a.y + a.h < b.y )
 
-proc blitFastRaw(src, dst: SurfacePtr, sx,sy, dx,dy, w,h: Pint) =
+proc blitFastRaw(src: Surface, sx,sy, dx,dy, w,h: Pint) =
   # used for tile drawing, no stretch or flipping
-  var srcPixels = src.getPixels()
-  var dstPixels = dst.getPixels()
-
-  let sPitch = src.pitch
-  let dPitch = dst.pitch
-
   var sxi = sx
   var syi = sy
   var dxi = dx
   var dyi = dy
 
   while dyi < dy + h:
-    if syi < 0 or syi > src.h-1 or dyi < clipMinY or dyi > min(dst.h-1,clipMaxY):
+    if syi < 0 or syi > src.h-1 or dyi < clipMinY or dyi > min(swCanvas.h-1,clipMaxY):
       syi += 1
       dyi += 1
       sxi = sx
       dxi = dx
       continue
     while dxi < dx + w:
-      if sxi < 0 or sxi > src.w-1 or dxi < clipMinX or dxi > min(dst.w-1,clipMaxX):
+      if sxi < 0 or sxi > src.w-1 or dxi < clipMinX or dxi > min(swCanvas.w-1,clipMaxX):
         # ignore if it goes outside the source size
         dxi += 1
         sxi += 1
         continue
-      let srcCol = srcPixels[syi * sPitch + sxi]
-      dstPixels[dyi * dPitch + dxi] = srcCol
+      let srcCol = src.data[syi * src.w + sxi]
+      swCanvas.data[dyi * swCanvas.w + dxi] = srcCol
       sxi += 1
       dxi += 1
     syi += 1
@@ -1043,35 +1039,29 @@ proc blitFastRaw(src, dst: SurfacePtr, sx,sy, dx,dy, w,h: Pint) =
     sxi = sx
     dxi = dx
 
-proc blitFast(src, dst: SurfacePtr, sx,sy, dx,dy, w,h: Pint) =
+proc blitFast(src: Surface, sx,sy, dx,dy, w,h: Pint) =
   # used for tile drawing, no stretch or flipping
-  var srcPixels = src.getPixels()
-  var dstPixels = dst.getPixels()
-
-  let sPitch = src.pitch
-  let dPitch = dst.pitch
-
   var sxi = sx
   var syi = sy
   var dxi = dx
   var dyi = dy
 
   while dyi < dy + h:
-    if syi < 0 or syi > src.h-1 or dyi < clipMinY or dyi > min(dst.h-1,clipMaxY):
+    if syi < 0 or syi > src.h-1 or dyi < clipMinY or dyi > clipMaxY:
       syi += 1
       dyi += 1
       sxi = sx
       dxi = dx
       continue
     while dxi < dx + w:
-      if sxi < 0 or sxi > src.w-1 or dxi < clipMinX or dxi > min(dst.w-1,clipMaxX):
+      if sxi < 0 or sxi > src.w-1 or dxi < clipMinX or dxi > clipMaxX:
         # ignore if it goes outside the source size
         dxi += 1
         sxi += 1
         continue
-      let srcCol = srcPixels[syi * sPitch + sxi]
+      let srcCol = src.data[syi * src.w + sxi]
       if not paletteTransparent[srcCol]:
-        dstPixels[dyi * dPitch + dxi] = paletteMapDraw[srcCol]
+        swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol]
       sxi += 1
       dxi += 1
     syi += 1
@@ -1079,16 +1069,10 @@ proc blitFast(src, dst: SurfacePtr, sx,sy, dx,dy, w,h: Pint) =
     sxi = sx
     dxi = dx
 
-proc blit(src, dst: SurfacePtr, srcRect, dstRect: Rect, hflip, vflip: bool = false) =
+proc blit(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = false) =
   # if dstrect doesn't overlap clipping rect, skip it
   if not overlap(dstrect, clippingRect):
     return
-
-  var srcPixels = src.getPixels()
-  var dstPixels = dst.getPixels()
-
-  let sPitch = src.pitch
-  let dPitch = dst.pitch
 
   var dx = dstRect.x.float
   var dy = dstRect.y.float
@@ -1114,10 +1098,10 @@ proc blit(src, dst: SurfacePtr, srcRect, dstRect: Rect, hflip, vflip: bool = fal
     for x in 0..dstRect.w-1:
       if sx < 0 or sy < 0 or sx > src.w-1 or sy > src.h-1:
         continue
-      if not (dx < clipMinX or dy < clipMinY or dx > min(dst.w,clipMaxX) or dy > min(dst.h,clipMaxY)):
-        let srcCol = srcPixels[sy * sPitch + sx]
+      if not (dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY):
+        let srcCol = src.data[sy * src.w + sx]
         if not paletteTransparent[srcCol]:
-          dstPixels[dy * dPitch + dx] = paletteMapDraw[srcCol]
+          swCanvas.data[dy * swCanvas.w + dx] = paletteMapDraw[srcCol]
       if hflip:
         sx -= 1.0 * (sw/dw)
         dx -= 1.0
@@ -1131,20 +1115,10 @@ proc blit(src, dst: SurfacePtr, srcRect, dstRect: Rect, hflip, vflip: bool = fal
       sy += 1.0 * (sh/dh)
       dy += 1.0
 
-
-
-
-
-proc blitStretch(src, dst: SurfacePtr, srcRect, dstRect: Rect, hflip, vflip: bool = false) =
+proc blitStretch(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = false) =
   # if dstrect doesn't overlap clipping rect, skip it
   if not overlap(dstrect, clippingRect):
     return
-
-  var srcPixels = src.getPixels()
-  var dstPixels = dst.getPixels()
-
-  let sPitch = src.pitch
-  let dPitch = dst.pitch
 
   var dx = dstRect.x.float
   var dy = dstRect.y.float
@@ -1170,10 +1144,10 @@ proc blitStretch(src, dst: SurfacePtr, srcRect, dstRect: Rect, hflip, vflip: boo
     for x in 0..dstRect.w-1:
       if sx < 0 or sy < 0 or sx > src.w-1 or sy > src.h-1:
         continue
-      if not (dx < clipMinX or dy < clipMinY or dx > min(dst.w,clipMaxX) or dy > min(dst.h,clipMaxY)):
-        let srcCol = srcPixels[sy * sPitch + sx]
+      if not (dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY):
+        let srcCol = src.data[sy * src.w + sx]
         if not paletteTransparent[srcCol]:
-          dstPixels[dy * dPitch + dx] = paletteMapDraw[srcCol]
+          swCanvas.data[dy * swCanvas.w + dx] = paletteMapDraw[srcCol]
       if hflip:
         sx -= 1.0 * (sw/dw)
         dx -= 1.0
@@ -1264,15 +1238,21 @@ proc loadFont*(filename: string, chars: string) =
           let color = font.pixels[y*w+x]
           if color == blankColor:
             currentRect.h = y-2
-        font[].rects[cast[uint](chars[i])] = currentRect
+        font[].rects[chars[i]] = currentRect
         i += 1
       newChar = true
       currentRect.x = x + 1
 
 proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint =
-  var src: Rect = font[].rects[cast[uint8](c)]
+  if c > font[].rects.high:
+    return
+  var src: Rect = font[].rects[c]
   var dst = sdl2.rect(x,y, src.w * scale, src.h * scale)
-  fontBlit(font, swCanvas, src, dst, currentColor)
+  try:
+    fontBlit(font, src, dst, currentColor)
+  except IndexError:
+    echo "index error glyph: ", c, " @ ", x, ",", y
+    raise
   return src.w * scale + scale
 
 proc print*(text: string, x,y: Pint, scale: Pint = 1) =
@@ -1282,12 +1262,14 @@ proc print*(text: string, x,y: Pint, scale: Pint = 1) =
     x += glyph(c, x, y, scale)
 
 proc glyphWidth*(c: char, scale: Pint = 1): Pint =
-  var src: Rect = font[].rects[cast[uint8](c)]
+  if c > font[].rects.high:
+    return 0
+  var src: Rect = font[].rects[c]
   result += src.w*scale + scale
 
 proc textWidth*(text: string, scale: Pint = 1): Pint =
   for c in text:
-    var src: Rect = font[].rects[cast[uint8](c)]
+    var src: Rect = font[].rects[c]
     result += src.w*scale + scale
 
 proc printr*(text: string, x,y: Pint, scale: Pint = 1) =
@@ -1299,19 +1281,25 @@ proc printc*(text: string, x,y: Pint, scale: Pint = 1) =
   print(text, x-(width div 2), y, scale)
 
 proc copy*(sx,sy,dx,dy,w,h: Pint) =
-  blitFastRaw(swCanvas, swCanvas, sx, sy, dx, dy, w, h)
+  blitFastRaw(swCanvas, sx, sy, dx, dy, w, h)
 
-proc copyPixelsToMem*(sx,sy,n: Pint, buffer: pointer) =
-  var pixels = swCanvas.getPixels()
-  let offset = max(0,sy*swCanvas.pitch+sx)
-  let endOffset = min(swCanvas.pitch * swCanvas.h, offset + n)
-  copyMem(buffer, pixels[offset].addr, max(0,min(endOffset-offset,n)))
+proc copyPixelsToMem*(sx,sy: Pint, buffer: var seq[uint8]) =
+  let offset = sy*swCanvas.w+sx
+  for i in 0..<buffer.len:
+    if offset+i < 0:
+      continue
+    if offset+i > swCanvas.data.high:
+      break
+    buffer[i] = swCanvas.data[offset+i]
 
-proc copyMemToScreen*(dx,dy,n: Pint, buffer: pointer) =
-  var pixels = swCanvas.getPixels()
-  let offset = max(0,dy*swCanvas.pitch+dx)
-  let endOffset = min(swCanvas.pitch * swCanvas.h, offset + n)
-  copyMem(pixels[offset].addr, buffer, max(0,min(endOffset-offset,n)))
+proc copyMemToScreen*(dx,dy: Pint, buffer: var seq[uint8]) =
+  let offset = dy*swCanvas.w+dx
+  for i in 0..<buffer.len:
+    if offset+i < 0:
+      continue
+    if offset+i > swCanvas.data.high:
+      break
+    swCanvas.data[offset+i] = buffer[i]
 
 
 proc mouse*(): (Pint,Pint) =
@@ -1397,9 +1385,12 @@ proc resize(w,h: int) =
   dstRect = sdl2.rect(screenPaddingX,screenPaddingY,displayW, displayH)
 
   hwCanvas = render.createTexture(SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, screenWidth, screenHeight)
-  swCanvas = createRGBSurface(0, screenWidth, screenHeight, 8, 0, 0, 0, 0)
-  swCanvas.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
+  swCanvas = newSurface(screenWidth,screenHeight)
+
   swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
+  if swCanvas32 == nil:
+    echo "error creating RGB surface"
+    quit(1)
   render.setRenderTarget(hwCanvas)
 
   clip()
@@ -1698,6 +1689,12 @@ proc setWindowTitle*(title: string) =
 proc setSpritesheet*(bank: range[0..15] = 0) =
   spriteSheet = spriteSheets[bank].addr
 
+proc mapRGB(r,g,b: uint8): ColorId =
+  for i,v in colors:
+    if v[0] == r and v[1] == g and v[2] == b:
+      return i
+  return 0
+
 proc loadSpriteSheet*(filename: string) =
   var w,h: cint
   var components: Components
@@ -1707,20 +1704,15 @@ proc loadSpriteSheet*(filename: string) =
     quit(1)
   var pixels = cast[ptr array[uint32.high, uint8]](raw_pixels)
 
-  spriteSheet[] = createRGBSurface(128, 128, 8)
-  spriteSheet.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
-  if spriteSheet == nil:
-    echo getError()
-    quit(1)
+  spriteSheet[] = newSurface(128,128)
 
-  var ipixels = spriteSheet[].getPixels()
   for y in 0..h-1:
     for x in 0..w-1:
       let r = pixels[(y*w*4)+(x*4)]
       let g = pixels[(y*w*4)+(x*4)+1]
       let b = pixels[(y*w*4)+(x*4)+2]
-      let c = mapRGB(spriteSheet.format, r,g,b)
-      ipixels[y*spriteSheet.pitch+x] = c.uint8
+      let c = mapRGB(r,g,b)
+      spriteSheet[].data[y*spriteSheet.w+x] = c.uint8
 
 proc getSprRect(spr: range[0..255], w,h: Pint = 1): Rect {.inline.} =
   result.x = spr%%16 * 8
@@ -1733,48 +1725,51 @@ proc spr*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = fal
   var src = getSprRect(spr, w, h)
   var dst: Rect = sdl2.rect(x-cameraX,y-cameraY,src.w,src.h)
   if hflip or vflip:
-    blit(spriteSheet[], swCanvas, src, dst, hflip, vflip)
+    blit(spriteSheet[], src, dst, hflip, vflip)
   else:
-    blitFast(spriteSheet[], swCanvas, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
+    blitFast(spriteSheet[], src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
 
 proc sprBlit*(spr: range[0..255], x,y: Pint, w,h: Pint = 1) =
   # draw a sprite
   let src = getSprRect(spr, w, h)
   let dst: Rect = sdl2.rect(x-cameraX,y-cameraY,src.w,src.h)
-  blit(spriteSheet[], swCanvas, src, dst)
+  blit(spriteSheet[], src, dst)
 
 proc sprBlitFast*(spr: range[0..255], x,y: Pint, w,h: Pint = 1) =
   # draw a sprite
   let src = getSprRect(spr, w, h)
-  blitFast(spriteSheet[], swCanvas, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
+  blitFast(spriteSheet[], src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
 
 proc sprBlitFastRaw*(spr: range[0..255], x,y: Pint, w,h: Pint = 1) =
   # draw a sprite
   let src = getSprRect(spr, w, h)
-  blitFastRaw(spriteSheet[], swCanvas, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
+  blitFastRaw(spriteSheet[], src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
 
 proc sprBlitStretch*(spr: range[0..255], x,y: Pint, w,h: Pint = 1) =
   # draw a sprite
   let src = getSprRect(spr, w, h)
   let dst: Rect = sdl2.rect(x-cameraX,y-cameraY,src.w,src.h)
-  blitStretch(spriteSheet[], swCanvas, src, dst)
+  blitStretch(spriteSheet[], src, dst)
 
 proc sprs*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip, vflip: bool = false) =
   # draw an integer scaled sprite
   var src = getSprRect(spr, w, h)
   var dst: Rect = sdl2.rect(x-cameraX,y-cameraY,dw*8,dh*8)
-  blit(spriteSheet[], swCanvas, src, dst, hflip, vflip)
+  blit(spriteSheet[], src, dst, hflip, vflip)
 
 proc drawTile(spr: range[0..255], x,y: Pint, tileSize = 8) =
   var src = getSprRect(spr)
-  blitFast(spriteSheet[], swCanvas, src.x, src.y, x-cameraX, y-cameraY, tileSize, tileSize)
+  let x = x-cameraX
+  let y = y-cameraY
+  if overlap(clippingRect,sdl2.rect(x.int,y.int,tileSize,tileSize)):
+    blitFast(spriteSheet[], src.x, src.y, x, y, tileSize, tileSize)
 
 proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = false) =
   var src: Rect = sdl2.rect(sx,sy,sw,sh)
   let dw = if dw >= 0: dw else: sw
   let dh = if dh >= 0: dh else: sh
   var dst: Rect = sdl2.rect(dx-cameraX,dy-cameraY,dw,dh)
-  blitStretch(spriteSheet[], swCanvas, src, dst, hflip, vflip)
+  blitStretch(spriteSheet[], src, dst, hflip, vflip)
 
 proc mapDraw*(tx,ty, tw,th, dx,dy: Pint) =
   # draw map tiles to the screen
@@ -1981,17 +1976,12 @@ proc createWindow*(title: string, w,h: Pint, scale: Pint = 2, fullscreen: bool =
   screenWidth = w
   screenHeight = h
 
-  swCanvas = createRGBSurface(0, screenWidth, screenHeight, 8, 0, 0, 0, 0)
-  swCanvas.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
+  swCanvas = newSurface(screenWidth, screenHeight)
   swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
 
   var displayW, displayH: cint
   window.getSize(displayW, displayH)
   resize(displayW,displayH)
-
-  spriteSheet = spriteSheets[0].addr
-  spriteSheet[] = createRGBSurface(0, 128, 128, 8, 0, 0, 0, 0)
-  spriteSheet.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
 
   discard sdl2.setHint("SDL_HINT_RENDER_VSYNC", "1")
   discard sdl2.setHint("SDL_RENDER_SCALE_QUALITY", "0")
@@ -2095,11 +2085,11 @@ proc createRecordBuffer() =
   if window == nil:
     # this can happen later
     return
-  recordFrame = newSeq[uint8](swCanvas.pitch*screenHeight)
+  recordFrame = newSurface(screenWidth,screenHeight)
   if recordSeconds <= 0:
-    recordFrames = newRingBuffer[Frame](1)
+    recordFrames = newRingBuffer[Surface](1)
   else:
-    recordFrames = newRingBuffer[Frame](if fullSpeedGif: recordSeconds * frameRate.int else: recordSeconds * int(frameRate / 2))
+    recordFrames = newRingBuffer[Surface](if fullSpeedGif: recordSeconds * frameRate.int else: recordSeconds * int(frameRate / 2))
 
 proc setFullSpeedGif*(enabled: bool) =
   fullSpeedGif = enabled

@@ -1815,16 +1815,22 @@ proc loadConfig*() =
       echo "loaded config from " & basePath & "/config.ini"
     except IOError:
       echo "no config file loaded"
+      config = newConfig()
 
 proc saveConfig*() =
-  # TODO write config file in user config directioy
-  config.writeConfig(writePath & "/config.ini")
-  echo "saved config to " & writePath & "/config.ini"
+  echo "saving config to " & writePath & "/config.ini"
+  try:
+    config.writeConfig(writePath & "/config.ini")
+    echo "saved config to " & writePath & "/config.ini"
+  except IOError:
+    echo "error saving config"
 
 proc updateConfigValue*(section, key, value: string) =
+  assert(config != nil)
   config.setSectionKey(section, key, value)
 
 proc getConfigValue*(section, key: string): string =
+  assert(config != nil)
   result = config.getSectionValue(section, key)
 
 proc setFont*(fontId: FontId) =

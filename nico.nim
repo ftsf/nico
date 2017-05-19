@@ -60,6 +60,11 @@ type
     w,h: int
 
 type
+  Tilemap = object
+    data: seq[uint8]
+    w,h: int
+
+type
   LineIterator = iterator(): (Pint,Pint)
   Edge = tuple[xint, xfrac, dxint, dxfrac, dy, life: int]
 
@@ -112,9 +117,7 @@ var fullSpeedGif = true
 
 var controllers: seq[NicoController]
 
-var mapWidth* = 128
-var mapHeight* = 128
-var mapData = newSeq[uint8](mapWidth * mapHeight)
+var currentTilemap: Tilemap
 
 var spriteFlags: array[128, uint8]
 var mixerChannels = 0
@@ -1138,10 +1141,14 @@ proc blitStretch(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = fals
       dy += 1.0
 
 proc mset*(tx,ty: Pint, t: uint8) =
-  mapData[ty * mapWidth + tx] = t
+  if tx < 0 or tx > currentTilemap.w - 1 or ty < 0 or ty > currentTilemap.h - 1:
+    return
+  currentTilemap.data[ty * currentTilemap.w + tx] = t
 
 proc mget*(tx,ty: Pint): uint8 =
-  return mapData[ty * mapWidth + tx]
+  if tx < 0 or tx > currentTilemap.w - 1 or ty < 0 or ty > currentTilemap.h - 1:
+    return 0.uint8
+  return currentTilemap.data[ty * currentTilemap.w + tx]
 
 proc contains[T](flags: T, bit: T): bool =
   return (flags.int and 1 shl bit.int) != 0
@@ -1697,11 +1704,11 @@ proc loadSpriteSheet*(filename: string) =
   var components: Components
   var raw_pixels = load((basePath & "/assets/" & filename).cstring(), addr(w), addr(h), addr(components), RgbAlpha)
   if raw_pixels == nil:
-    echo "error loading spriteSheet: ", filename
-    quit(1)
+    raise newException(IOError, "Error loading spritesheet: " & filename)
+
   var pixels = cast[ptr array[uint32.high, uint8]](raw_pixels)
 
-  spriteSheet[] = newSurface(128,128)
+  spriteSheet[] = newSurface(w,h)
 
   for y in 0..h-1:
     for x in 0..w-1:
@@ -1769,64 +1776,84 @@ proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = fal
   blitStretch(spriteSheet[], src, dst, hflip, vflip)
 
 proc mapDraw*(tx,ty, tw,th, dx,dy: Pint) =
+  if currentTilemap.data == nil:
+    return
   # draw map tiles to the screen
   var xi = dx
   var yi = dy
   var increment = 8
   for y in ty..ty+th-1:
-    if y >= 0 and y < mapHeight:
+    if y >= 0 and y < currentTilemap.h:
       for x in tx..tx+tw-1:
-        if x >= 0  and x < mapWidth:
-          let t = mapData[y * mapWidth + x]
+        if x >= 0  and x < currentTilemap.w:
+          let t = currentTilemap.data[y * currentTilemap.w + x]
           if t != 0:
             drawTile(t, xi, yi, increment)
         xi += increment
     yi += increment
     xi = dx
 
+proc mapWidth*(): Pint =
+  return currentTilemap.w
+
+proc mapHeight*(): Pint =
+  return currentTilemap.h
+
 proc `%%/`[T](x,m: T): T =
   return (x mod m + m) mod m
 
 proc saveMap*(filename: string) =
-  createDir(writePath & "/maps")
-  var fs = newFileStream(writePath & "/maps/" & filename, fmWrite)
-  fs.write(mapWidth.int32)
-  fs.write(mapHeight.int32)
-  for y in 0..mapHeight-1:
-    for x in 0..mapWidth-1:
+  createDir(basePath & "assets/maps")
+  var fs = newFileStream(basePath & "assets/maps/" & filename, fmWrite)
+  if fs == nil:
+    echo "error opening map for writing: ", filename
+    return
+  fs.write(currentTilemap.w.int32)
+  fs.write(currentTilemap.h.int32)
+  for y in 0..<currentTilemap.h:
+    for x in 0..<currentTilemap.w:
       let t = mget(x,y)
       fs.write(t.uint8)
   fs.close()
-  echo "saved map: " & $mapWidth & " x " & $mapHeight & " to: " & filename
+  echo "saved map: ", filename
 
-proc loadMap*(filename: string) =
+proc loadMapBinary(filename: string) =
+  var tm: Tilemap
   var fs = newFileStream(basePath & "assets/maps/" & filename, fmRead)
-  mapWidth = fs.readInt32()
-  mapHeight = fs.readInt32()
-  mapData = newSeq[uint8](mapWidth*mapHeight)
-  for y in 0..mapHeight-1:
-    for x in 0..mapWidth-1:
-      let t = fs.readInt8().uint8
-      mset(x,y,t)
-  fs.close()
-  echo "loaded map: " & $mapWidth & " x " & $mapHeight
+  if fs == nil:
+    raise newException(IOError, "Unable to open " & filename & " for reading")
 
-proc loadMapFromJson*(filename: string) =
+  discard fs.readData(tm.w.addr, sizeof(int32)).int32
+  discard fs.readData(tm.h.addr, sizeof(int32)).int32
+  tm.data = newSeq[uint8](tm.w*tm.h)
+  var r = fs.readData(tm.data[0].addr, tm.w * tm.h * sizeof(uint8))
+  echo "read ", r, " tiles: ", tm.w, " x", tm.h
+  fs.close()
+  currentTilemap = tm
+
+proc loadMapFromJson(filename: string) =
+  var tm: Tilemap
   # read tiled output format
   var fp = newFileStream(basePath & "assets/maps/" & filename, fmRead)
   if fp == nil:
     raise newException(IOError, "Unable to open " & filename & " for reading")
 
   var data = parseJson(fp, filename)
-  mapWidth = data["width"].getNum.int
-  mapHeight = data["height"].getNum.int
+  tm.w = data["width"].getNum.int
+  tm.h = data["height"].getNum.int
   # only look at first layer
-  mapData = newSeq[uint8](mapWidth*mapHeight)
-  for i in 0..<(mapWidth*mapHeight):
+  tm.data = newSeq[uint8](tm.w*tm.h)
+  for i in 0..<(tm.w*tm.h):
     let t = data["layers"][0]["data"][i].getNum().uint8 - 1
-    let x = i mod mapWidth
-    let y = i div mapWidth
-    mset(x,y,t)
+    tm.data[i] = t
+
+  currentTilemap = tm
+
+proc loadMap*(filename: string) =
+  if filename.endsWith(".json"):
+    loadMapFromJson(filename)
+  else:
+    loadMapBinary(filename)
 
 proc rnd*[T: Ordinal](x: T): T =
   if x == 0:
@@ -2028,6 +2055,8 @@ proc init*(org: string, app: string) =
   )
 
   loadPalettePico8()
+
+  setSpritesheet(0)
 
   basePath = $sdl2.getBasePath()
   echo "basePath: ", basePath

@@ -105,8 +105,8 @@ proc axis*(self: NicoController, axis: NicoAxis): float =
 
 proc axisp*(self: NicoController, axis: NicoAxis, value: float): bool =
   if value == -1.0:
-    return self.axes[axis].current < -0.5 and not (self.axes[axis].previous < -self.deadzone)
+    return self.axes[axis].current < -self.deadzone and not (self.axes[axis].previous < -self.deadzone)
   if value == 1.0:
-    return self.axes[axis].current > 0.5 and not (self.axes[axis].previous > self.deadzone)
+    return self.axes[axis].current > self.deadzone and not (self.axes[axis].previous > self.deadzone)
   if value == 0.0:
-    return abs(self.axes[axis].current) < 0.5 and not (abs(self.axes[axis].previous) < self.deadzone)
+    return abs(self.axes[axis].current) < self.deadzone and not (abs(self.axes[axis].previous) < self.deadzone)

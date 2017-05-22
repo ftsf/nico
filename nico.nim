@@ -678,6 +678,33 @@ proc innerLine(x0,y0,x1,y1: Pint) =
       err += dx.float
       y += sy
 
+proc lineDashed*(x0,y0,x1,y1: Pint, pattern: uint8 = 0b10101010) =
+  var x = x0
+  var y = y0
+  var dx: int = abs(x1-x0)
+  var sx: int = if x0 < x1: 1 else: -1
+  var dy: int = abs(y1-y0)
+  var sy: int = if y0 < y1: 1 else: -1
+  var err: float = (if dx>dy: dx else: -dy).float/2.0
+  var e2: float = 0
+
+  var i = 0
+
+  while true:
+    if pattern shl ((i mod 8) + 1) != 0:
+      pset(x,y)
+    i += 1
+    if x == x1 and y == y1:
+      break
+    e2 = err
+    if e2 > -dx:
+      err -= dy.float
+      x += sx
+    if e2 < dy:
+      err += dx.float
+      y += sy
+
+
 iterator lineIterator*(x0,y0,x1,y1: Pint): (Pint,Pint) =
   var x = x0
   var y = y0

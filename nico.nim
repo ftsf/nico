@@ -68,6 +68,8 @@ type
   LineIterator = iterator(): (Pint,Pint)
   Edge = tuple[xint, xfrac, dxint, dxfrac, dy, life: int]
 
+type ResizeFunc = proc(x,y: int)
+
 ## CONSTANTS
 
 const deadzone* = int16.high div 2
@@ -141,6 +143,7 @@ var drawFunc: proc()
 var keyFunc: proc(key: KeyboardEventPtr, down: bool): bool
 var eventFunc: proc(event: Event): bool
 var textFunc: proc(text: string): bool
+var resizeFunc: ResizeFunc
 
 var controllerAddedFunc: proc(controller: NicoController)
 var controllerRemovedFunc: proc(controller: NicoController)
@@ -1422,10 +1425,16 @@ proc resize(w,h: int) =
   # clear the replay buffer
   createRecordBuffer()
 
+  if resizeFunc != nil:
+    resizeFunc(screenWidth,screenHeight)
+
 proc resize() =
   var windowW, windowH: cint
   window.getSize(windowW, windowH)
   resize(windowW,windowH)
+
+proc setResizeFunc*(newResizeFunc: ResizeFunc) =
+  resizeFunc = newResizeFunc
 
 proc setTargetSize*(w,h: int) =
   targetScreenWidth = w

@@ -365,6 +365,12 @@ proc createWindow*(title: string, w,h: Pint, scale: Pint = 2, fullscreen: bool =
 proc initMixer*(channels: Pint)
 proc init*(org: string, app: string)
 
+## config functions
+proc loadConfig*()
+proc saveConfig*()
+proc updateConfigValue*(section, key, value: string)
+proc getConfigValue*(section, key: string): string
+
 # Tilemap functions
 proc mset*(tx,ty: Pint, t: uint8)
 proc mget*(tx,ty: Pint): uint8
@@ -2166,12 +2172,18 @@ else:
 
     proc clearSaveData*() {.exportc:"clearSaveData".} =
       dom.window.localStorage.clear()
-
-    proc saveConfig*() =
+  else:
+    proc updateConfigValue*(section, key, value: string) =
       discard
 
-    proc loadConfig*() =
-      discard
+    proc getConfigValue*(section, key: string): string =
+      return ""
+
+  proc saveConfig*() =
+    discard
+
+  proc loadConfig*() =
+    discard
 
 
 proc setFont*(fontId: FontId) =

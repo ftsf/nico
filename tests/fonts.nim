@@ -10,5 +10,6 @@ suite "fonts":
     nico.shutdown()
 
   test "loadFont":
-    loadFont("assets/font.png", "!\"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{:}~")
+    loadFont("font.png", "!\"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{:}~")
     print("hello world",0,0)
+    flip()

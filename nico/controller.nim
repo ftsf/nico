@@ -1,5 +1,6 @@
-import sdl2
-import sdl2.gamecontroller
+when not defined(js):
+  import sdl2
+  import sdl2.gamecontroller
 
 type NicoControllerKind* = enum
   Keyboard
@@ -29,11 +30,12 @@ type NicoButton* = enum
   pcStart = "Start"
   pcBack = "Back"
 
-type NicoController* = ref object of RootObj
+type NicoController* = ref object
   kind*: NicoControllerKind
   name*: string
-  sdlController*: GameControllerPtr # nil for keyboard
-  sdlControllerId*: int # -1 for keyboard
+  when not defined(js):
+    sdlController*: GameControllerPtr # nil for keyboard
+  id*: int # -1 for keyboard
   axes*: array[NicoAxis, tuple[current, previous: float]]
   buttons*: array[NicoButton, int]
   deadzone*: float
@@ -41,20 +43,21 @@ type NicoController* = ref object of RootObj
   invertY*: bool
   useRightStick*: bool
 
-proc newNicoController*(sdlControllerId: cint): NicoController =
+proc newNicoController*(id: cint): NicoController =
   result = new(NicoController)
-  result.sdlControllerId = sdlControllerId
-  if sdlControllerId > -1:
-    result.sdlController = gameControllerOpen(sdlControllerId)
-    if result.sdlController == nil:
-      raise newException(Exception, "error opening game controller: " & $sdlControllerId)
+  result.id = id
+  if id > -1:
+    when not defined(js):
+      result.sdlController = gameControllerOpen(id)
+      if result.sdlController == nil:
+        raise newException(Exception, "error opening game controller: " & $id)
+      result.name = $result.sdlController.name
     result.kind = Gamepad
-    result.name = $result.sdlController.name
     result.deadzone = 0.25
   else:
     result.kind = Keyboard
     result.name = "KEYBOARD"
-  echo "added game controller: ", sdlControllerId, ": ", result.kind, ": ", result.name
+  echo "added game controller: ", id, ": ", result.kind, ": ", result.name
 
 proc update*(self: NicoController) =
   for i in 0..self.buttons.high:

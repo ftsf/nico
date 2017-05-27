@@ -132,7 +132,7 @@ fixedSize(true)
 integerScale(true)
 
 # create the window
-nico.createWindow("nico",128,128)
+nico.createWindow("nico",128,128,4)
 
 # start, say which functions to use for init, update and draw
 nico.run(gameInit, gameUpdate, gameDraw)

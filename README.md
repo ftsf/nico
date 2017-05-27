@@ -16,10 +16,7 @@ NICO is a simple game framework for the [Nim](http://nim-lang.org/) programming 
  
 ## Installation
  * You will need to have the Nim compiler installed, as well as a working C compiler
- * ```nimble install sdl2```
- * ```nimble install stb_image```
- * ```nimble install gifenc```
- * Clone this repository and from within it run ```nimble install```
+ * Run ```nimble install nico```
  * You can now ```import nico``` in your project, see the examples. 
  
 ## Why should you use NICO?

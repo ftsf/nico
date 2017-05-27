@@ -21,4 +21,5 @@ task test, "run tests":
   exec "nim c -p:. -d:debug -r tests/config.nim"
 
 task example, "run example":
-  exec "nim c -p:. -d:debug -r examples/paintout.nim"
+  exec "nim c -p:. -d:debug examples/paintout.nim"
+  exec "nim js -p:. -d:debug --lineTrace:on --stackTrace:on -o:examples/paintout.js examples/paintout.nim"

@@ -1905,6 +1905,9 @@ proc rnd*(x: float): float =
 proc rnd*[T](a: openarray[T]): T =
   return random(a)
 
+proc srand*(seed: int) =
+  randomize(seed+1)
+
 proc getControllers*(): seq[NicoController] =
   return controllers
 

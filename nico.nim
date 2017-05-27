@@ -1014,7 +1014,7 @@ proc trifill*(x1,y1,x2,y2,x3,y3: Pint) =
     swap(x3,x2)
 
   let minx = min(x1,min(x2,x3))
-  let maxx = max(x1,min(x2,x3))
+  let maxx = max(x1,max(x2,x3))
 
   if maxx < clipMinX or minx > clipMaxX or y3 < clipMinY or y1 > clipMaxY:
     # if the tri is on screen skip it

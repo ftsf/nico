@@ -517,7 +517,7 @@ proc convertToIndexed(surface: Surface): Surface =
   result.w = surface.w
   result.h = surface.h
   result.channels = 1
-  for i in 0..surface.w*surface.h:
+  for i in 0..<surface.w*surface.h:
     result.data[i] = mapRGB(
       surface.data[i*4+0],
       surface.data[i*4+1],
@@ -1946,7 +1946,7 @@ proc setSpritesheet*(bank: range[0..15] = 0) =
   spriteSheet = spriteSheets[bank].addr
 
 proc loadSpriteSheet*(filename: string) =
-  loadSurface(filename) do(surface: Surface):
+  loadSurface(assetsPath & filename) do(surface: Surface):
     spriteSheet[] = surface.convertToIndexed()
 
 proc getSprRect(spr: range[0..255], w,h: Pint = 1): Rect {.inline.} =

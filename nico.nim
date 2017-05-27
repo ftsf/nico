@@ -385,6 +385,8 @@ proc musicVol*(value: int)
 
 # Maths functions
 proc flr*(x: float): float
+proc ceil*(x: float): float =
+  -flr(-x)
 proc lerp*[T](a,b: T, t: float): T
 
 proc rnd*[T: Ordinal](x: T): T

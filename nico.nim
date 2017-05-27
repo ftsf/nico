@@ -1678,14 +1678,15 @@ when not defined(js):
 
     elif evt.kind == MouseWheel:
       mouseWheelState = evt.wheel.y
+
     elif evt.kind == MouseButtonDown:
       discard captureMouse(True32)
-      mouseButtonsDown[evt.button.button] = true
-      mouseButtonsDown[evt.button.button] = true
+      mouseButtonsDown[evt.button.button-1] = true
+      mouseButtons[evt.button.button] = 1
 
     elif evt.kind == MouseButtonUp:
       discard captureMouse(False32)
-      mouseButtonsDown[evt.button.button] = false
+      mouseButtonsDown[evt.button.button-1] = false
 
     elif evt.kind == MouseMotion:
       mouseDetected = true
@@ -1898,6 +1899,7 @@ when not defined(js):
           mouseButtons[i] += 1
         else:
           mouseButtons[i] = 0
+
       mouseWheelState = 0
 
       acc -= timeStep

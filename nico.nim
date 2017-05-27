@@ -334,7 +334,7 @@ proc flipQuick()
 proc checkInput()
 proc setRecordSeconds*(seconds: int)
 proc setFullSpeedGif*(enabled: bool)
-proc createRecordBuffer()
+proc createRecordBuffer(forceClear: bool = false)
 proc psetRaw*(x,y: int, c: ColorId) {.inline.}
 
 proc newSurface(w,h: int): Surface =
@@ -1448,7 +1448,6 @@ proc resize(w,h: int) =
   cls()
   flipQuick()
 
-  # clear the replay buffer
   createRecordBuffer()
 
   if resizeFunc != nil:
@@ -1655,7 +1654,7 @@ proc appHandleEvent(evt: Event) =
 
     elif sym == K_F8 and down:
       # restart recording from here
-      createRecordBuffer()
+      createRecordBuffer(true)
 
     elif sym == K_F9 and down:
       saveRecording()
@@ -2163,11 +2162,14 @@ proc setControllerAdded*(cadded: proc(controller: NicoController)) =
 proc setControllerRemoved*(cremoved: proc(controller: NicoController)) =
   controllerRemovedFunc = cremoved
 
-proc createRecordBuffer() =
+proc createRecordBuffer(forceClear: bool = false) =
   if window == nil:
     # this can happen later
     return
-  recordFrame = newSurface(screenWidth,screenHeight)
+
+  if recordFrame.data == nil or screenWidth != recordFrame.w and screenHeight != recordFrame.h:
+    recordFrame = newSurface(screenWidth,screenHeight)
+
   if recordSeconds <= 0:
     recordFrames = newRingBuffer[Surface](1)
   else:
@@ -2175,7 +2177,7 @@ proc createRecordBuffer() =
 
 proc setFullSpeedGif*(enabled: bool) =
   fullSpeedGif = enabled
-  createRecordBuffer()
+  createRecordBuffer(true)
 
 proc getFullSpeedGif*(): bool =
   return fullSpeedGif

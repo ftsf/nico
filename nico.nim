@@ -214,6 +214,8 @@ var currentFontId: int = 0
 var clipMinX, clipMaxX, clipMinY, clipMaxY: int
 var clippingRect: Rect
 
+var mouseDetected: bool
+
 
 ## Public API
 
@@ -1309,6 +1311,8 @@ proc copyMemToScreen*(dx,dy: Pint, buffer: var seq[uint8]) =
       break
     swCanvas.data[offset+i] = buffer[i]
 
+proc hasMouse*(): bool =
+  return mouseDetected
 
 proc mouse*(): (Pint,Pint) =
   var x,y: cint
@@ -1511,6 +1515,9 @@ proc appHandleEvent(evt: Event) =
       mouseButtonState = mouseButtonState and not 2
     elif evt.button.button == BUTTON_MIDDLE:
       mouseButtonState = mouseButtonState and not 4
+
+  elif evt.kind == MouseMotion:
+    mouseDetected = true
 
   elif evt.kind == ControllerDeviceAdded:
     for v in controllers:

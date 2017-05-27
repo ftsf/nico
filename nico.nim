@@ -130,6 +130,7 @@ var timeStep* = 1/frameRate
 var frameMult = 1
 
 var basePath*: string # should be the current dir with the app
+var assetsPath*: string # basepath + "/assets"
 var writePath*: string # should be a writable dir
 
 var screenScale = 4.0
@@ -363,7 +364,7 @@ proc makeColor(r,g,b,a: int): Color =
   return (uint8(r),uint8(g),uint8(b),uint8(a))
 
 proc loadPaletteFromGPL*(filename: string) =
-  var fp = open(filename, fmRead)
+  var fp = open(assetsPath & filename, fmRead)
   var i = 0
   for line in fp.lines():
     if i == 0:
@@ -1830,8 +1831,8 @@ proc `%%/`[T](x,m: T): T =
   return (x mod m + m) mod m
 
 proc saveMap*(filename: string) =
-  createDir(basePath & "assets/maps")
-  var fs = newFileStream(basePath & "assets/maps/" & filename, fmWrite)
+  createDir(assetsPath & "/maps")
+  var fs = newFileStream(assetsPath & "/maps/" & filename, fmWrite)
   if fs == nil:
     echo "error opening map for writing: ", filename
     return
@@ -1846,7 +1847,7 @@ proc saveMap*(filename: string) =
 
 proc loadMapBinary(filename: string) =
   var tm: Tilemap
-  var fs = newFileStream(basePath & "assets/maps/" & filename, fmRead)
+  var fs = newFileStream(assetsPath & "/maps/" & filename, fmRead)
   if fs == nil:
     raise newException(IOError, "Unable to open " & filename & " for reading")
 
@@ -1861,7 +1862,7 @@ proc loadMapBinary(filename: string) =
 proc loadMapFromJson(filename: string) =
   var tm: Tilemap
   # read tiled output format
-  var fp = newFileStream(basePath & "assets/maps/" & filename, fmRead)
+  var fp = newFileStream(assetsPath & "/maps/" & filename, fmRead)
   if fp == nil:
     raise newException(IOError, "Unable to open " & filename & " for reading")
 
@@ -1953,7 +1954,7 @@ when not defined(emscripten):
 
   proc loadMusic*(musicId: MusicId, filename: string) =
     if mixerChannels > 0:
-      var music = mixer.loadMUS(basePath & "/assets/" & filename)
+      var music = mixer.loadMUS(assetsPath & filename)
       if music != nil:
         musicLibrary[musicId] = music
         echo "loaded music[" & $musicId & ": " & $filename
@@ -1975,7 +1976,7 @@ when not defined(emscripten):
 
   proc loadSfx*(sfxId: SfxId, filename: string) =
     if mixerChannels > 0:
-      var sfx = mixer.loadWAV(basePath & "/assets/" & filename)
+      var sfx = mixer.loadWAV(assetsPath & filename)
       if sfx != nil:
         sfxLibrary[sfxId] = sfx
       else:
@@ -2088,11 +2089,13 @@ proc init*(org: string, app: string) =
   basePath = $sdl2.getBasePath()
   echo "basePath: ", basePath
 
+  assetsPath = basePath & "/assets/"
+
   writePath = $sdl2.getPrefPath(org,app)
   echo "writePath: ", writePath
 
   setFont(0)
-  loadFont(basePath & "/assets/font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{:}~")
+  loadFont("font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{:}~")
 
   controllers = newSeq[NicoController]()
 

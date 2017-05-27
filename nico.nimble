@@ -12,6 +12,8 @@ requires "sdl2 >= 1.1"
 requires "gifenc >= 0.1.0"
 requires "stb_image >= 1.2"
 requires "webaudio >= 0.1.0"
+requires "html5_canvas >= 0.1.0"
+requires "ajax >= 0.1.0"
 
 skipDirs = @["examples","tests"]
 

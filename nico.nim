@@ -111,6 +111,8 @@ converter toPint*(x: int): Pint {.inline.} =
 ## GLOBALS
 ##
 
+var initialized: bool
+
 var loading: int # number of resources loading
 
 var swCanvas: Surface
@@ -2135,6 +2137,7 @@ when not defined(js):
 
   proc saveConfig*() =
     echo "saving config to " & writePath & "/config.ini"
+    assert(config != nil)
     try:
       config.writeConfig(writePath & "/config.ini")
       echo "saved config to " & writePath & "/config.ini"
@@ -2150,7 +2153,7 @@ when not defined(js):
     result = config.getSectionValue(section, key)
 else:
   # js
-  when compiles(dom.window.localStorage):
+  when declared(dom.window.localStorage):
     proc updateConfigValue*(section, key, value: string) =
       dom.window.localStorage.setItem(section & ":" & key, value)
 
@@ -2450,6 +2453,10 @@ proc init*(org: string, app: string) =
 
   controllers = newSeq[NicoController]()
 
+  # add keyboard controller
+  var keyboardController = newNicoController(-1)
+  controllers.add(keyboardController)
+
   when not defined(js):
     basePath = $sdl2.getBasePath()
     echo "basePath: ", basePath
@@ -2474,14 +2481,12 @@ proc init*(org: string, app: string) =
     assetsPath = "assets/"
     writePath = ""
 
-  setFont(0)
-  loadFont("font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{:}~")
-
-  # add keyboard controller
-  var keyboardController = newNicoController(-1)
-  controllers.add(keyboardController)
+  initialized = true
 
   randomize()
+
+  setFont(0)
+  loadFont("font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{:}~")
 
   loadConfig()
 

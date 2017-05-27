@@ -1693,6 +1693,10 @@ proc checkInput() =
   var evt: Event
   zeroMem(addr(evt), sizeof(Event))
   while pollEvent(evt):
+    if eventFunc != nil:
+      let handled = eventFunc(evt)
+      if handled:
+        continue
     appHandleEvent(evt)
 
 proc step() {.cdecl.} =

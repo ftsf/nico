@@ -1799,6 +1799,12 @@ proc sprs*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip,
   var dst: Rect = sdl2.rect(x-cameraX,y-cameraY,dw*8,dh*8)
   blit(spriteSheet[], src, dst, hflip, vflip)
 
+proc sprss*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, dw,dh: Pint, hflip, vflip: bool = false) =
+  # draw a scaled sprite
+  var src = getSprRect(spr, w, h)
+  var dst: Rect = sdl2.rect(x-cameraX,y-cameraY,dw,dh)
+  blit(spriteSheet[], src, dst, hflip, vflip)
+
 proc drawTile(spr: range[0..255], x,y: Pint, tileSize = 8) =
   var src = getSprRect(spr)
   let x = x-cameraX

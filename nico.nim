@@ -22,8 +22,8 @@ when not defined(emscripten):
   import sdl2.audio
   import sdl2.mixer
 
-import nico.stb_image
-import nico.stb_image_write
+import stb_image/read as stbi
+import stb_image/write as stbiw
 
 import osproc
 
@@ -521,7 +521,7 @@ proc saveScreenshot*() =
   # convert RGBA to BGRA
   convertToRGBA(frame, abgr[0].addr, screenWidth*4, screenWidth, screenHeight)
   let filename = writePath & "/screenshots/screenshot-$1T$2.png".format(getDateStr(), getClockStr())
-  discard write_png(filename.cstring, screenWidth, screenHeight, RgbAlpha, abgr[0].addr, screenWidth*4)
+  discard stbiw.writePNG(filename, screenWidth, screenHeight, 4, abgr, screenWidth*4)
   echo "saved screenshot to: ", filename
 
 proc saveRecording*() =
@@ -1204,22 +1204,16 @@ proc fset*(s: uint8, f: range[0..7], v: bool) =
   else:
     spriteFlags[s].unset(f)
 
-proc takeScreenshot*() =
-  render.setRenderTarget(hwCanvas)
-  var surface = sdl2.createRGBSurface(0, screenWidth, screenHeight, 32, 0,0,0,0)
-  discard render.readPixels(srcrect.addr, SDL_PIXELFORMAT_RGB888.cint, surface[].pixels, cint(screenWidth*4))
-  discard write_png("screenshot.png", screenWidth, screenHeight, Rgb, surface.pixels, screenWidth*screenHeight*ord(Rgb))
-  echo "saved screenshot"
-  freeSurface(surface)
-
 proc loadFont*(filename: string, chars: string) =
-  var w,h: cint
-  var components: Components
-  var raw_pixels = load(filename.cstring(), addr(w), addr(h), addr(components), RgbAlpha)
-  if raw_pixels == nil:
+  var w,h,components: int
+  var pixels: seq[uint8]
+  try:
+    pixels = stbi.load(assetsPath & filename, w, h, components, stbi.RGBA)
+  except IndexError:
+    pixels = nil
+  if pixels == nil:
     echo "error loading font: ", filename
     raise newException(IOError, "error loading font")
-  var pixels = cast[ptr array[uint32.high, uint8]](raw_pixels)
 
   font[].pixels = newSeq[uint8](w*h)
   font[].width = w
@@ -1736,13 +1730,10 @@ proc mapRGB(r,g,b: uint8): ColorId =
   return 0
 
 proc loadSpriteSheet*(filename: string) =
-  var w,h: cint
-  var components: Components
-  var raw_pixels = load((basePath & "/assets/" & filename).cstring(), addr(w), addr(h), addr(components), RgbAlpha)
-  if raw_pixels == nil:
+  var w,h,components: int
+  var pixels = stbi.load((assetsPath & filename), w, h, components, 4)
+  if pixels == nil:
     raise newException(IOError, "Error loading spritesheet: " & filename)
-
-  var pixels = cast[ptr array[uint32.high, uint8]](raw_pixels)
 
   spriteSheet[] = newSurface(w,h)
 
@@ -2101,10 +2092,7 @@ proc init*(org: string, app: string) =
   echo "writePath: ", writePath
 
   setFont(0)
-  try:
-    loadFont(basePath & "/assets/font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{:}~")
-  except IOError:
-    echo "no font loaded"
+  loadFont(basePath & "/assets/font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{:}~")
 
   controllers = newSeq[NicoController]()
 

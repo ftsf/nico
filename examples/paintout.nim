@@ -1,6 +1,8 @@
 import nico
 import math
 
+var frame = 0
+
 # color
 var t = 8.0
 
@@ -33,6 +35,7 @@ proc gameInit() =
   byv = 0.75
 
 proc gameUpdate(dt: float) =
+  frame += 1
   t += 0.1
   if t >= 16.0:
     t = 8.0

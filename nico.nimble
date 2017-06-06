@@ -33,3 +33,6 @@ task platformer, "compile platformer example":
 task examples, "compile all examples":
   exec "nimble paintout"
   exec "nimble platformer"
+
+task runplatformer, "runs platformer":
+  exec "nim c -r -p:. -d:release -o:examples/platformer examples/platformer.nim"

@@ -92,7 +92,7 @@ var fullSpeedGif* = true
 var currentTilemap*: Tilemap
 
 var spriteFlags*: array[128, uint8]
-var mixerChannels = 0
+var mixerChannels* = 0
 
 
 var frameRate* = 60

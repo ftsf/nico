@@ -23,6 +23,10 @@ export Scancode
 import streams
 
 
+when defined(sdlmixer):
+  import sdl2.mixer
+
+
 import nico.controller
 
 # map of scancodes to NicoButton
@@ -335,7 +339,7 @@ proc appHandleEvent(evt: Event) =
   elif evt.kind == MouseButtonDown:
     discard captureMouse(true)
     mouseButtonsDown[evt.button.button-1] = true
-    mouseButtons[evt.button.button] = 1
+    mouseButtons[evt.button.button-1] = 1
 
   elif evt.kind == MouseButtonUp:
     discard captureMouse(false)
@@ -744,6 +748,21 @@ else:
 
   proc initMixer*(channels: Pint) =
     discard
+
+when defined(sdlmixer):
+  proc initMixer*(channels: Pint) =
+    when not defined(js):
+      if mixer.init(MIX_INIT_OGG) == -1:
+        echo getError()
+      if mixer.openAudio(44100, AUDIO_S16, MIX_DEFAULT_CHANNELS, 1024) == -1:
+        echo "Error initialising audio: " & $getError()
+      else:
+        addQuitProc(proc() {.noconv.} =
+          echo "closing audio"
+          discard mixer.closeAudio
+        )
+        discard mixer.allocateChannels(channels)
+        mixerChannels = channels
 
 proc run*() =
   while keepRunning:

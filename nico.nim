@@ -5,6 +5,9 @@ when defined(js):
 else:
   import nico.backends.sdl2 as backend
 
+when defined(sdlmixer):
+  export initMixer
+
 import nico.controller
 export NicoController
 export NicoControllerKind
@@ -1321,21 +1324,6 @@ proc setScreenSize*(w,h: int) =
 
 proc setWindowTitle*(title: string) =
   backend.setWindowTitle(title)
-
-when defined(sdlmixer):
-  proc initMixer*(channels: Pint) =
-    when not defined(js):
-      if mixer.init(MIX_INIT_OGG) == -1:
-        echo getError()
-      if mixer.openAudio(44100, AUDIO_S16, MIX_DEFAULT_CHANNELS, 1024) == -1:
-        echo "Error initialising audio: " & $sdl2.getError()
-      else:
-        addQuitProc(proc() {.noconv.} =
-          echo "closing audio"
-          discard mixer.closeAudio
-        )
-        discard mixer.allocateChannels(channels)
-        mixerChannels = channels
 
 proc init*(org, app: string) =
   ## Initializes Nico ready to be used

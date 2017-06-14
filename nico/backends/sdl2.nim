@@ -338,12 +338,14 @@ proc appHandleEvent(evt: Event) =
 
   elif evt.kind == MouseButtonDown:
     discard captureMouse(true)
-    mouseButtonsDown[evt.button.button-1] = true
-    mouseButtons[evt.button.button-1] = 1
+    if evt.button.button < 3:
+      mouseButtonsDown[evt.button.button-1] = true
+      mouseButtons[evt.button.button-1] = 1
 
   elif evt.kind == MouseButtonUp:
-    discard captureMouse(false)
-    mouseButtonsDown[evt.button.button-1] = false
+    if evt.button.button < 3:
+      discard captureMouse(false)
+      mouseButtonsDown[evt.button.button-1] = false
 
   elif evt.kind == MouseMotion:
     mouseDetected = true

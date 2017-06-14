@@ -1372,7 +1372,9 @@ proc run*(init: (proc()), update: (proc(dt:float)), draw: (proc())) =
   if initFunc != nil:
     initFunc()
 
-  backend.run()
+  if not running:
+    running = true
+    backend.run()
 
 proc setBasePath*(path: string) =
   if path.endswith("/"):

@@ -61,6 +61,7 @@ converter toPint*(x: int): Pint {.inline.} =
 ##
 
 var initialized*: bool
+var running*: bool
 
 var loading*: int # number of resources loading
 

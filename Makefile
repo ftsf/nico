@@ -16,4 +16,8 @@ run: $(APPNAME)
 rund: $(APPNAME)-debug
 	./$(APPNAME)-debug
 
-.PHONY: clean run rund
+android:
+	${NIM} c --nimcache:android/jni/src/ --cpu:arm --noMain --os:linux --compileOnly -d:debug -d:android -p:. examples/platformer.nim
+	make -C android
+
+.PHONY: clean run rund android

@@ -2,17 +2,29 @@ import nico.backends.common
 
 when defined(js):
   import nico.backends.js as backend
+  export convertToConsoleLoggable
 else:
   import nico.backends.sdl2 as backend
 
 when defined(sdlmixer):
   export initMixer
 
+import nico.mixer
+
+export synth
+export SynthShape
+export connect
+export getAudioOutput
+export getAudioBuffer
+export initMixer
+
+export debug
 import nico.controller
 export NicoController
 export NicoControllerKind
 export NicoAxis
 export NicoButton
+export ColorId
 
 export btn
 export btnp
@@ -23,13 +35,13 @@ export axisp
 import nico.ringbuffer
 import math
 import algorithm
-import strutils
 import json
 import sequtils
 export math.sin
 import random
 import times
 import strscans
+import strutils
 
 ## Public API
 
@@ -46,6 +58,8 @@ export loadSfx
 export loadMusic
 export sfxVol
 export musicVol
+export getMusic
+export setKeyMap
 
 export basePath
 export assetPath
@@ -66,6 +80,8 @@ proc setFont*(fontId: FontId)
 # Printing text
 proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint {.discardable, inline.}
 
+proc cursor*(x,y: Pint) # set cursor position
+proc print*(text: string) # print at cursor
 proc print*(text: string, x,y: Pint, scale: Pint = 1)
 proc printc*(text: string, x,y: Pint, scale: Pint = 1) # centered
 proc printr*(text: string, x,y: Pint, scale: Pint = 1) # right aligned
@@ -140,10 +156,34 @@ proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = fal
 # misc
 proc copy*(sx,sy,dx,dy,w,h: Pint) # copy one area of the screen to another
 
+# math
+export sin
+export cos
+export abs
+export `mod`
+
+proc mid*[T](a,b,c: T): T =
+  var a = a
+  var b = b
+  if a > b:
+    swap(a,b)
+  return max(a, min(b, c))
+
 ## System functions
 proc shutdown*()
 #proc createWindow*(title: string, w,h: Pint, scale: Pint = 2, fullscreen: bool = false)
 proc init*(org: string, app: string)
+
+export setEventFunc
+export getKeyNamesForBtn
+export getUnmappedJoysticks
+export getFullSpeedGif
+export setFullSpeedGif
+export getRecordSeconds
+export setRecordSeconds
+export getKeyMap
+export getPerformanceCounter
+export getPerformanceFrequency
 
 # Tilemap functions
 proc mset*(tx,ty: Pint, t: uint8)
@@ -204,13 +244,13 @@ proc loadPaletteFromGPL*(filename: string) =
       continue
     var r,g,b: int
     if scanf(line, "$s$i $s$i $s$i", r,g,b):
-      echo "matched ", i-1, ":", r,",",g,",",b
+      debug "matched ", i-1, ":", r,",",g,",",b
       colors[i-1] = RGB(r,g,b)
       if i > 15:
         break
       i += 1
     else:
-      echo "not matched: ", line
+      debug "not matched: ", line
 
 
 proc loadPaletteCGA*() =
@@ -264,9 +304,9 @@ proc clip*() =
 
 proc clip*(x,y,w,h: Pint) =
   clipMinX = max(x, 0)
-  clipMaxX = min(x+w-1, screenWidth-1)
+  clipMaxX = min(x+w, screenWidth-1)
   clipMinY = max(y, 0)
-  clipMaxY = min(y+h-1, screenHeight-1)
+  clipMaxY = min(y+h, screenHeight-1)
   clippingRect.x = max(x, 0)
   clippingRect.y = max(y, 0)
   clippingRect.w = min(w, screenWidth - x)
@@ -431,7 +471,7 @@ proc lineDashed*(x0,y0,x1,y1: Pint, pattern: uint8 = 0b10101010) =
   var i = 0
 
   while true:
-    if pattern shl ((i mod 8) + 1) != 0:
+    if pattern shl ((i mod 8) + 1).uint8 != 0:
       pset(x,y)
     i += 1
     if x == x1 and y == y1:
@@ -1017,7 +1057,9 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
   return font
 
 proc loadFont*(filename: string, chars: string) =
+  debug "loadFont", filename, chars
   loadSurface(assetPath & filename) do(surface: Surface):
+    debug "got surface"
     fonts[currentFontId] = createFontFromSurface(surface, chars)
     debug("font created from ", filename)
 
@@ -1032,7 +1074,7 @@ proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint =
   try:
     fontBlit(font, src, dst, currentColor)
   except IndexError:
-    echo "index error glyph: ", c, " @ ", x, ",", y
+    debug "index error glyph: ", c, " @ ", x, ",", y
     raise
   return src.w * scale + scale
 
@@ -1041,6 +1083,13 @@ proc print*(text: string, x,y: Pint, scale: Pint = 1) =
   let y = y - cameraY
   for c in text:
     x += glyph(c, x, y, scale)
+
+proc print*(text: string) =
+  var x = cursorX - cameraX
+  let y = cursorY - cameraY
+  for c in text:
+    x += glyph(c, x, y, 1)
+  cursorY += 6
 
 proc glyphWidth*(c: char, scale: Pint = 1): Pint =
   let font = fonts[currentFontId]
@@ -1310,6 +1359,9 @@ proc readFile*(filename: string): string =
 proc readJsonFile*(filename: string): JsonNode =
   return backend.readJsonFile(filename)
 
+proc saveJsonFile*(filename: string, data: JsonNode) =
+  backend.saveJsonFile(filename, data)
+
 proc flip*() {.inline.} =
   backend.flip()
 
@@ -1325,23 +1377,32 @@ proc setScreenSize*(w,h: int) =
 proc setWindowTitle*(title: string) =
   backend.setWindowTitle(title)
 
+proc cursor*(x,y: Pint) =
+  cursorX = x
+  cursorY = y
+
 proc init*(org, app: string) =
   ## Initializes Nico ready to be used
+  debug "init", org, app
   controllers = newSeq[NicoController]()
 
+  debug "backend init"
   backend.init(org, app)
 
+  debug "load palette"
   loadPalettePico8()
   setSpritesheet(0)
 
   initialized = true
 
+  debug "load font"
   randomize()
   setFont(0)
   try:
     loadFont("font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{:}~")
   except IOError:
     discard
+  debug "load config"
   loadConfig()
 
   clip()
@@ -1362,6 +1423,7 @@ proc setControllerRemoved*(cremoved: proc(controller: NicoController)) =
   controllerRemovedFunc = cremoved
 
 proc run*(init: (proc()), update: (proc(dt:float)), draw: (proc())) =
+  debug "run"
   assert(update != nil)
   assert(draw != nil)
 
@@ -1372,8 +1434,8 @@ proc run*(init: (proc()), update: (proc(dt:float)), draw: (proc())) =
   if initFunc != nil:
     initFunc()
 
-  if not running:
-    running = true
+  if not common.running:
+    common.running = true
     backend.run()
 
 proc setBasePath*(path: string) =
@@ -1393,6 +1455,11 @@ proc setAssetPath*(path: string) =
     assetPath = path
   else:
     assetPath = path & "/"
+
+iterator all*[T](a: var openarray[T]): T {.inline.} =
+  let len = a.len
+  for i in 0..<len:
+    yield a[i]
 
 when defined(android):
   {.emit: """

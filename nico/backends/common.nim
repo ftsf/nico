@@ -65,6 +65,9 @@ var running*: bool
 
 var loading*: int # number of resources loading
 
+var cursorX* = 0
+var cursorY* = 0
+
 var swCanvas*: Surface
 
 var targetScreenWidth* = 128
@@ -154,19 +157,6 @@ var mouseButtonsDown*: array[3,bool]
 var mouseButtons*: array[3,int]
 var mouseWheelState*: int
 
-when defined(js):
-  import jsconsole
-  export convertToConsoleLoggable
-  template debug*(args: varargs[untyped]) =
-    console.log(args)
-else:
-  proc debug*(args: varargs[string, `$`]) =
-    for i, s in args:
-      write(stderr, s)
-      if i != args.high:
-        write(stderr, ", ")
-    write(stderr, "\n")
-
 proc newSurface*(w,h: int): Surface =
   result.data = newSeq[uint8](w*h)
   result.w = w
@@ -200,7 +190,7 @@ proc mapRGB*(r,g,b: uint8): ColorId =
   return 0
 
 proc convertToIndexed*(surface: Surface): Surface =
-  if surface.channels != 4:
+  if surface.channels > 4 or surface.channels < 3:
     raise newException(Exception, "Converting non RGBA surface to indexed")
   result.data = newSeq[uint8](surface.w*surface.h)
   result.w = surface.w
@@ -208,9 +198,9 @@ proc convertToIndexed*(surface: Surface): Surface =
   result.channels = 1
   for i in 0..<surface.w*surface.h:
     result.data[i] = mapRGB(
-      surface.data[i*4+0],
-      surface.data[i*4+1],
-      surface.data[i*4+2],
+      surface.data[i*surface.channels+0],
+      surface.data[i*surface.channels+1],
+      surface.data[i*surface.channels+2],
     )
 
 proc RGB*(r,g,b: Pint): NicoColor =

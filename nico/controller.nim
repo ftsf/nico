@@ -14,10 +14,10 @@ type NicoAxis* = enum
   pcRTrigger
 
 type NicoButton* = enum
-  pcUp = "Up"
-  pcDown = "Down"
   pcLeft = "Left"
   pcRight = "Right"
+  pcUp = "Up"
+  pcDown = "Down"
   pcA = "A"
   pcB = "B"
   pcX = "X"
@@ -83,11 +83,11 @@ proc axis*(self: NicoController, axis: NicoAxis): float =
   return self.axes[axis].current
 
 proc axisp*(self: NicoController, axis: NicoAxis, value: float): bool =
-  if value == -1.0:
+  if value < 0:
     return self.axes[axis].current < -self.deadzone and not (self.axes[axis].previous < -self.deadzone)
-  if value == 1.0:
+  elif value > 0:
     return self.axes[axis].current > self.deadzone and not (self.axes[axis].previous > self.deadzone)
-  if value == 0.0:
+  else:
     return abs(self.axes[axis].current) < self.deadzone and not (abs(self.axes[axis].previous) < self.deadzone)
 
 proc btn*(self: NicoController, button: NicoButton): bool =

@@ -12,7 +12,9 @@ import sdl2.sdl
 
 import stb_image/read as stbi
 import stb_image/write as stbiw
-import gifenc
+
+when defined(gif):
+  import gifenc
 
 import os
 import osproc
@@ -21,10 +23,34 @@ import parseCfg
 
 export Scancode
 import streams
+import strutils
 
+when defined(android):
+  type LogPriority = enum
+    ANDROID_LOG_UNKNOWN = 0.cint
+    ANDROID_LOG_DEFAULT
+    ANDROID_LOG_VERBOSE
+    ANDROID_LOG_DEBUG
+    ANDROID_LOG_INFO
+    ANDROID_LOG_WARN
+    ANDROID_LOG_ERROR
+    ANDROID_LOG_FATAL
+    ANDROID_LOG_SILENT
+
+  proc android_log(priority: LogPriority, tag: cstring, text: cstring) {.header: "android/log.h", importc: "__android_log_write".}
+
+  proc debug*(args: varargs[string, `$`]) =
+    android_log(ANDROID_LOG_INFO, "NICO", join(args, ", ").cstring)
+else:
+  proc debug*(args: varargs[string, `$`]) =
+    for i, s in args:
+      write(stderr, s)
+      if i != args.high:
+        write(stderr, ", ")
+    write(stderr, "\n")
 
 when defined(sdlmixer):
-  import sdl2.mixer
+  import sdl2.sdl_mixer
 
 
 import nico.controller
@@ -38,10 +64,10 @@ converter toInt(x: Scancode): int =
   x.int
 
 keymap = [
-  @[SCANCODE_UP.int,    SCANCODE_W.int], # up
-  @[SCANCODE_DOWN.int,  SCANCODE_S.int], # up
   @[SCANCODE_LEFT.int,  SCANCODE_A.int], # left
   @[SCANCODE_RIGHT.int, SCANCODE_D.int], # right
+  @[SCANCODE_UP.int,    SCANCODE_W.int], # up
+  @[SCANCODE_DOWN.int,  SCANCODE_S.int], # down
   @[SCANCODE_Z.int], # A
   @[SCANCODE_X.int], # B
   @[SCANCODE_LSHIFT.int, SCANCODE_RSHIFT.int], # X
@@ -55,6 +81,7 @@ keymap = [
 ]
 
 var window: Window
+
 var eventFunc: proc(event: Event): bool
 var render: Renderer
 var hwCanvas: Texture
@@ -71,22 +98,39 @@ var config: Config
 var recordFrame: common.Surface
 var recordFrames: RingBuffer[common.Surface]
 
+var musicVolume: int
+var sfxVolume: int
+
+proc mute*()
+proc unmute*()
+
 proc createRecordBuffer(forceClear: bool = false) =
   if window == nil:
     # this can happen later
     return
 
-  if recordFrame.data == nil or screenWidth != recordFrame.w and screenHeight != recordFrame.h:
-    recordFrame = newSurface(screenWidth,screenHeight)
+  when defined(gif):
+    if recordFrame.data == nil or screenWidth != recordFrame.w and screenHeight != recordFrame.h:
+      recordFrame = newSurface(screenWidth,screenHeight)
 
-  if recordSeconds <= 0:
-    recordFrames = newRingBuffer[common.Surface](1)
-  else:
-    recordFrames = newRingBuffer[common.Surface](if fullSpeedGif: recordSeconds * frameRate.int else: recordSeconds * int(frameRate / 2))
+    if recordSeconds <= 0:
+      recordFrames = newRingBuffer[common.Surface](1)
+    else:
+      recordFrames = newRingBuffer[common.Surface](if fullSpeedGif: recordSeconds * frameRate.int else: recordSeconds * int(frameRate / 2))
 
 
 proc resize*(w,h: int) =
+  debug "resize", w, h
+  if w == 0 or h == 0:
+    return
   # calculate screenScale based on size
+
+  debug "target", targetScreenWidth, targetScreenHeight
+
+  if render != nil:
+    destroyRenderer(render)
+
+  render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture)
 
   if integerScreenScale:
     screenScale = max(1.0, min(
@@ -110,6 +154,9 @@ proc resize*(w,h: int) =
     screenPaddingX = ((w.int - displayW.int)) div 2
     screenPaddingY = ((h.int - displayH.int)) div 2
     debug "add padding", w, h, screenPaddingX, screenPaddingY
+
+    screenWidth = targetScreenWidth
+    screenHeight = targetScreenHeight
   else:
     screenPaddingX = 0
     screenPaddingY = 0
@@ -120,71 +167,108 @@ proc resize*(w,h: int) =
     if integerScreenScale:
       screenWidth = displayW div screenScale
       screenHeight = displayH div screenScale
+      debug "screen", screenWidth, screenHeight
     else:
       screenWidth = (displayW.float / screenScale).int
       screenHeight = (displayH.float / screenScale).int
+      debug "screen", screenWidth, screenHeight
 
-
-  echo "resize event: scale: ", screenScale, ": ", displayW, " x ", displayH, " ( ", screenWidth, " x ", screenHeight, " )"
+  debug "resize event: scale: ", screenScale, ": ", displayW, " x ", displayH, " ( ", screenWidth, " x ", screenHeight, " )"
   # resize the buffers
-  when defined(js):
-    discard
-  else:
-    debug screenPaddingX, screenPaddingY
+  debug screenPaddingX, screenPaddingY
 
-    srcRect = sdl.Rect(x:0,y:0,w:screenWidth,h:screenHeight)
-    dstRect = sdl.Rect(x:screenPaddingX,y:screenPaddingY,w:displayW, h:displayH)
+  srcRect = sdl.Rect(x:0,y:0,w:screenWidth,h:screenHeight)
+  dstRect = sdl.Rect(x:screenPaddingX,y:screenPaddingY,w:displayW, h:displayH)
 
-    debug dstRect
+  debug "srcRect: ", srcRect
+  debug "dstRect: ", dstRect
 
-    hwCanvas = render.createTexture(PIXELFORMAT_RGBA8888, TEXTUREACCESS_STREAMING, screenWidth, screenHeight)
-    swCanvas = newSurface(screenWidth,screenHeight)
+  clipMinX = 0
+  clipMinY = 0
+  clipMaxX = screenWidth - 1
+  clipMaxY = screenHeight - 1
 
-    swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
-    if swCanvas32 == nil:
-      echo "error creating RGB surface"
-      quit(1)
-    discard render.setRenderTarget(hwCanvas)
-    createRecordBuffer()
+  hwCanvas = render.createTexture(PIXELFORMAT_RGBA8888, TEXTUREACCESS_STREAMING, screenWidth, screenHeight)
+  swCanvas = newSurface(screenWidth,screenHeight)
+
+  swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
+  if swCanvas32 == nil:
+    debug "error creating RGB surface"
+    quit(1)
+  discard render.setRenderTarget(hwCanvas)
+  createRecordBuffer()
 
   if resizeFunc != nil:
     resizeFunc(screenWidth,screenHeight)
 
 proc resize*() =
+  if window == nil:
+    return
+  debug "resize() called"
   var windowW, windowH: cint
   window.getWindowSize(windowW.addr, windowH.addr)
   resize(windowW,windowH)
 
 proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = false) =
+  debug "Creating window"
+  when defined(android):
+    window = createWindow(title.cstring, WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, (w * scale).cint, (h * scale).cint, WINDOW_FULLSCREEN)
+  else:
     window = createWindow(title.cstring, WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, (w * scale).cint, (h * scale).cint, 
       (WINDOW_RESIZABLE or (if fullscreen: WINDOW_FULLSCREEN_DESKTOP else: 0)).uint32)
-    render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture)
 
-    targetScreenWidth = w
-    targetScreenHeight = h
+  if window == nil:
+    debug "error creating window"
 
-    screenWidth = w
-    screenHeight = h
+  targetScreenWidth = w
+  targetScreenHeight = h
 
-    swCanvas = newSurface(screenWidth, screenHeight)
-    swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
+  discard setHint("SDL_HINT_RENDER_VSYNC", "1")
+  discard setHint("SDL_RENDER_SCALE_QUALITY", "0")
 
-    var displayW, displayH: cint
-    window.getWindowSize(displayW.addr, displayH.addr)
-    resize(displayW,displayH)
+  var displayW, displayH: cint
+  window.getWindowSize(displayW.addr, displayH.addr)
+  debug "initial resize: ", displayW, displayH
+  resize(displayW,displayH)
 
-    discard setHint("SDL_HINT_RENDER_VSYNC", "1")
-    discard setHint("SDL_RENDER_SCALE_QUALITY", "0")
-    discard showCursor(0)
-    discard render.setRenderTarget(hwCanvas)
+  discard showCursor(0)
+
+proc readFile*(filename: string): string =
+  debug "readFile: ", filename
+  var fp = rwFromFile(filename, "r")
+
+  if fp == nil:
+    raise newException(IOError, "Unable to open file: " & filename)
+
+  let size = rwSize(fp)
+  debug size
+  var buffer = newSeq[uint8](size)
+
+  var offset = 0
+  while offset < size:
+    let r = rwRead(fp, buffer[offset].addr, 1, 1.csize)
+    offset += r
+    if r == 0:
+      break
+  discard rwClose(fp)
+
+  result = cast[string](buffer)
+
 
 proc loadSurface*(filename: string, callback: proc(surface: common.Surface)) =
+  debug "loadSurface", filename
   var w,h,components: int
   var pixels: seq[uint8]
+
+  var buffer = readFile(filename)
+
   try:
-    pixels = stbi.load(filename, w, h, components, stbi.RGBA)
+    pixels = stbi.load_from_memory(cast[seq[uint8]](buffer), w, h, components, 4)
   except STBIException:
     raise newException(IOError, "Unable to load surface: " & filename)
+
+  debug("read image", w, h, components)
+
   var surface: common.Surface
   surface.w = w
   surface.h = h
@@ -192,13 +276,13 @@ proc loadSurface*(filename: string, callback: proc(surface: common.Surface)) =
   surface.data = pixels
   callback(surface)
 
-proc readFile*(filename: string): string =
-  var fp = open(filename, fmRead)
-  result = fp.readAll()
-  fp.close()
-
 proc readJsonFile*(filename: string): JsonNode =
   return parseJson(readFile(filename))
+
+proc saveJsonFile*(filename: string, data: JsonNode) =
+  var fp = open(filename, fmWrite)
+  fp.write(data.pretty())
+  fp.close()
 
 proc present*() =
   discard render.setRenderTarget(nil)
@@ -219,13 +303,14 @@ proc present*() =
 proc flip*() =
   present()
 
-  if recordSeconds > 0:
-    if fullSpeedGif or frame mod 2 == 0:
-      if recordFrame.data != nil:
-        copyMem(recordFrame.data[0].addr, swCanvas.data[0].addr, swCanvas.w * swCanvas.h)
-        recordFrames.add([recordFrame])
+  when defined(gif):
+    if recordSeconds > 0:
+      if fullSpeedGif or frame mod 2 == 0:
+        if recordFrame.data != nil:
+          copyMem(recordFrame.data[0].addr, swCanvas.data[0].addr, swCanvas.w * swCanvas.h)
+          recordFrames.add([recordFrame])
 
-  delay(0)
+  #delay(0)
 
 proc saveScreenshot*() =
   createDir(writePath & "/screenshots")
@@ -235,56 +320,57 @@ proc saveScreenshot*() =
   convertToRGBA(frame, abgr[0].addr, screenWidth*4, screenWidth, screenHeight)
   let filename = writePath & "/screenshots/screenshot-$1T$2.png".format(getDateStr(), getClockStr())
   discard stbiw.writePNG(filename, screenWidth, screenHeight, 4, abgr, screenWidth*4)
-  echo "saved screenshot to: ", filename
+  debug "saved screenshot to: ", filename
 
 proc saveRecording*() =
   # TODO: do this in another thread?
-  echo "saveRecording"
-  try:
-    createDir(writePath & "/video")
-  except OSError:
-    echo "unable to create video output directory"
-    return
+  when defined(gif):
+    debug "saveRecording"
+    try:
+      createDir(writePath & "/video")
+    except OSError:
+      debug "unable to create video output directory"
+      return
 
-  var palette: array[16,array[3,uint8]]
-  for i in 0..15:
-    palette[i] = [colors[i].r, colors[i].g, colors[i].b]
+    var palette: array[16,array[3,uint8]]
+    for i in 0..15:
+      palette[i] = [colors[i].r, colors[i].g, colors[i].b]
 
-  let filename = writePath & "/video/video-$1T$2.gif".format(getDateStr(), getClockStr().replace(":","-"))
+    let filename = writePath & "/video/video-$1T$2.gif".format(getDateStr(), getClockStr().replace(":","-"))
 
-  var gif = newGIF(
-    filename.cstring,
-    (screenWidth*gifScale).uint16,
-    (screenHeight*gifScale).uint16,
-    palette[0][0].addr, 4, 0
-  )
+    var gif = newGIF(
+      filename.cstring,
+      (screenWidth*gifScale).uint16,
+      (screenHeight*gifScale).uint16,
+      palette[0][0].addr, 4, 0
+    )
 
-  if gif == nil:
-    echo "unable to create gif"
-    return
+    if gif == nil:
+      debug "unable to create gif"
+      return
 
-  echo "created gif"
-  var pixels: ptr[array[int32.high, uint8]]
+    debug "created gif"
+    var pixels: ptr[array[int32.high, uint8]]
 
-  for j in 0..recordFrames.size:
-    var frame = recordFrames[j]
-    if frame.data == nil:
-      echo "empty frame. breaking."
-      break
+    for j in 0..recordFrames.size:
+      var frame = recordFrames[j]
+      if frame.data == nil:
+        debug "empty frame. breaking."
+        break
 
-    pixels = cast[ptr array[int32.high, uint8]](gif.frame)
+      pixels = cast[ptr array[int32.high, uint8]](gif.frame)
 
-    if gifScale != 1:
-      for y in 0..<screenHeight*gifScale:
-        for x in 0..<screenWidth*gifScale:
-          let sx = x div gifScale
-          let sy = y div gifScale
-          pixels[y*screenWidth*gifScale+x] = frame.data[sy*frame.w+sx]
-    else:
-      copyMem(gif.frame, frame.data[0].addr, screenWidth*screenHeight)
-    gif.add_frame(if fullSpeedGif: 2 else: 3)
+      if gifScale != 1:
+        for y in 0..<screenHeight*gifScale:
+          for x in 0..<screenWidth*gifScale:
+            let sx = x div gifScale
+            let sy = y div gifScale
+            pixels[y*screenWidth*gifScale+x] = frame.data[sy*frame.w+sx]
+      else:
+        copyMem(gif.frame, frame.data[0].addr, screenWidth*screenHeight)
+      gif.add_frame(if fullSpeedGif: 2 else: 3)
 
-  gif.close()
+    gif.close()
 
 proc getKeyNamesForBtn*(btn: NicoButton): seq[string] =
   result = newSeq[string]()
@@ -311,7 +397,7 @@ proc setKeyMap*(mapstr: string) =
     try:
       btn = parseEnum[NicoButton](btnstr)
     except ValueError:
-      echo "invalid button name: ", btnstr
+      debug "invalid button name: ", btnstr
       return
     keymap[btn] = @[]
     for keystr in keysstr.split(","):
@@ -320,10 +406,10 @@ proc setKeyMap*(mapstr: string) =
 
 proc setFullscreen*(fullscreen: bool) =
   if fullscreen:
-    echo "setting fullscreen"
+    debug "setting fullscreen"
     discard window.setWindowFullscreen(WINDOW_FULLSCREEN_DESKTOP)
   else:
-    echo "setting windowed"
+    debug "setting windowed"
     discard window.setWindowFullscreen(0)
 
 proc getFullscreen*(): bool =
@@ -333,34 +419,47 @@ proc appHandleEvent(evt: Event) =
   if evt.kind == Quit:
     keepRunning = false
 
+  elif evt.kind == APP_WILLENTERBACKGROUND:
+    debug "pausing"
+    focused = false
+
+  elif evt.kind == APP_DIDENTERFOREGROUND:
+    debug "resumed"
+    var w,h: cint
+    window.getWindowSize(w.addr,h.addr)
+    resize(w,h)
+    current_time = getTicks()
+    focused = true
+
   elif evt.kind == MouseWheel:
     mouseWheelState = evt.wheel.y
 
   elif evt.kind == MouseButtonDown:
     discard captureMouse(true)
-    if evt.button.button < 3:
+    if evt.button.button < 4:
       mouseButtonsDown[evt.button.button-1] = true
       mouseButtons[evt.button.button-1] = 1
 
   elif evt.kind == MouseButtonUp:
-    if evt.button.button < 3:
+    if evt.button.button < 4:
       discard captureMouse(false)
       mouseButtonsDown[evt.button.button-1] = false
 
   elif evt.kind == MouseMotion:
-    mouseDetected = true
+    if evt.motion.which != TOUCH_MOUSEID:
+      mouseDetected = true
     mouseX = ((evt.motion.x - screenPaddingX).float / screenScale.float).int
     mouseY = ((evt.motion.y - screenPaddingY).float / screenScale.float).int
 
   elif evt.kind == ControllerDeviceAdded:
     for v in controllers:
       if v.id == evt.cdevice.which:
-        echo "controller already exists"
+        debug "controller already exists"
         return
     try:
       var controller = newNicoController(evt.cdevice.which)
       controllers.add(controller)
-      echo "added controller"
+      debug "added controller"
       if controllerAddedFunc != nil:
         controllerAddedFunc(controller)
     except:
@@ -378,7 +477,6 @@ proc appHandleEvent(evt: Event) =
       if controllerRemovedFunc != nil:
         controllerRemovedFunc(controllers[indexToRemove])
       controllers.del(indexToRemove)
-
 
   elif evt.kind == ControllerButtonDown or evt.kind == ControllerButtonUp:
     let down = evt.kind == ControllerButtonDown
@@ -436,14 +534,14 @@ proc appHandleEvent(evt: Event) =
 
   elif evt.kind == WindowEvent:
     if evt.window.event == WindowEvent_Resized:
-      echo "resize event"
+      debug "resize event"
       debug("padding", evt.window.padding1.int, evt.window.padding2.int, evt.window.padding3.int, evt.window.data1, evt.window.data2)
       resize(evt.window.data1, evt.window.data2)
       discard render.setRenderTarget(nil)
       discard render.setRenderDrawColor(0,0,0,255)
       discard render.renderClear()
     elif evt.window.event == WindowEvent_Size_Changed:
-      echo "size changed event"
+      debug "size changed event"
     elif evt.window.event == WindowEvent_FocusLost:
       focused = false
     elif evt.window.event == WindowEvent_FocusGained:
@@ -453,7 +551,11 @@ proc appHandleEvent(evt: Event) =
     let sym = evt.key.keysym.sym
     let scancode = evt.key.keysym.scancode
     let down = evt.kind == Keydown
-    if sym == K_q and down and (int16(evt.key.keysym.mods) and int16(KMOD_CTRL)) != 0:
+
+    if sym == K_AC_BACK:
+      controllers[0].setButtonState(pcBack, down)
+
+    elif sym == K_q and down and (int16(evt.key.keysym.mods) and int16(KMOD_CTRL)) != 0:
       # ctrl+q to quit
       keepRunning = false
 
@@ -475,6 +577,10 @@ proc appHandleEvent(evt: Event) =
       when not defined(emscripten):
         if (int16(evt.key.keysym.mods) and int16(KMOD_CTRL)) != 0:
           muteAudio = not muteAudio
+          if muteAudio:
+            mute()
+          else:
+            unmute()
 
     elif sym == K_F8 and down:
       # restart recording from here
@@ -547,7 +653,7 @@ proc step*() {.cdecl.} =
     mouseWheelState = 0
 
     acc -= timeStep
-    delay(if focused: 0 else: 10)
+    #delay(if focused: 0 else: 10)
 
 proc getPerformanceCounter*(): uint64 {.inline.} =
   return sdl.getPerformanceCounter()
@@ -570,64 +676,75 @@ proc loadConfig*() =
   # TODO check for config file in user config directioy, use that first
   try:
     config = loadConfig(writePath & "/config.ini")
-    echo "loaded config from " & writePath & "/config.ini"
+    debug "loaded config from " & writePath & "/config.ini"
   except IOError:
     try:
       config = loadConfig(basePath & "/config.ini")
-      echo "loaded config from " & basePath & "/config.ini"
+      debug "loaded config from " & basePath & "/config.ini"
     except IOError:
-      echo "no config file loaded"
+      debug "no config file loaded"
       config = newConfig()
 
 proc saveConfig*() =
-  echo "saving config to " & writePath & "/config.ini"
+  debug "saving config to " & writePath & "/config.ini"
   assert(config != nil)
   try:
     config.writeConfig(writePath & "/config.ini")
-    echo "saved config to " & writePath & "/config.ini"
+    debug "saved config to " & writePath & "/config.ini"
   except IOError:
-    echo "error saving config"
+    debug "error saving config"
 
 proc updateConfigValue*(section, key, value: string) =
-  assert(config != nil)
+  debug "updateConfigValue", key, value
   config.setSectionKey(section, key, value)
 
 proc getConfigValue*(section, key: string): string =
-  assert(config != nil)
   result = config.getSectionValue(section, key)
+  debug "getConfigValue", section, key, result
 
 proc init*(org: string, app: string) =
   discard setHint("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")
 
   if sdl.init(INIT_EVERYTHING) != 0:
-    echo getError()
+    debug sdl.getError()
     quit(1)
 
-  addQuitProc(proc() {.noconv.} =
-    sdl.quit()
-  )
+  debug "SDL initialized"
+
+  #addQuitProc(proc() {.noconv.} =
+  #  sdl.quit()
+  #)
 
   # add keyboard controller
-  controllers.add(newNicoController(-1))
+  debug "adding controllers"
+  when not defined(android):
+    controllers.add(newNicoController(-1))
 
-  basePath = $sdl.getBasePath()
-  echo "basePath: ", basePath
+    debug "get base path: "
+    basePath = $sdl.getBasePath()
+    debug "basePath: ", basePath
 
-  assetPath = basePath & "/assets/"
+    assetPath = basePath & "/assets/"
 
-  writePath = $sdl.getPrefPath(org,app)
-  echo "writePath: ", writePath
+    writePath = $sdl.getPrefPath(org,app)
+    debug "writePath: ", writePath
 
-  discard gameControllerAddMappingsFromFile(basePath & "/assets/gamecontrollerdb.txt")
-  discard gameControllerAddMappingsFromFile(writePath & "/gamecontrollerdb.txt")
+    discard gameControllerAddMappingsFromFile(basePath & "/assets/gamecontrollerdb.txt")
+    discard gameControllerAddMappingsFromFile(writePath & "/gamecontrollerdb.txt")
 
-  for i in 0..numJoysticks():
-    if isGameController(i):
-      try:
-        var controller = newNicoController(i)
-        controllers.add(controller)
-      except:
-        discard
+    for i in 0..numJoysticks():
+      if isGameController(i):
+        try:
+          var controller = newNicoController(i)
+          controllers.add(controller)
+        except:
+          discard
+  else:
+    basePath = ""
+    assetPath = ""
+    writePath = $sdl.getPrefPath(org, app)
+    debug "writePath: ", writePath
+    controllers.add(newNicoController(-1))
 
 proc setEventFunc*(ef: proc(event: Event): bool) =
   eventFunc = ef
@@ -643,39 +760,47 @@ proc hasTextFunc*(): bool =
   return textFunc != nil
 
 proc setFullSpeedGif*(enabled: bool) =
-  fullSpeedGif = enabled
-  createRecordBuffer(true)
+  when defined(gif):
+    fullSpeedGif = enabled
+    createRecordBuffer(true)
 
 proc getFullSpeedGif*(): bool =
-  return fullSpeedGif
+  when defined(gif):
+    return fullSpeedGif
+  else:
+    return false
 
 proc setRecordSeconds*(seconds: int) =
-  recordSeconds = seconds
-  createRecordBuffer()
+  when defined(gif):
+    recordSeconds = seconds
+    createRecordBuffer()
 
 proc getRecordSeconds*(): int =
-  return recordSeconds
+  when defined(gif):
+    return recordSeconds
+  else:
+    return 0
 
 when defined(sdlmixer):
-  var musicLibrary: array[64,ptr Music]
-  var sfxLibrary: array[64,ptr Chunk]
+  var musicLibrary: array[64,Music]
+  var sfxLibrary: array[64,Chunk]
 
   proc loadMusic*(musicId: MusicId, filename: string) =
     if mixerChannels > 0:
-      var music = mixer.loadMUS(assetPath & filename)
+      var music = loadMUS(assetPath & filename)
       if music != nil:
         musicLibrary[musicId] = music
-        echo "loaded music[" & $musicId & ": " & $filename
+        debug "loaded music[" & $musicId & ": " & $filename
       else:
-        echo "Warning: error loading ", filename
-
+        debug "Warning: error loading ", filename
 
   proc music*(musicId: MusicId) =
     if mixerChannels > 0:
       var music = musicLibrary[musicId]
       if music != nil:
         currentMusicId = musicId
-        discard mixer.playMusic(music, -1)
+        discard playMusic(music, -1)
+        discard volumeMusic(musicVolume)
 
   proc getMusic*(): MusicId =
     if mixerChannels > 0:
@@ -684,11 +809,11 @@ when defined(sdlmixer):
 
   proc loadSfx*(sfxId: SfxId, filename: string) =
     if mixerChannels > 0:
-      var sfx = mixer.loadWAV(assetPath & filename)
+      var sfx = loadWAV(assetPath & filename)
       if sfx != nil:
         sfxLibrary[sfxId] = sfx
       else:
-        echo "Warning: error loading ", filename
+        debug "Warning: error loading ", filename
 
   proc sfx*(sfxId: SfxId, channel: range[-1..15] = -1, loop = 0) =
     if mixerChannels > 0:
@@ -699,25 +824,39 @@ when defined(sdlmixer):
         if sfx != nil:
           discard playChannel(channel, sfx, loop)
         else:
-          echo "Warning: playing invalid sfx: " & $sfxId
+          debug "Warning: playing invalid sfx: " & $sfxId
 
   proc musicVol*(value: int) =
+    musicVolume = value
     if mixerChannels > 0:
-      discard mixer.volumeMusic(value)
+      discard volumeMusic(value)
 
   proc musicVol*(): int =
     if mixerChannels > 0:
-      return mixer.volumeMusic(-1)
+      return volumeMusic(-1)
     return 0
 
   proc sfxVol*(value: int) =
+    sfxVolume = value
     if mixerChannels > 0:
-      discard mixer.volume(-1, value)
+      discard volume(-1, value)
 
   proc sfxVol*(): int =
     if mixerChannels > 0:
-      return mixer.volume(-1, -1)
+      return volume(-1, -1)
     return 0
+
+  proc mute*() =
+    musicVolume = 0
+    sfxVolume = 0
+    discard volume(-1, 0)
+    discard volumeMusic(0)
+
+  proc unmute*() =
+    musicVolume = 255
+    sfxVolume = 255
+    discard volume(-1, 255)
+    discard volumeMusic(255)
 
 else:
   # no sound implementation
@@ -742,28 +881,28 @@ else:
   proc mute*() =
     discard
 
+  proc unmute*() =
+    discard
+
   proc sfx*(sfxId: SfxId, channel: range[-1..15] = -1, loop: int = 0) =
     discard
 
   proc music*(musicId: MusicId) =
     discard
 
-  proc initMixer*(channels: Pint) =
-    discard
-
 when defined(sdlmixer):
   proc initMixer*(channels: Pint) =
     when not defined(js):
-      if mixer.init(MIX_INIT_OGG) == -1:
-        echo getError()
-      if mixer.openAudio(44100, AUDIO_S16, MIX_DEFAULT_CHANNELS, 1024) == -1:
-        echo "Error initialising audio: " & $getError()
+      if sdl_mixer.init(INIT_OGG) == -1:
+        debug sdl_mixer.getError()
+      if openAudio(44100, AUDIO_S16, DEFAULT_CHANNELS, 1024) == -1:
+        debug "Error initialising audio: " & $sdl_mixer.getError()
       else:
         addQuitProc(proc() {.noconv.} =
-          echo "closing audio"
-          discard mixer.closeAudio
+          debug "closing audio"
+          sdl_mixer.closeAudio()
         )
-        discard mixer.allocateChannels(channels)
+        discard allocateChannels(channels)
         mixerChannels = channels
 
 proc run*() =
@@ -774,7 +913,7 @@ proc saveMap*(filename: string) =
   createDir(assetPath & "/maps")
   var fs = newFileStream(assetPath & "/maps/" & filename, fmWrite)
   if fs == nil:
-    echo "error opening map for writing: ", filename
+    debug "error opening map for writing: ", filename
     return
   fs.write(currentTilemap.w.int32)
   fs.write(currentTilemap.h.int32)
@@ -783,7 +922,7 @@ proc saveMap*(filename: string) =
       let t = currentTilemap.data[y * currentTilemap.w + x]
       fs.write(t.uint8)
   fs.close()
-  echo "saved map: ", filename
+  debug "saved map: ", filename
 
 proc loadMapBinary*(filename: string) =
   var tm: Tilemap
@@ -795,6 +934,6 @@ proc loadMapBinary*(filename: string) =
   discard fs.readData(tm.h.addr, sizeof(int32)).int32
   tm.data = newSeq[uint8](tm.w*tm.h)
   var r = fs.readData(tm.data[0].addr, tm.w * tm.h * sizeof(uint8))
-  echo "read ", r, " tiles: ", tm.w, " x", tm.h
+  debug "read ", r, " tiles: ", tm.w, " x", tm.h
   fs.close()
   currentTilemap = tm

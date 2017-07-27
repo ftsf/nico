@@ -36,6 +36,11 @@ keymap = [
   @[27, 8], # Back
 ]
 
+export convertToConsoleLoggable
+
+template debug*(args: varargs[untyped]) =
+  console.log(args)
+
 proc present*() =
   # copy swCanvas to canvas
   for i,v in swCanvas.data:

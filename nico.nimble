@@ -36,3 +36,6 @@ task examples, "compile all examples":
 
 task runplatformer, "runs platformer":
   exec "nim c -r -p:. -d:release -o:examples/platformer examples/platformer.nim"
+
+task api, "runs api":
+  exec "nim c -r -p:. -d:debug -o:examples/api examples/api.nim"

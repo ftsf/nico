@@ -374,6 +374,7 @@ method update(self: Floater) =
 
 
 method update(self: Bullet) =
+  debug "update bullet"
   if destructive:
     let x = pos.x div 8
     let y = (pos.y - 1) div 8
@@ -516,11 +517,15 @@ method update(self: Player) =
       else:
         case weapon:
         of Machinegun:
+          debug "new bullet"
           var bullet = newBullet(pos.x, pos.y + 4.0, 0, 4.0)
+          debug "add bullet"
           objects.add(bullet)
+          debug "bullet added"
           bulletTimer = 8
           ammo -= 1
           vel.y -= 0.1
+          debug "bullet done"
         of Shotgun:
           for i in 0..5:
             var bullet = newBullet(pos.x, pos.y + 4.0, rnd(2.0)-1.0, 4.0)
@@ -531,12 +536,15 @@ method update(self: Player) =
         else:
           discard
 
+    debug "post bullet stuff"
 
     if not btn(pcA):
       firing = false
+      debug "firing = false"
 
     elif bulletTimer > 0:
       bulletTimer -= 1
+      debug "bullet timer -= 1"
 
     if pos.y > 256 * 8 + 16 * 8:
       transform()
@@ -565,14 +573,13 @@ method draw(self: Player) =
   of Human:
     let s = if abs(vel.x) > 1.0 and frame mod 10 < 5: 4 elif (dir == 0 and isSolid(-3, 0)) or (dir > 0 and isSolid(3,0)): (if wasOnGround: 1 else: 2) else: 0
     if hitflash > 0 and frame mod 10 < 5:
-      pal(1,0)
-      pal(2,0)
+      return
     spr(s, pos.x, pos.y, 1, 1, dir == 1)
-    pal()
   of Plane:
     spr(64, pos.x, pos.y, 2, 2)
 
 method draw(self: Bullet) =
+  debug "bullet draw"
   if ttl == 0 or isSolid(0,1):
     spr(36, pos.x, pos.y)
   else:
@@ -667,10 +674,12 @@ proc gameUpdate(dt: float) =
     player.weapon = Shotgun
 
   if not gameOver:
-    for obj in mitems(objects):
+    for obj in all(objects):
       obj.move(obj.vel.x, obj.vel.y)
       obj.update()
+    debug "object update done"
 
+    debug "check collisions"
     for i in 0..<objects.len:
       for j in i+1..<objects.len:
         let a = objects[i]
@@ -678,8 +687,10 @@ proc gameUpdate(dt: float) =
         if a.overlaps(b):
           collide(a,b)
 
+    debug "keepif"
     objects.keepIf() do(a: Obj) -> bool:
       a.shouldKill == false
+    debug "keepif done"
 
   cy = lerp(cy, player.pos.y.float - 64.0, 0.1)
 

@@ -111,6 +111,9 @@ var screenScale* = 4.0
 var spriteSheets*: array[16,Surface]
 var spriteSheet*: ptr Surface
 
+var tileSizeX* = 8
+var tileSizeY* = 8
+
 var initFunc*: proc()
 var updateFunc*: proc(dt:float)
 var drawFunc*: proc()

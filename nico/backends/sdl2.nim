@@ -98,12 +98,6 @@ var config: Config
 var recordFrame: common.Surface
 var recordFrames: RingBuffer[common.Surface]
 
-var musicVolume: int
-var sfxVolume: int
-
-proc mute*()
-proc unmute*()
-
 proc createRecordBuffer(forceClear: bool = false) =
   if window == nil:
     # this can happen later
@@ -573,15 +567,6 @@ proc appHandleEvent(evt: Event) =
         setFullscreen(true)
       return
 
-    elif sym == K_m and down:
-      when not defined(emscripten):
-        if (int16(evt.key.keysym.mods) and int16(KMOD_CTRL)) != 0:
-          muteAudio = not muteAudio
-          if muteAudio:
-            mute()
-          else:
-            unmute()
-
     elif sym == K_F8 and down:
       # restart recording from here
       createRecordBuffer(true)
@@ -780,130 +765,6 @@ proc getRecordSeconds*(): int =
     return recordSeconds
   else:
     return 0
-
-when defined(sdlmixer):
-  var musicLibrary: array[64,Music]
-  var sfxLibrary: array[64,Chunk]
-
-  proc loadMusic*(musicId: MusicId, filename: string) =
-    if mixerChannels > 0:
-      var music = loadMUS(assetPath & filename)
-      if music != nil:
-        musicLibrary[musicId] = music
-        debug "loaded music[" & $musicId & ": " & $filename
-      else:
-        debug "Warning: error loading ", filename
-
-  proc music*(musicId: MusicId) =
-    if mixerChannels > 0:
-      var music = musicLibrary[musicId]
-      if music != nil:
-        currentMusicId = musicId
-        discard playMusic(music, -1)
-        discard volumeMusic(musicVolume)
-
-  proc getMusic*(): MusicId =
-    if mixerChannels > 0:
-      return currentMusicId
-    return 0
-
-  proc loadSfx*(sfxId: SfxId, filename: string) =
-    if mixerChannels > 0:
-      var sfx = loadWAV(assetPath & filename)
-      if sfx != nil:
-        sfxLibrary[sfxId] = sfx
-      else:
-        debug "Warning: error loading ", filename
-
-  proc sfx*(sfxId: SfxId, channel: range[-1..15] = -1, loop = 0) =
-    if mixerChannels > 0:
-      if sfxId == -1:
-        discard haltChannel(channel)
-      else:
-        var sfx = sfxLibrary[sfxId]
-        if sfx != nil:
-          discard playChannel(channel, sfx, loop)
-        else:
-          debug "Warning: playing invalid sfx: " & $sfxId
-
-  proc musicVol*(value: int) =
-    musicVolume = value
-    if mixerChannels > 0:
-      discard volumeMusic(value)
-
-  proc musicVol*(): int =
-    if mixerChannels > 0:
-      return volumeMusic(-1)
-    return 0
-
-  proc sfxVol*(value: int) =
-    sfxVolume = value
-    if mixerChannels > 0:
-      discard volume(-1, value)
-
-  proc sfxVol*(): int =
-    if mixerChannels > 0:
-      return volume(-1, -1)
-    return 0
-
-  proc mute*() =
-    musicVolume = 0
-    sfxVolume = 0
-    discard volume(-1, 0)
-    discard volumeMusic(0)
-
-  proc unmute*() =
-    musicVolume = 255
-    sfxVolume = 255
-    discard volume(-1, 255)
-    discard volumeMusic(255)
-
-else:
-  # no sound implementation
-  proc loadSfx*(sfxId: SfxId, filename: string) =
-    discard
-
-  proc loadMusic*(musicId: MusicId, filename: string) =
-    discard
-
-  proc musicVol*(value: int) =
-    discard
-
-  proc musicVol*(): int =
-    discard
-
-  proc sfxVol*(value: int) =
-    discard
-
-  proc sfxVol*(): int =
-    discard
-
-  proc mute*() =
-    discard
-
-  proc unmute*() =
-    discard
-
-  proc sfx*(sfxId: SfxId, channel: range[-1..15] = -1, loop: int = 0) =
-    discard
-
-  proc music*(musicId: MusicId) =
-    discard
-
-when defined(sdlmixer):
-  proc initMixer*(channels: Pint) =
-    when not defined(js):
-      if sdl_mixer.init(INIT_OGG) == -1:
-        debug sdl_mixer.getError()
-      if openAudio(44100, AUDIO_S16, DEFAULT_CHANNELS, 1024) == -1:
-        debug "Error initialising audio: " & $sdl_mixer.getError()
-      else:
-        addQuitProc(proc() {.noconv.} =
-          debug "closing audio"
-          sdl_mixer.closeAudio()
-        )
-        discard allocateChannels(channels)
-        mixerChannels = channels
 
 proc run*() =
   while keepRunning:

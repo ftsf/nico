@@ -41,6 +41,9 @@ export convertToConsoleLoggable
 template debug*(args: varargs[untyped]) =
   console.log(args)
 
+proc setKeyMap*(newmap: string) =
+  discard
+
 proc present*() =
   # copy swCanvas to canvas
   for i,v in swCanvas.data:

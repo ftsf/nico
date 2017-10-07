@@ -30,9 +30,18 @@ task platformer, "compile platformer example":
   exec "nim c -p:. -d:release -o:examples/platformer examples/platformer.nim"
   exec "nim js -p:. -d:release -o:examples/platformer.js examples/platformer.nim"
 
+task sfx, "compile sfx example":
+  exec "nim c -p:. --threads:on -d:debug -o:examples/sfx examples/sfx.nim"
+  exec "nim js -p:. -d:release -o:examples/sfx.js examples/sfx.nim"
+
+task audio, "compile sfx example":
+  exec "nim c -p:. --threads:on -d:debug -o:examples/audio examples/audio.nim"
+  exec "nim js -p:. -d:release -o:examples/audio.js examples/audio.nim"
+
 task examples, "compile all examples":
   exec "nimble paintout"
   exec "nimble platformer"
+  exec "nimble sfx"
 
 task runplatformer, "runs platformer":
   exec "nim c -r -p:. -d:release -o:examples/platformer examples/platformer.nim"

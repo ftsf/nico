@@ -6,17 +6,32 @@ when defined(js):
 else:
   import nico.backends.sdl2 as backend
 
-when defined(sdlmixer):
-  export initMixer
-
 import nico.mixer
 
+export loadSfx
+
+export sfx
+export music
+export fade
+
+export masterVol
+export sfxVol
+export musicVol
+
+export pitchbend
+export pitch
+
 export synth
+export synthUpdate
 export SynthShape
 export connect
 export getAudioOutput
 export getAudioBuffer
-export initMixer
+export note
+export setTickFunc
+export bpm
+export tpb
+export queueAudio
 
 export debug
 import nico.controller
@@ -49,16 +64,7 @@ export timeStep
 
 export Pint
 export toPint
-export SfxId
-export MusicId
 
-export sfx
-export music
-export loadSfx
-export loadMusic
-export sfxVol
-export musicVol
-export getMusic
 export setKeyMap
 
 export basePath
@@ -174,16 +180,17 @@ proc shutdown*()
 #proc createWindow*(title: string, w,h: Pint, scale: Pint = 2, fullscreen: bool = false)
 proc init*(org: string, app: string)
 
-export setEventFunc
-export getKeyNamesForBtn
-export getUnmappedJoysticks
-export getFullSpeedGif
-export setFullSpeedGif
-export getRecordSeconds
-export setRecordSeconds
-export getKeyMap
-export getPerformanceCounter
-export getPerformanceFrequency
+when not defined(js):
+  export setEventFunc
+  export getKeyNamesForBtn
+  export getUnmappedJoysticks
+  export getFullSpeedGif
+  export setFullSpeedGif
+  export getRecordSeconds
+  export setRecordSeconds
+  export getKeyMap
+  export getPerformanceCounter
+  export getPerformanceFrequency
 
 # Tilemap functions
 proc mset*(tx,ty: Pint, t: uint8)
@@ -191,6 +198,9 @@ proc mget*(tx,ty: Pint): uint8
 proc mapDraw*(tx,ty, tw,th, dx,dy: Pint)
 proc loadMap*(filename: string)
 proc newMap*(w,h: Pint)
+proc tileSize*(w,h: Pint) =
+  tileSizeX = w
+  tileSizeY = h
 
 #proc saveMap*(filename: string)
 
@@ -204,7 +214,7 @@ proc ceil*(x: float): float =
   -flr(-x)
 proc lerp*[T](a,b: T, t: float): T
 
-proc rnd*[T: Ordinal](x: T): T
+proc rnd*[T: Natural](x: T): T
 proc rnd*[T](a: openarray[T]): T
 proc rnd*(x: float): float
 
@@ -1204,15 +1214,18 @@ proc integerScale*(enabled: bool) =
 proc setSpritesheet*(bank: range[0..15] = 0) =
   spriteSheet = spriteSheets[bank].addr
 
-proc loadSpriteSheet*(filename: string) =
+proc loadSpriteSheet*(filename: string, w,h: Pint = 8) =
   loadSurface(assetPath & filename) do(surface: Surface):
     spriteSheet[] = surface.convertToIndexed()
+  tileSizeX = w
+  tileSizeY = h
 
 proc getSprRect(spr: range[0..255], w,h: Pint = 1): Rect {.inline.} =
-  result.x = spr%%16 * 8
-  result.y = spr div 16 * 8
-  result.w = w * 8
-  result.h = h * 8
+  let tilesX = spriteSheet.w div tileSizeX
+  result.x = spr %% tilesX * tileSizeY
+  result.y = spr div tilesX * tileSizeY
+  result.w = w * tileSizeX
+  result.h = h * tileSizeY
 
 proc spr*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false) =
   # draw a sprite
@@ -1257,12 +1270,12 @@ proc sprss*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, dw,dh: Pint, hflip, vf
   var dst: Rect = ((x-cameraX).int,(y-cameraY).int,dw.int,dh.int)
   blit(spriteSheet[], src, dst, hflip, vflip)
 
-proc drawTile(spr: range[0..255], x,y: Pint, tileSize = 8) =
+proc drawTile(spr: range[0..255], x,y: Pint) =
   var src = getSprRect(spr)
   let x = x-cameraX
   let y = y-cameraY
-  if overlap(clippingRect,(x.int,y.int,tileSize,tileSize)):
-    blitFast(spriteSheet[], src.x, src.y, x, y, tileSize, tileSize)
+  if overlap(clippingRect,(x.int,y.int,tileSizeX,tileSizeY)):
+    blitFast(spriteSheet[], src.x, src.y, x, y, tileSizeX, tileSizeY)
 
 proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = false) =
   var src: Rect = (sx.int,sy.int,sw.int,sh.int)
@@ -1277,16 +1290,15 @@ proc mapDraw*(tx,ty, tw,th, dx,dy: Pint) =
   # draw map tiles to the screen
   var xi = dx
   var yi = dy
-  var increment = 8
   for y in ty..ty+th-1:
     if y >= 0 and y < currentTilemap.h:
       for x in tx..tx+tw-1:
         if x >= 0  and x < currentTilemap.w:
           let t = currentTilemap.data[y * currentTilemap.w + x]
           if t != 0:
-            drawTile(t, xi, yi, increment)
-        xi += increment
-    yi += increment
+            drawTile(t, xi, yi)
+        xi += tileSizeX
+    yi += tileSizeY
     xi = dx
 
 proc mapWidth*(): Pint =
@@ -1324,9 +1336,8 @@ proc newMap*(w,h: Pint) =
   currentTilemap.h = h
   currentTilemap.data = newSeq[uint8](w*h)
 
-proc rnd*[T: Ordinal](x: T): T =
-  if x == 0:
-    return 0
+proc rnd*[T: Natural](x: T): T =
+  assert x >= 1
   return random(x.int).T
 
 proc rnd*(x: float): float =
@@ -1359,8 +1370,9 @@ proc readFile*(filename: string): string =
 proc readJsonFile*(filename: string): JsonNode =
   return backend.readJsonFile(filename)
 
-proc saveJsonFile*(filename: string, data: JsonNode) =
-  backend.saveJsonFile(filename, data)
+when not defined(js):
+  proc saveJsonFile*(filename: string, data: JsonNode) =
+    backend.saveJsonFile(filename, data)
 
 proc flip*() {.inline.} =
   backend.flip()
@@ -1404,6 +1416,8 @@ proc init*(org, app: string) =
     discard
   debug "load config"
   loadConfig()
+
+  initMixer()
 
   clip()
 

@@ -4,7 +4,7 @@ import strutils
 var n = 69
 var shape = 0
 
-type Instrument = tuple[shape: uint8, width: uint8, init: uint8, change: uint8]
+type Instrument = tuple[shape: uint8, init: uint8, change: uint8]
 type Row = tuple[note: uint8, inst: uint8, command: uint8, arg: uint8]
 type Pattern = array[16, Row]
 type SongRow = array[4, uint8]
@@ -76,27 +76,22 @@ proc gameInit() =
   currentPatternCol = 0
 
   instruments[1].shape = 2
-  instruments[1].width = 4
   instruments[1].init = 0xa
   instruments[1].change = 0x1
 
   instruments[2].shape = 2
-  instruments[2].width = 4
   instruments[2].init = 0xa
   instruments[2].change = 0x7
 
   instruments[3].shape = 2
-  instruments[3].width = 2
   instruments[3].init = 0xa
   instruments[3].change = 0x3
 
   instruments[4].shape = 4
-  instruments[4].width = 1
   instruments[4].init = 0xa
   instruments[4].change = 0x1
 
   instruments[5].shape = 5
-  instruments[5].width = 1
   instruments[5].init = 0xa
   instruments[5].change = 0x1
 
@@ -233,15 +228,10 @@ proc gameUpdate(dt: float) =
           instruments[currentInstrument].shape += 1
       of 1:
         if btnp(pcLeft):
-          instruments[currentInstrument].width -= 1
-        if btnp(pcRight):
-          instruments[currentInstrument].width += 1
-      of 2:
-        if btnp(pcLeft):
           instruments[currentInstrument].init -= 1
         if btnp(pcRight):
           instruments[currentInstrument].init += 1
-      of 3:
+      of 2:
         if btnp(pcLeft):
           instruments[currentInstrument].change -= 1
         if btnp(pcRight):
@@ -337,10 +327,8 @@ proc gameDraw() =
     setColor(if currentInstrumentSetting == 0: 7 else: 5)
     print("SHAPE:  " & $instruments[currentInstrument].shape.SynthShape, 1, 10)
     setColor(if currentInstrumentSetting == 1: 7 else: 5)
-    print("WIDTH:  " & toHex(instruments[currentInstrument].width), 1, 20)
-    setColor(if currentInstrumentSetting == 2: 7 else: 5)
     print("INIT:   " & toHex(instruments[currentInstrument].init), 1, 30)
-    setColor(if currentInstrumentSetting == 3: 7 else: 5)
+    setColor(if currentInstrumentSetting == 2: 7 else: 5)
     print("CHANGE: " & toHex(instruments[currentInstrument].change), 1, 40)
   else:
     discard

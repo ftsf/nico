@@ -9,10 +9,13 @@ else:
 import nico.mixer
 
 export loadSfx
+export loadMusic
 
 export sfx
 export music
 export fade
+
+export getMusic
 
 export masterVol
 export sfxVol
@@ -1262,7 +1265,7 @@ proc sprs*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip,
   # draw an integer scaled sprite
   var src = getSprRect(spr, w, h)
   var dst: Rect = ((x-cameraX).int,(y-cameraY).int,(dw*8).int,(dh*8).int)
-  blit(spriteSheet[], src, dst, hflip, vflip)
+  blitStretch(spriteSheet[], src, dst, hflip, vflip)
 
 proc sprss*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, dw,dh: Pint, hflip, vflip: bool = false) =
   # draw a scaled sprite

@@ -27,6 +27,9 @@ import strutils
 # set a tick function to be called back at BPM for doing music type stuff
 
 const musicBufferSize = 4096
+const nChannels = 16
+
+type AudioChannelId* = range[-2..nChannels.high]
 
 var tickFunc: proc() = nil
 
@@ -87,6 +90,7 @@ type
     channelSynth
     channelWave
     channelMusic
+    channelCallback
 
   FXKind* = enum
     fxDelay
@@ -107,12 +111,22 @@ type
     synTri = "tri"
     synNoise = "rnd"
 
+  Table = object
+    gain: array[16,uint8]
+    note: array[16,uint8]
+    commands: array[2,array[16,tuple[command: uint8, value: uint8]]]
+
   Channel = object
     kind: ChannelKind
     buffer: SfxBuffer
+    callback: proc(samples: seq[float32])
     musicFile: ptr TSNDFILE
+    musicIndex: int
     musicBuffer: int
     musicBuffers: array[2,array[musicBufferSize,float32]]
+
+    table: uint8
+
     loop: int
     phase: float # or position
     freq: float # or speed
@@ -136,12 +150,15 @@ type
     fxData2: float
     fxData3: float
 
+    priority: float
+
 
 var sfxBufferLibrary: array[64,SfxBuffer]
+var musicFileLibrary: array[64,string]
 
 var audioSampleId: uint32
 var audioOutputNode: AudioOutputNode
-var audioChannels: seq[Channel]
+var audioChannels: array[nChannels, Channel]
 
 var invSampleRate: float
 
@@ -177,47 +194,71 @@ proc newSfxBuffer(filename: string): SfxBuffer =
   echo result.channels
   echo result.rate
 
-proc loadSfx*(index: int, filename: string) =
+proc loadSfx*(index: range[-1..63], filename: string) =
   if index < 0 or index > 63:
     return
   sfxBufferLibrary[index] = newSfxBuffer(assetPath & filename)
 
-proc findFreeChannel(): int =
+proc loadMusic*(index: int, filename: string) =
+  if index < 0 or index > 63:
+    return
+  musicFileLibrary[index] = assetPath & filename
+
+proc getMusic*(index: AudioChannelId): int =
+  if audioChannels[index].kind != channelMusic:
+    return -1
+  return audioChannels[index].musicIndex
+
+proc findFreeChannel(priority: float): int =
   for i,c in audioChannels:
     if c.kind == channelNone:
       return i
-  return 0
+  var lowestPriority: float = Inf
+  var bestChannel: AudioChannelId = -2
+  for i,c in audioChannels:
+    if c.priority < lowestPriority:
+      lowestPriority = c.priority
+      bestChannel = i
+  if lowestPriority > priority or bestChannel < 0:
+    return -2
+  return bestChannel
 
-proc sfx*(index: int, channel: int = -1, loop: int = 1, pitch: float = 1.0) =
-  let channel = if channel == -1: findFreeChannel() else: channel
-  if channel >= audioChannels.len:
-    echo "invalid channel", channel
+proc sfx*(index: range[-1..63], channel: AudioChannelId = -1, loop: int = 1, gain: float = 1.0, pitch: float = 1.0, priority: float = Inf) =
+  let channel = if channel == -1: findFreeChannel(priority) else: channel
+  if channel == -2:
     return
+
+  echo "sfx: ", index, " channel: ", channel
+
   if index < 0:
-    audioChannels[channel].kind = channelNone
+    audioChannels[channel].reset()
     return
+
+  if index > 63:
+    return
+
   if sfxBufferLibrary[index] == nil:
-    echo "invalid sfx", index
     return
+
   audioChannels[channel].kind = channelWave
   audioChannels[channel].buffer = sfxBufferLibrary[index]
   audioChannels[channel].phase = 0.0
   audioChannels[channel].freq = pitch
-  audioChannels[channel].gain = 1.0
+  audioChannels[channel].gain = gain
   audioChannels[channel].loop = loop
 
-proc music*(filename: string, channel: int, loop: int = 1) =
-  var info: Tinfo
-  var snd = sndfile.open((assetPath & filename).cstring, READ, info.addr)
-  if snd == nil:
-    raise newException(IOError, "unable to open file for reading: " & filename)
+proc music*(index: int, channel: AudioChannelId = -1, loop: int = 1) =
+  if musicFileLibrary[index] == nil:
+    raise newException(IOError, "no music loaded in index: " & $index)
 
-  if channel >= audioChannels.len:
-    echo "invalid channel ", channel
-    return
+  var info: Tinfo
+  var snd = sndfile.open(musicFileLibrary[index], READ, info.addr)
+  if snd == nil:
+    raise newException(IOError, "unable to open file for reading: " & musicFileLibrary[index])
 
   audioChannels[channel].kind = channelMusic
   audioChannels[channel].musicFile = snd
+  audioChannels[channel].musicIndex = index
   audioChannels[channel].phase = 0.0
   audioChannels[channel].freq = 1.0
   audioChannels[channel].gain = 1.0
@@ -294,6 +335,15 @@ proc note*(n: int): float =
 
 proc note*(n: string): float =
   return note(noteStrToNote(n))
+
+proc reset*(channel: int) =
+  if channel > audioChannels.high:
+    raise newException(KeyError, "invalid channel: " & $channel)
+  audioChannels[channel].kind = channelNone
+  audioChannels[channel].freq = 1.0
+  audioChannels[channel].gain = 0.0
+  audioChannels[channel].loop = 0
+  audioChannels[channel].musicIndex = 0
 
 proc synth*(channel: int, shape: SynthShape, freq: float, init: int = 256, vchange: float = 0.0) =
   if channel > audioChannels.high:
@@ -407,20 +457,21 @@ proc process(self: var Channel): float32 =
     return o * sfxVolume * masterVolume
   of channelMusic:
     var o: float32
-    #echo "buffer ", self.musicBuffer
     o = self.musicBuffers[self.musicBuffer].interpolatedLookup(phase) * gain
     phase += freq
     if phase >= musicBufferSize:
-      #echo "filling buffer ", self.musicBuffer
+      # end of buffer, switch buffers and fill
       phase = 0.0
       let read = musicFile.read_float(self.musicBuffers[self.musicBuffer][0].addr, musicBufferSize)
       self.musicBuffer = (self.musicBuffer + 1) mod 2
-      #echo "read ", read
       if read != musicBufferSize:
-        # reached end
         if loop != 0:
+          if loop > 0:
+            loop -= 1
           discard musicFile.seek(0, SEEK_SET)
-    #echo phase, "/", o
+        else:
+          self.reset()
+
     if audioSampleId mod 2 == 0:
       if vchange > 0:
         gain += vchange * invSampleRate
@@ -465,7 +516,7 @@ proc queueAudio*(samples: var seq[float32]) =
   when not defined(js):
     discard queueAudio(audioDeviceId, samples[0].addr, (samples.len div sizeof(float32)).uint32)
 
-proc initMixer*(nChannels: Natural = 16) =
+proc initMixer*() =
   when defined(js):
     # use web audio
     discard
@@ -498,7 +549,6 @@ proc initMixer*(nChannels: Natural = 16) =
     audioOutputNode = new(AudioOutputNode)
     audioOutputNode.sampleBuffer = newSeq[float32](obtained.samples * obtained.channels)
 
-    audioChannels = newSeq[Channel](nChannels)
     for c in audioChannels.mitems:
       c.lfsr = 0xfeed
 

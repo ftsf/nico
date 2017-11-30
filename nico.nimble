@@ -28,8 +28,12 @@ task paintout, "compile paintout example":
   exec "nim js -p:. -d:debug --lineTrace:on --stackTrace:on -o:examples/paintout.js examples/paintout.nim"
 
 task platformer, "compile platformer example":
-  exec "nim c -p:. -d:release -o:examples/platformer examples/platformer.nim"
-  exec "nim js -p:. -d:release -o:examples/platformer.js examples/platformer.nim"
+  exec "nim c -p:. -d:release --threads:off -o:examples/platformer examples/platformer.nim"
+  #exec "nim js -p:. -d:release -o:examples/platformer.js examples/platformer.nim"
+
+task platformerthreads, "compile platformer example":
+  exec "nim c -p:. -d:release --threads:on -o:examples/platformer examples/platformer.nim"
+  #exec "nim js -p:. -d:release -o:examples/platformer.js examples/platformer.nim"
 
 task sfx, "compile sfx example":
   exec "nim c -p:. --threads:on -d:debug -o:examples/sfx examples/sfx.nim"

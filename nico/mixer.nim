@@ -37,6 +37,8 @@ var currentBpm: Natural = 128
 var currentTpb: Natural = 4
 var sampleRate = 44100.0
 var nextTick = 0
+var clock: bool
+var nextClock = 0
 
 var masterVolume = 1.0
 var sfxVolume = 1.0
@@ -59,31 +61,11 @@ type
     length: int
 
 type
-  Node = ref object of RootObj
-    sampleId: uint32
-    output: float32
-  Effect = ref object of Node
-  Source = ref object of Node
-
-  Sink = ref object of Node
-    inputs: seq[Node]
-
-  GainNode = ref object of Sink
-    gain: float
-
   FilterKind = enum
     Lowpass
     Highpass
     Bandpass
     Notch
-
-  FilterNode = ref object of Sink
-    kind: FilterKind
-    freq: float
-    resonance: float
-
-  AudioOutputNode = ref object of Sink
-    sampleBuffer: seq[float32]
 
   ChannelKind = enum
     channelNone
@@ -109,7 +91,9 @@ type
     synP25 = "p25"
     synSaw = "saw"
     synTri = "tri"
-    synNoise = "rnd"
+    synNoise = "noi"
+    synNoise2 = "met"
+    synWav = "wav" # use custom waveform
 
   Table = object
     gain: array[16,uint8]
@@ -127,22 +111,33 @@ type
 
     table: uint8
 
+    arp: uint16
+    arpSpeed: uint8
+
     loop: int
     phase: float # or position
     freq: float # or speed
+    basefreq: float
     targetFreq: float
     width: float
     pan: float
     shape: SynthShape
     gain: float
 
-    vinit: float
-    vchange: float
+    init: range[0..15]
+    env: range[-7..7]
+    envValue: float32
+    envPhase: int
+    length: range[0..255]
+    vibspeed: range[1..15]
+    vibamount: range[0..15]
+    glide: range[0..15]
 
-    pchange: float
+    pchange: range[-127..127]
 
     trigger: bool
     lfsr: int
+    lfsr2: int
     nextClick: int
     outvalue: float32
     fxKind: FXKind
@@ -152,12 +147,13 @@ type
 
     priority: float
 
+    wavData: array[32, uint8]
+
 
 var sfxBufferLibrary: array[64,SfxBuffer]
 var musicFileLibrary: array[64,string]
 
 var audioSampleId: uint32
-var audioOutputNode: AudioOutputNode
 var audioChannels: array[nChannels, Channel]
 
 var invSampleRate: float
@@ -270,21 +266,27 @@ proc music*(index: int, channel: AudioChannelId = -1, loop: int = 1) =
   block:
     let read = snd.read_float(audioChannels[channel].musicBuffers[1][0].addr, musicBufferSize)
 
-proc fade*(channel: int, init, target: int, time: float) =
-  audioChannels[channel].gain = init.float / 255.0
-  audioChannels[channel].vchange = ((target - init).float / 255.0) / time
-
 proc volume*(channel: int, volume: int) =
   audioChannels[channel].gain = (volume.float / 255.0)
 
-proc pitchbend*(channel: int, targetFreq: float, time: float) =
-  audioChannels[channel].pchange = (targetFreq - audioChannels[channel].freq) / time
-  audioChannels[channel].targetFreq = targetFreq
+proc pitchbend*(channel: int, changeSpeed: range[-128..128]) =
+  audioChannels[channel].pchange = changeSpeed
+
+proc vibrato*(channel: int, speed: range[1..15], amount: range[0..15]) =
+  audioChannels[channel].vibspeed = speed
+  audioChannels[channel].vibamount = amount
+
+proc glide*(channel: int, glide: range[0..15]) =
+  audioChannels[channel].glide = glide
+
+proc wavData*(channel: int): array[32, uint8] =
+  return audioChannels[channel].wavData
+
+proc wavData*(channel: int, data: array[32, uint8]) =
+  audioChannels[channel].wavData = data
 
 proc pitch*(channel: int, freq: float) =
-  audioChannels[channel].freq = freq
   audioChannels[channel].targetFreq = freq
-  audioChannels[channel].pchange = 0.0
 
 proc synthShape*(channel: int, newShape: SynthShape) =
   audioChannels[channel].shape = newShape
@@ -292,11 +294,6 @@ proc synthShape*(channel: int, newShape: SynthShape) =
 proc shutdownMixer() =
   echo "closing mixer"
   discard
-
-proc connect*(a: Node, b: Sink) =
-  assert(b != nil)
-  assert(a != nil)
-  b.inputs.safeAdd(a)
 
 proc lerp[T](a,b: T, t: float): T =
   return a + (b - a) * t
@@ -307,11 +304,35 @@ proc interpolatedLookup[T](a: openarray[T], s: float): T =
   let nextSample = (sample + 1) mod a.len
   result = lerp(a[sample],a[nextSample],alpha)
 
-proc getAudioOutput*(): AudioOutputNode =
-  return audioOutputNode
-
-proc getAudioBuffer*(): seq[float32] =
-  return audioOutputNode.sampleBuffer
+proc noteToNoteStr(value: int): string =
+  let oct = value div 12 - 1
+  case value mod 12:
+  of 0:
+    return "C-" & $oct
+  of 1:
+    return "C#" & $oct
+  of 2:
+    return "D-" & $oct
+  of 3:
+    return "D#" & $oct
+  of 4:
+    return "E-" & $oct
+  of 5:
+    return "F-" & $oct
+  of 6:
+    return "F#" & $oct
+  of 7:
+    return "G-" & $oct
+  of 8:
+    return "G#" & $oct
+  of 9:
+    return "A-" & $oct
+  of 10:
+    return "A#" & $oct
+  of 11:
+    return "B-" & $oct
+  else:
+    return "???"
 
 proc noteStrToNote(s: string): int =
   let noteChar = s[0]
@@ -345,19 +366,31 @@ proc reset*(channel: int) =
   audioChannels[channel].loop = 0
   audioChannels[channel].musicIndex = 0
 
-proc synth*(channel: int, shape: SynthShape, freq: float, init: int = 256, vchange: float = 0.0) =
+proc synth*(channel: int, shape: SynthShape, freq: float, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
   audioChannels[channel].kind = channelSynth
   audioChannels[channel].shape = shape
-  audioChannels[channel].freq = freq
+  audioChannels[channel].basefreq = freq
+  audioChannels[channel].targetFreq = freq
   audioChannels[channel].trigger = true
-  audioChannels[channel].gain = (init.float / 256.0)
-  audioChannels[channel].vchange = vchange
-  audioChannels[channel].pchange = 0.0
+  audioChannels[channel].init = init
+  audioChannels[channel].env = env
+  audioChannels[channel].envPhase = 0
+  audioChannels[channel].pchange = 0
   audioChannels[channel].loop = -1
+  audioChannels[channel].length = length
+  audioChannels[channel].arp = 0x0000
+  audioChannels[channel].arpSpeed = 1
+  audioChannels[channel].nextClick = 0
+  audioChannels[channel].vibamount = 0
+  audioChannels[channel].vibspeed = 1
   #if shape == synNoise:
   #  audioChannels[channel].lfsr = 0xfeed
+
+proc arp*(channel: int, arp: uint16, speed: uint8 = 1) =
+  audioChannels[channel].arp = arp
+  audioChannels[channel].arpSpeed = max(1.uint8, speed)
 
 proc synthUpdate*(channel: int, shape: SynthShape, freq: float) =
   if channel > audioChannels.high:
@@ -381,6 +414,10 @@ proc process(self: var Channel): float32 =
     return 0.0
   of channelSynth:
     if audioSampleId mod 2 == 0:
+      if glide == 0:
+        freq = targetFreq
+      elif clock:
+        freq = lerp(freq, targetFreq, 1.0 - (glide.float32 / 16.0))
       phase += (freq * invSampleRate) * TAU
       phase = phase mod TAU
     var o: float32 = 0.0
@@ -408,31 +445,87 @@ proc process(self: var Channel): float32 =
           nextClick = ((1.0 / freq) * sampleRate).int
         nextClick -= 1
       o = outvalue
+    of synNoise2:
+      if freq != 0.0:
+        if nextClick <= 0:
+          let lsb: uint = (lfsr2 and 1)
+          lfsr2 = lfsr2 shr 1
+          if lsb == 1:
+            lfsr2 = lfsr2 xor 0x0043
+          outvalue = if lsb == 1: 1.0 else: -1.0
+          nextClick = ((1.0 / freq) * sampleRate).int
+        nextClick -= 1
+      o = outvalue
+    of synWav:
+      if freq != 0.0:
+        o = wavData[(phase mod 1.0 * 32.0).int].float32 / 16.0
     else:
       o = 0.0
     o = o * gain
+
     if audioSampleId mod 2 == 0:
-      if vchange > 0:
-        gain += vchange * invSampleRate
-        if gain >= 1.0:
-          gain = 1.0
-          vchange = 0.0
-      if vchange < 0:
-        gain += vchange * invSampleRate
-        if gain <= 0.0:
-          vchange = 0.0
-          gain = 0.0
-      if pchange != 0:
-        freq += (pchange * invSampleRate)
-        if freq == targetFreq:
-          pchange = 0.0
-        if freq <= invSampleRate:
-          freq = invSampleRate
-          pchange = 0.0
-        if freq > sampleRate / 2.0:
-          freq = sampleRate / 2.0
-          pchange = 0.0
+      if clock:
+        if length > 0:
+          length -= 1
+          if length == 0:
+            kind = channelNone
+
+        envPhase += 1
+
+        if vibamount > 0:
+          freq = basefreq + sin(envPhase.float / vibspeed.float) * basefreq * 0.03 * vibamount.float
+
+        if pchange != 0:
+          targetFreq = targetFreq + targetFreq * pchange.float / 128.0
+          basefreq = targetFreq
+          if targetFreq > sampleRate / 2.0:
+            targetFreq = sampleRate / 2.0
+
+        if arp != 0:
+          let a0 = (arp and 0x000f)
+          let a1 = (arp and 0x00f0) shr 4
+          let a2 = (arp and 0x0f00) shr 8
+          let a3 = (arp and 0xf000) shr 12
+          var arpSteps = 0
+          if a3 != 0:
+            arpSteps = 5
+          elif a2 != 0:
+            arpSteps = 4
+          elif a1 != 0:
+            arpSteps = 3
+          elif a0 != 0:
+            arpSteps = 2
+          else:
+            arpSteps = 1
+
+          if arpSteps > 0:
+            if (envPhase / arpSpeed.int) mod arpSteps == 1:
+              targetFreq = basefreq + basefreq * 0.06 * a0.float
+            elif (envPhase / arpSpeed.int) mod arpSteps == 2:
+              targetFreq = basefreq + basefreq * 0.06 * a1.float
+            elif (envPhase / arpSpeed.int) mod arpSteps == 3:
+              targetFreq = basefreq + basefreq * 0.06 * a2.float
+            elif (envPhase / arpSpeed.int) mod arpSteps == 4:
+              targetFreq = basefreq + basefreq * 0.06 * a3.float
+            else:
+              targetFreq = basefreq
+
+        # determine the env value
+        if env < 0:
+          # decay
+          envValue = clamp(lerp(init.float / 15.0, 0, envPhase / (-env * 4)), 0.0, 1.0)
+          if envValue <= 0:
+            kind = channelNone
+        elif env > 0:
+          # attack
+          envValue = clamp(lerp(init.float / 15.0, 1.0, envPhase / (env * 4)), 0.0, 1.0)
+        elif env == 0:
+          envValue = init.float / 15.0
+
+        gain = clamp(lerp(gain, envValue, 0.9), 0.0, 1.0)
+
     return o * sfxVolume * masterVolume
+
   of channelWave:
     var o: float32 = 0.0
     o = buffer.data.interpolatedLookup(phase) * gain
@@ -444,16 +537,6 @@ proc process(self: var Channel): float32 =
           loop -= 1
           if loop == 0:
             kind = channelNone
-      if vchange > 0:
-        gain += vchange * invSampleRate
-        if gain >= 1.0:
-          gain = 1.0
-          vchange = 0.0
-      if vchange < 0:
-        gain += vchange * invSampleRate
-        if gain <= 0.0:
-          vchange = 0.0
-          gain = 0.0
     return o * sfxVolume * masterVolume
   of channelMusic:
     var o: float32
@@ -472,17 +555,6 @@ proc process(self: var Channel): float32 =
         else:
           self.reset()
 
-    if audioSampleId mod 2 == 0:
-      if vchange > 0:
-        gain += vchange * invSampleRate
-        if gain >= 1.0:
-          gain = 1.0
-          vchange = 0.0
-      if vchange < 0:
-        gain += vchange * invSampleRate
-        if gain <= 0.0:
-          vchange = 0.0
-          gain = 0.0
     return o * musicVolume * masterVolume
   else:
     return 0.0
@@ -493,6 +565,16 @@ proc bpm*(newBpm: Natural) =
 proc tpb*(newTpb: Natural) =
   currentTpb = newTpb
 
+proc queueAudio*(samples: var seq[float32]) =
+  when not defined(js):
+    let ret = queueAudio(audioDeviceId, samples[0].addr, (samples.len * 4).uint32)
+    if ret != 0:
+      raise newException(Exception, "error queueing audio: " & $getError())
+
+when not defined(js):
+  proc queuedAudioSize*(): int =
+    return getQueuedAudioSize(audioDeviceId).int div 4
+
 proc audioCallback(userdata: pointer, stream: ptr uint8, bytes: cint) {.cdecl.} =
   when hasThreads:
     setupForeignThreadGc()
@@ -501,20 +583,49 @@ proc audioCallback(userdata: pointer, stream: ptr uint8, bytes: cint) {.cdecl.} 
   let nSamples = bytes div sizeof(float32)
 
   for i in 0..<nSamples:
-    nextTick -= 1
-    if nextTick <= 0 and tickFunc != nil:
-      tickFunc()
-      nextTick = (sampleRate / (currentBpm.float / 60.0 * currentTpb.float)).int
+
+    if i mod 2 == 0:
+      nextClock -= 1
+      if nextClock <= 0:
+        clock = true
+        nextClock = (sampleRate div 60)
+      else:
+        clock = false
+
+      nextTick -= 1
+      if nextTick <= 0 and tickFunc != nil:
+        tickFunc()
+        nextTick = (sampleRate / (currentBpm.float / 60.0 * currentTpb.float)).int
 
     samples[i] = 0
     for j in 0..<audioChannels.len:
       samples[i] += audioChannels[j].process()
-    audioOutputNode.sampleBuffer[i] = samples[i]
     audioSampleId += 1
 
-proc queueAudio*(samples: var seq[float32]) =
-  when not defined(js):
-    discard queueAudio(audioDeviceId, samples[0].addr, (samples.len div sizeof(float32)).uint32)
+proc queueMixerAudio*(nSamples: int) =
+  var samples = newSeq[float32](nSamples)
+
+  for i in 0..<nSamples:
+
+    if i mod 2 == 0:
+      nextClock -= 1
+      if nextClock <= 0:
+        clock = true
+        nextClock = (sampleRate div 60)
+      else:
+        clock = false
+
+      nextTick -= 1
+      if nextTick <= 0 and tickFunc != nil:
+        tickFunc()
+        nextTick = (sampleRate / (currentBpm.float / 60.0 * currentTpb.float)).int
+
+    samples[i] = 0
+    for j in 0..<audioChannels.len:
+      samples[i] += audioChannels[j].process()
+    audioSampleId += 1
+
+  queueAudio(samples)
 
 proc initMixer*() =
   when defined(js):
@@ -526,7 +637,8 @@ proc initMixer*() =
       raise newException(Exception, "Unable to initialize audio")
 
     var audioSpec: AudioSpec
-    audioSpec.freq = 44100.cint
+    #audioSpec.freq = 44100.cint
+    audioSpec.freq = sampleRate.cint
     audioSpec.format = AUDIO_F32
     audioSpec.channels = 2
     audioSpec.samples = musicBufferSize
@@ -538,7 +650,8 @@ proc initMixer*() =
     audioSpec.userdata = nil
 
     var obtained: AudioSpec
-    if openAudio(audioSpec.addr, obtained.addr) != 0:
+    audioDeviceId = openAudioDevice(nil, 0, audioSpec.addr, obtained.addr, AUDIO_ALLOW_FORMAT_CHANGE)
+    if audioDeviceId == 0:
       raise newException(Exception, "Unable to open audio device: " & $getError())
 
     sampleRate = obtained.freq.float
@@ -546,19 +659,25 @@ proc initMixer*() =
 
     echo obtained
 
-    audioOutputNode = new(AudioOutputNode)
-    audioOutputNode.sampleBuffer = newSeq[float32](obtained.samples * obtained.channels)
-
     for c in audioChannels.mitems:
       c.lfsr = 0xfeed
+      c.lfsr2 = 0x00fe
+      c.glide = 0
+      for j in 0..<32:
+        c.wavData[j] = random(16).uint8
 
     # start the audio thread
     when hasThreads:
-      pauseAudio(0)
+      pauseAudioDevice(audioDeviceId, 0)
+      if obtained.callback != audioCallback:
+        echo "wtf no callback"
       echo "audio initialised using audio thread"
     else:
+      queueMixerAudio(4096)
+      pauseAudioDevice(audioDeviceId, 0)
       echo "audio initialised using main thread"
 
-  addQuitProc(proc() {.noconv.} =
-    shutdownMixer()
-  )
+  when not defined(js):
+    addQuitProc(proc() {.noconv.} =
+      shutdownMixer()
+    )

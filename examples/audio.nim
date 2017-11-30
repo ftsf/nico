@@ -236,6 +236,8 @@ proc gameUpdate(dt: float) =
           instruments[currentInstrument].change -= 1
         if btnp(pcRight):
           instruments[currentInstrument].change += 1
+      of 3:
+        discard
     else:
       if btnp(pcUp):
         if currentInstrumentSetting > 0:

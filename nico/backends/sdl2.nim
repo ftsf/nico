@@ -604,6 +604,8 @@ proc setScreenSize*(w,h: int) =
   window.setWindowSize(w,h)
   resize()
 
+import nico.mixer
+
 proc step*() {.cdecl.} =
   checkInput()
 
@@ -638,7 +640,12 @@ proc step*() {.cdecl.} =
     mouseWheelState = 0
 
     acc -= timeStep
-    #delay(if focused: 0 else: 10)
+
+    when not compileOption("threads"):
+      #echo queuedAudioSize()
+      if queuedAudioSize() < 8192:
+        queueMixerAudio(4096)
+
 
 proc getPerformanceCounter*(): uint64 {.inline.} =
   return sdl.getPerformanceCounter()

@@ -249,6 +249,8 @@ method collide(a,b: Gem) =
 method collide(a: Player, b: Gem) =
   b.shouldKill = true
   a.score += 10
+  synth(2, synSqr, 100.0, 0, 7, 12)
+  pitchbend(2, 20)
 
 method collide(a: Player, b: Floater) =
   if a.vel.y > 0 and a.pos.y + a.hitbox.y <= b.pos.y + b.hitbox.y:
@@ -273,6 +275,8 @@ method collide(a: Bullet, b: Floater) =
     b.hp -= a.damage
     b.hitflash = 4
   b.vel += a.vel * 0.5
+  synth(3, synP12, 100.0, 4, -2, 20)
+  pitchbend(3, -10)
   if b.hp < 0:
     b.shouldKill = true
     for i in 0..rnd(4):
@@ -374,7 +378,6 @@ method update(self: Floater) =
 
 
 method update(self: Bullet) =
-  debug "update bullet"
   if destructive:
     let x = pos.x div 8
     let y = (pos.y - 1) div 8
@@ -443,6 +446,8 @@ method update(self: Player) =
     let jump = btn(pcA) and not self.jump
     self.jump = btn(pcA)
     if jump:
+      synth(0, synSqr, 400.0, 1, -7)
+      pitchbend(0, 1)
       jbuffer = 8
     elif jbuffer > 0:
       jbuffer -= 1
@@ -517,15 +522,13 @@ method update(self: Player) =
       else:
         case weapon:
         of Machinegun:
-          debug "new bullet"
           var bullet = newBullet(pos.x, pos.y + 4.0, 0, 4.0)
-          debug "add bullet"
           objects.add(bullet)
-          debug "bullet added"
           bulletTimer = 8
           ammo -= 1
           vel.y -= 0.1
-          debug "bullet done"
+          synth(1, synSqr, 1000.0, 3, -3)
+          pitchbend(1, -40)
         of Shotgun:
           for i in 0..5:
             var bullet = newBullet(pos.x, pos.y + 4.0, rnd(2.0)-1.0, 4.0)
@@ -536,15 +539,11 @@ method update(self: Player) =
         else:
           discard
 
-    debug "post bullet stuff"
-
     if not btn(pcA):
       firing = false
-      debug "firing = false"
 
     elif bulletTimer > 0:
       bulletTimer -= 1
-      debug "bullet timer -= 1"
 
     if pos.y > 256 * 8 + 16 * 8:
       transform()
@@ -579,7 +578,6 @@ method draw(self: Player) =
     spr(64, pos.x, pos.y, 2, 2)
 
 method draw(self: Bullet) =
-  debug "bullet draw"
   if ttl == 0 or isSolid(0,1):
     spr(36, pos.x, pos.y)
   else:
@@ -677,9 +675,7 @@ proc gameUpdate(dt: float) =
     for obj in all(objects):
       obj.move(obj.vel.x, obj.vel.y)
       obj.update()
-    debug "object update done"
 
-    debug "check collisions"
     for i in 0..<objects.len:
       for j in i+1..<objects.len:
         let a = objects[i]
@@ -687,10 +683,8 @@ proc gameUpdate(dt: float) =
         if a.overlaps(b):
           collide(a,b)
 
-    debug "keepif"
     objects.keepIf() do(a: Obj) -> bool:
       a.shouldKill == false
-    debug "keepif done"
 
   cy = lerp(cy, player.pos.y.float - 64.0, 0.1)
 

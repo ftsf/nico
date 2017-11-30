@@ -13,7 +13,6 @@ export loadMusic
 
 export sfx
 export music
-export fade
 
 export getMusic
 
@@ -26,11 +25,13 @@ export pitch
 
 export synth
 export synthUpdate
+export synthShape
 export SynthShape
-export connect
-export getAudioOutput
-export getAudioBuffer
+export arp
+export vibrato
+export glide
 export note
+export wavData
 export setTickFunc
 export bpm
 export tpb
@@ -234,14 +235,6 @@ proc fps*(): int =
 
 proc speed*(speed: int) =
   frameMult = speed
-
-proc sgn*[T](x: T): T =
-  if x < 0:
-    return -1
-  elif x > 0:
-    return 1
-  else:
-    return 0
 
 proc loadPaletteFromGPL*(filename: string) =
   var data = backend.readFile(assetPath & filename)

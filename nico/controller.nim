@@ -59,7 +59,7 @@ proc newNicoController*(id: cint): NicoController =
   echo "added game controller: ", id, ": ", result.kind, ": ", result.name
 
 proc update*(self: NicoController) =
-  for i in 0..self.buttons.high:
+  for i in self.buttons.low..self.buttons.high:
     if self.kind == Gamepad:
       if i == pcL2:
         if self.axes[pcLTrigger].current > self.deadzone:
@@ -76,7 +76,7 @@ proc update*(self: NicoController) =
       self.buttons[i] += 1
 
 proc postUpdate*(self: NicoController) =
-  for i in 0..self.axes.high:
+  for i in self.axes.low..self.axes.high:
     self.axes[i].previous = self.axes[i].current
 
 proc axis*(self: NicoController, axis: NicoAxis): float =

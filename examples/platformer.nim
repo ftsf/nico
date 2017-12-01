@@ -1,5 +1,5 @@
 import nico
-import math
+import math except sgn
 import vec
 import sequtils
 
@@ -296,7 +296,7 @@ method collide(a: Bullet, b: Crate) =
 
 proc moveX(self: Obj, amount, start: float) =
   var step = amount.int.sgn
-  for i in start..<abs(amount.int):
+  for i in start.int..<abs(amount.int):
     if ethereal or not isSolid(step,0) and not check(Block,step,0):
       pos.x += step
       for obj in objects:

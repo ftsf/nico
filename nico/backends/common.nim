@@ -1,4 +1,13 @@
-## TYPES
+# Constants
+
+const nAudioChannels* = 16;
+const deadzone* = int16.high div 2
+const gifScale* = 2
+const maxPlayers* = 4
+const recordingEnabled* = true
+const musicBufferSize* = 4096
+
+# TYPES
 
 import nico.controller
 import nico.ringbuffer
@@ -22,6 +31,28 @@ type
   MusicId* = range[-1..63]
   SfxId* = range[-1..63]
 
+type AudioChannelId* = range[-2..nAudioChannels.high]
+
+type
+  ChannelKind* = enum
+    channelNone
+    channelSynth
+    channelWave
+    channelMusic
+    channelCallback
+
+  SynthShape* = enum
+    synSame = "-"
+    synSin = "sin"
+    synSqr = "sqr"
+    synP12 = "p12"
+    synP25 = "p25"
+    synSaw = "saw"
+    synTri = "tri"
+    synNoise = "noi"
+    synNoise2 = "met"
+    synWav = "wav" # use custom waveform
+
 type
   Surface* = object
     data*: seq[uint8]
@@ -39,13 +70,6 @@ type
 
 type ResizeFunc* = proc(x,y: int)
 
-## CONSTANTS
-
-const deadzone* = int16.high div 2
-const gifScale* = 2
-const maxPlayers* = 4
-const recordingEnabled* = true
-
 ## CONVERTERS
 
 converter toPint*(x: float): Pint {.inline.} =
@@ -59,6 +83,18 @@ converter toPint*(x: int): Pint {.inline.} =
 
 ## GLOBALS
 ##
+
+var masterVolume* = 1.0
+var sfxVolume* = 1.0
+var musicVolume* = 1.0
+
+var sampleRate* = 44100.0
+var invSampleRate* = 1.0 / sampleRate
+
+var tickFunc*: proc() = nil
+
+var currentBpm*: Natural = 128
+var currentTpb*: Natural = 4
 
 var initialized*: bool
 var running*: bool
@@ -159,6 +195,15 @@ var mouseX*,mouseY*: int
 var mouseButtonsDown*: array[3,bool]
 var mouseButtons*: array[3,int]
 var mouseWheelState*: int
+
+proc lerp*[T](a,b: T, t: float): T =
+  return a + (b - a) * t
+
+proc interpolatedLookup*[T](a: openarray[T], s: float): T =
+  let alpha = s mod 1.0
+  let sample = s.int mod a.len
+  let nextSample = (sample + 1) mod a.len
+  result = lerp(a[sample],a[nextSample],alpha)
 
 proc newSurface*(w,h: int): Surface =
   result.data = newSeq[uint8](w*h)

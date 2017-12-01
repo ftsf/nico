@@ -6,23 +6,12 @@ when defined(js):
 else:
   import nico.backends.sdl2 as backend
 
-import nico.mixer
-
+# Audio
 export loadSfx
 export loadMusic
-
 export sfx
 export music
-
 export getMusic
-
-export masterVol
-export sfxVol
-export musicVol
-
-export pitchbend
-export pitch
-
 export synth
 export synthUpdate
 export synthShape
@@ -30,12 +19,9 @@ export SynthShape
 export arp
 export vibrato
 export glide
-export note
 export wavData
-export setTickFunc
-export bpm
-export tpb
-export queueAudio
+export pitchbend
+export pitch
 
 export debug
 import nico.controller
@@ -56,7 +42,9 @@ import math
 import algorithm
 import json
 import sequtils
+
 export math.sin
+
 import random
 import times
 import strscans
@@ -1018,6 +1006,24 @@ proc fset*(s: uint8, f: range[0..7], v: bool) =
   else:
     spriteFlags[s].unset(f)
 
+proc masterVol*(newVol: int) =
+  masterVolume = newVol.float / 255.0
+
+proc masterVol*(): int =
+  return (masterVolume * 255.0).int
+
+proc sfxVol*(newVol: int) =
+  sfxVolume = newVol.float / 255.0
+
+proc sfxVol*(): int =
+  return (sfxVolume * 255.0).int
+
+proc musicVol*(newVol: int) =
+  musicVolume = newVol.float / 255.0
+
+proc musicVol*(): int =
+  return (musicVolume * 255.0).int
+
 proc createFontFromSurface(surface: Surface, chars: string): Font =
   var font = new(Font)
 
@@ -1389,6 +1395,61 @@ proc cursor*(x,y: Pint) =
   cursorX = x
   cursorY = y
 
+proc noteToNoteStr(value: int): string =
+  let oct = value div 12 - 1
+  case value mod 12:
+  of 0:
+    return "C-" & $oct
+  of 1:
+    return "C#" & $oct
+  of 2:
+    return "D-" & $oct
+  of 3:
+    return "D#" & $oct
+  of 4:
+    return "E-" & $oct
+  of 5:
+    return "F-" & $oct
+  of 6:
+    return "F#" & $oct
+  of 7:
+    return "G-" & $oct
+  of 8:
+    return "G#" & $oct
+  of 9:
+    return "A-" & $oct
+  of 10:
+    return "A#" & $oct
+  of 11:
+    return "B-" & $oct
+  else:
+    return "???"
+
+proc noteStrToNote(s: string): int =
+  let noteChar = s[0]
+  let note = case noteChar
+    of 'C': 0
+    of 'D': 2
+    of 'E': 4
+    of 'F': 5
+    of 'G': 7
+    of 'A': 9
+    of 'B': 11
+    else: 0
+  let sharp = s[1] == '#'
+  let octave = parseInt($s[2])
+  return 12 * octave + note + (if sharp: 1 else: 0)
+
+proc note*(n: int): float =
+  # takes a note integer and converts it to a frequency float
+  # synth(0, sin, note(48))
+  return pow(2.0, ((n.float - 69.0) / 12.0)) * 440.0
+
+proc note*(n: string): float =
+  return note(noteStrToNote(n))
+
+
+
 proc init*(org, app: string) =
   ## Initializes Nico ready to be used
   debug "init", org, app
@@ -1412,8 +1473,6 @@ proc init*(org, app: string) =
     discard
   debug "load config"
   loadConfig()
-
-  initMixer()
 
   clip()
 
@@ -1465,6 +1524,15 @@ proc setAssetPath*(path: string) =
     assetPath = path
   else:
     assetPath = path & "/"
+
+proc bpm*(newBpm: Natural) =
+  currentBpm = newBpm
+
+proc tpb*(newTpb: Natural) =
+  currentTpb = newTpb
+
+proc setTickFunc*(f: proc()) =
+  tickFunc = f
 
 iterator all*[T](a: var openarray[T]): T {.inline.} =
   let len = a.len

@@ -2,6 +2,7 @@ import dom
 import jsconsole
 import ajax
 import html5_canvas
+import math
 
 import common
 import nico.controller
@@ -14,10 +15,66 @@ var canvas: Canvas
 var interval: ref TInterval
 var audioContext: AudioContext
 
+type Channel = object
+  kind: ChannelKind
+  buffer: AudioBuffer
+  callback: proc(samples: seq[float32])
+  musicFile: AudioBuffer
+  musicIndex: int
+  musicBuffer: int
+  musicBuffers: array[2,array[musicBufferSize,float32]]
+
+  arp: uint16
+  arpSpeed: uint8
+
+  loop: int
+  phase: float # or position
+  freq: float # or speed
+  basefreq: float
+  targetFreq: float
+  width: float
+  pan: float
+  shape: SynthShape
+  gain: float
+
+  init: range[0..15]
+  env: range[-7..7]
+  envValue: float32
+  envPhase: int
+  length: range[0..255]
+  vibspeed: range[1..15]
+  vibamount: range[0..15]
+  glide: range[0..15]
+
+  pchange: range[-127..127]
+
+  trigger: bool
+  lfsr: int
+  lfsr2: int
+  nextClick: int
+  outvalue: float32
+
+  priority: float
+
+  wavData: array[32, uint8]
+
+var audioChannels: array[nAudioChannels, Channel]
+
+var tickFunc: proc() = nil
+
+
+var currentBpm: Natural = 128
+var currentTpb: Natural = 4
+var sampleRate = 44100.0
+var nextTick = 0
+var clock: bool
+var nextClock = 0
+
 var sfxData: array[64,AudioBuffer]
 var musicData: array[64,AudioBuffer]
 var currentMusic: AudioBufferSourceNode = nil
-var sfxGain,musicGain: GainNode
+
+var sfxGain,musicGain,masterGain: GainNode
 
 keymap = [
   @[37, 65], # left
@@ -316,7 +373,11 @@ proc sfx*(sfxId: SfxId, channel: range[-1..15] = -1, loop: int = 0) =
     source.connect(sfxGain)
     source.start()
 
-proc music*(musicId: MusicId) =
+proc getMusic*(channel: int): int =
+  ## returns the id of the music currently being played on `channel` or -1 if no music is playing
+  return -1
+
+proc music*(musicId: MusicId, channel: int) =
   if currentMusic != nil:
     currentMusic.stop()
     currentMusic = nil
@@ -329,8 +390,72 @@ proc music*(musicId: MusicId) =
     source.start()
     currentMusic = source
 
-proc initMixer*(channels: Pint) =
-  discard
+proc volume*(channel: int, volume: int) =
+  audioChannels[channel].gain = (volume.float / 255.0)
+
+proc pitchbend*(channel: int, changeSpeed: range[-128..128]) =
+  audioChannels[channel].pchange = changeSpeed
+
+proc vibrato*(channel: int, speed: range[1..15], amount: range[0..15]) =
+  audioChannels[channel].vibspeed = speed
+  audioChannels[channel].vibamount = amount
+
+proc glide*(channel: int, glide: range[0..15]) =
+  audioChannels[channel].glide = glide
+
+proc wavData*(channel: int): array[32, uint8] =
+  return audioChannels[channel].wavData
+
+proc wavData*(channel: int, data: array[32, uint8]) =
+  audioChannels[channel].wavData = data
+
+proc pitch*(channel: int, freq: float) =
+  audioChannels[channel].targetFreq = freq
+
+proc synthShape*(channel: int, newShape: SynthShape) =
+  audioChannels[channel].shape = newShape
+
+proc setTickFunc*(f: proc()) =
+  tickFunc = f
+
+proc synth*(channel: int, shape: SynthShape, freq: float, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
+  if channel > audioChannels.high:
+    raise newException(KeyError, "invalid channel: " & $channel)
+  audioChannels[channel].kind = channelSynth
+  audioChannels[channel].shape = shape
+  audioChannels[channel].basefreq = freq
+  audioChannels[channel].targetFreq = freq
+  audioChannels[channel].trigger = true
+  audioChannels[channel].init = init
+  audioChannels[channel].env = env
+  audioChannels[channel].envPhase = 0
+  audioChannels[channel].pchange = 0
+  audioChannels[channel].loop = -1
+  audioChannels[channel].length = length
+  audioChannels[channel].arp = 0x0000
+  audioChannels[channel].arpSpeed = 1
+  audioChannels[channel].nextClick = 0
+  audioChannels[channel].vibamount = 0
+  audioChannels[channel].vibspeed = 1
+  #if shape == synNoise:
+  #  audioChannels[channel].lfsr = 0xfeed
+
+proc arp*(channel: int, arp: uint16, speed: uint8 = 1) =
+  audioChannels[channel].arp = arp
+  audioChannels[channel].arpSpeed = max(1.uint8, speed)
+
+proc synthUpdate*(channel: int, shape: SynthShape, freq: float) =
+  if channel > audioChannels.high:
+    raise newException(KeyError, "invalid channel: " & $channel)
+  if shape != synSame:
+    audioChannels[channel].shape = shape
+  audioChannels[channel].freq = freq
+
+proc bpm*(newBpm: Natural) =
+  currentBpm = newBpm
+
+proc tpb*(newTpb: Natural) =
+  currentTpb = newTpb
 
 proc run*() =
   if interval != nil:

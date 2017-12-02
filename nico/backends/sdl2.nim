@@ -886,7 +886,7 @@ proc process(self: var Channel): float32 =
 
         gain = clamp(lerp(gain, envValue, 0.9), 0.0, 1.0)
 
-    return o * sfxVolume * masterVolume
+    return o * sfxVolume
 
   of channelWave:
     var o: float32 = 0.0
@@ -899,7 +899,7 @@ proc process(self: var Channel): float32 =
           loop -= 1
           if loop == 0:
             kind = channelNone
-    return o * sfxVolume * masterVolume
+    return o * sfxVolume
   of channelMusic:
     var o: float32
     o = self.musicBuffers[self.musicBuffer].interpolatedLookup(phase) * gain
@@ -917,7 +917,7 @@ proc process(self: var Channel): float32 =
         else:
           self.reset()
 
-    return o * musicVolume * masterVolume
+    return o * musicVolume
   else:
     return 0.0
 
@@ -947,7 +947,7 @@ proc audioCallback(userdata: pointer, stream: ptr uint8, bytes: cint) {.cdecl.} 
 
     samples[i] = 0
     for j in 0..<audioChannels.len:
-      samples[i] += audioChannels[j].process()
+      samples[i] += audioChannels[j].process() * masterVolume
     audioSampleId += 1
 
 proc queueMixerAudio*(nSamples: int) =

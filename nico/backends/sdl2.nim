@@ -798,7 +798,7 @@ proc process(self: var Channel): float32 =
     of synNoise:
       if freq != 0.0:
         if nextClick <= 0:
-          let lsb: uint = (lfsr and 1)
+          let lsb: uint = (lfsr and 1).uint
           lfsr = lfsr shr 1
           if lsb == 1:
             lfsr = lfsr xor 0xb400
@@ -809,7 +809,7 @@ proc process(self: var Channel): float32 =
     of synNoise2:
       if freq != 0.0:
         if nextClick <= 0:
-          let lsb: uint = (lfsr2 and 1)
+          let lsb: uint = (lfsr2 and 1).uint
           lfsr2 = lfsr2 shr 1
           if lsb == 1:
             lfsr2 = lfsr2 xor 0x0043

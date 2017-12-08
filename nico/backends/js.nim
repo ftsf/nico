@@ -248,14 +248,22 @@ proc process(self: var Channel) =
         stop()
         return
 
+      if glide == 0:
+        freq = targetFreq
+      else:
+        freq = lerp(freq, targetFreq, 1.0 - (glide.float32 / 16.0))
+
     envPhase += 1
 
     if pchange != 0:
       targetFreq = targetFreq + targetFreq * pchange.float / 128.0
-      basefreq = targetFreq
-      freq = targetFreq
+
       if targetFreq > sampleRate / 2.0:
         targetFreq = sampleRate / 2.0
+
+      basefreq = targetFreq
+      freq = targetFreq
+
 
     if vibamount > 0:
       targetFreq = basefreq + sin(envPhase.float / vibspeed.float) * basefreq * 0.03 * vibamount.float
@@ -289,7 +297,6 @@ proc process(self: var Channel) =
         else:
           targetFreq = basefreq
 
-    freq = lerp(freq, targetFreq, 1.0 - (glide.float32 / 16.0))
     if source of OscillatorNode:
       OscillatorNode(source).frequency.value = freq
 
@@ -470,7 +477,7 @@ proc getMusic*(channel: int): int =
   ## returns the id of the music currently being played on `channel` or -1 if no music is playing
   return -1
 
-proc music*(musicId: MusicId, channel: AudioChannelId) =
+proc music*(musicId: MusicId, channel: AudioChannelId, loop: int = -1) =
   if audioChannels[channel].source != nil:
     audioChannels[channel].source.stop()
     audioChannels[channel].source = nil
@@ -534,25 +541,26 @@ proc synth*(channel: int, shape: SynthShape, freq: float, init: range[0..15], en
   audioChannels[channel].vibspeed = 1
 
   if shape == synNoise or shape == synNoise2:
-    var gen = audioContext.createScriptProcessor(16384, 0, 1);
+    var gen = audioContext.createScriptProcessor(4096*2, 0, 2);
 
     var nextClick = 0
     var outputValue = 0.0
     var lfsr = 0xfeed
 
     gen.onaudioprocess = proc(e: AudioProcessingEvent) =
-      console.log("audio process", nextClick)
       var output = e.outputBuffer;
       var data = output.getChannelData(0)
       for i in 0..<output.length:
-        if nextClick <= 0:
-          nextClick = ((1.0 / freq) * sampleRate).int
-          let lsb: uint = (lfsr and 1)
-          lfsr = lfsr shr 1
-          if lsb == 1:
-            lfsr = lfsr xor 0xb400
-          outputValue = if lsb == 1: 1.0 else: -1.0
-        nextClick -= 1
+        if i mod 2 == 0:
+          if nextClick <= 0:
+            console.log(freq)
+            nextClick = ((1.0 / freq) * sampleRate).int
+            let lsb: uint = (lfsr and 1).uint
+            lfsr = lfsr shr 1
+            if lsb == 1:
+              lfsr = lfsr xor 0xb400
+            outputValue = if lsb == 1: 1.0 else: -1.0
+          nextClick -= 1
         data[i] = outputValue
 
     audioChannels[channel].source = gen

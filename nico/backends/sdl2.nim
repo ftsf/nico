@@ -18,6 +18,7 @@ when defined(gif):
 
 import os
 import osproc
+import ospaths
 
 import parseCfg
 
@@ -798,7 +799,7 @@ proc process(self: var Channel): float32 =
     of synNoise:
       if freq != 0.0:
         if nextClick <= 0:
-          let lsb: uint = (lfsr and 1)
+          let lsb: uint = (lfsr and 1).uint
           lfsr = lfsr shr 1
           if lsb == 1:
             lfsr = lfsr xor 0xb400
@@ -809,7 +810,7 @@ proc process(self: var Channel): float32 =
     of synNoise2:
       if freq != 0.0:
         if nextClick <= 0:
-          let lsb: uint = (lfsr2 and 1)
+          let lsb: uint = (lfsr2 and 1).uint
           lfsr2 = lfsr2 shr 1
           if lsb == 1:
             lfsr2 = lfsr2 xor 0x0043
@@ -1043,7 +1044,7 @@ proc init*(org: string, app: string) =
     basePath = $sdl.getBasePath()
     debug "basePath: ", basePath
 
-    assetPath = basePath & "/assets/"
+    assetPath = joinPath(basePath,"assets")
 
     writePath = $sdl.getPrefPath(org,app)
     debug "writePath: ", writePath
@@ -1107,8 +1108,8 @@ proc run*() =
     step()
 
 proc saveMap*(filename: string) =
-  createDir(assetPath & "/maps")
-  var fs = newFileStream(assetPath & "/maps/" & filename, fmWrite)
+  createDir(joinPath(assetPath,"maps"))
+  var fs = newFileStream(joinPath(assetPath,"maps",filename), fmWrite)
   if fs == nil:
     debug "error opening map for writing: ", filename
     return
@@ -1123,7 +1124,7 @@ proc saveMap*(filename: string) =
 
 proc loadMapBinary*(filename: string) =
   var tm: Tilemap
-  var fs = newFileStream(assetPath & "/maps/" & filename, fmRead)
+  var fs = newFileStream(joinPath(assetPath,"maps",filename), fmRead)
   if fs == nil:
     raise newException(IOError, "Unable to open " & filename & " for reading")
 
@@ -1167,12 +1168,12 @@ proc newSfxBuffer(filename: string): SfxBuffer =
 proc loadSfx*(index: range[-1..63], filename: string) =
   if index < 0 or index > 63:
     return
-  sfxBufferLibrary[index] = newSfxBuffer(assetPath & filename)
+  sfxBufferLibrary[index] = newSfxBuffer(joinPath(assetPath,filename))
 
 proc loadMusic*(index: int, filename: string) =
   if index < 0 or index > 63:
     return
-  musicFileLibrary[index] = assetPath & filename
+  musicFileLibrary[index] = joinPath(assetPath,filename)
 
 proc getMusic*(index: AudioChannelId): int =
   if audioChannels[index].kind != channelMusic:

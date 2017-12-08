@@ -16,6 +16,8 @@ var swCanvas32: ImageData
 var canvas: Canvas
 var interval: ref TInterval
 var audioContext: AudioContext
+var noiseBuffer: AudioBuffer
+var noiseBuffer2: AudioBuffer
 
 type Channel = object
   kind: ChannelKind
@@ -231,9 +233,11 @@ proc loadSurface*(filename: string, callback: proc(surface: Surface)) =
 
 proc stop(self: var Channel) =
   if source != nil:
-    disconnect(source, gain)
-    if source of OscillatorNode or source of AudioBufferSourceNode:
+    source.disconnect()
+    try:
       source.stop()
+    except:
+      discard
     source = nil
   kind = channelNone
 
@@ -247,6 +251,11 @@ proc process(self: var Channel) =
       if length == 0:
         stop()
         return
+
+    if glide == 0:
+      freq = targetFreq
+    else:
+      freq = lerp(freq, targetFreq, 1.0 - (glide.float32 / 16.0))
 
     envPhase += 1
 
@@ -289,9 +298,14 @@ proc process(self: var Channel) =
         else:
           targetFreq = basefreq
 
-    freq = lerp(freq, targetFreq, 1.0 - (glide.float32 / 16.0))
-    if source of OscillatorNode:
-      OscillatorNode(source).frequency.value = freq
+    if source != nil:
+      try:
+        OscillatorNode(source).frequency.value = freq
+      except:
+        try:
+          AudioBufferSourceNode(source).playbackRate.value = freq / 1000.0
+        except:
+          discard
 
     if env < 0:
       envValue = clamp(lerp(init.float / 15.0, 0, envPhase / (-env * 4)), 0.0, 1.0)
@@ -309,6 +323,10 @@ proc process(self: var Channel) =
     discard
 
 proc audioClock() =
+  sfxGain.gain.value = sfxVolume
+  musicGain.gain.value = musicVolume
+  masterGain.gain.value = masterVolume
+
   for channel in mitems(audioChannels):
     channel.process()
 
@@ -408,6 +426,29 @@ proc resize*(w,h: int) =
   # TODO adjust canvas size
   discard
 
+proc initNoiseBuffer(samples: int, freq: float): AudioBuffer =
+  var b = audioContext.createBuffer(1, samples, sampleRate.int)
+  var data = b.getChannelData(0)
+
+  var nextClick = 0
+
+  var outputValue = 0.0
+
+  var lfsr = 0xfeed
+  for i in 0..<samples:
+    let lsb: uint = (lfsr and 1).uint
+    lfsr = lfsr shr 1
+    if lsb == 1:
+      lfsr = lfsr xor 0xb400
+    outputValue = if lsb == 1: 1.0 else: -1.0
+    nextClick -= 1
+    if nextClick <= 0:
+      nextClick = ((1.0 / freq) * sampleRate).int
+
+    data[i] = outputValue
+
+  return b
+
 proc loadSfx*(sfxId: SfxId, filename: string) =
   loading += 1
   var xhr = newXMLHttpRequest()
@@ -440,37 +481,27 @@ proc loadMusic*(musicId: MusicId, filename: string) =
         )
   xhr.send()
 
-proc musicVol*(value: int) =
-  musicGain.gain.value = value.float / 256.0
-
-proc musicVol*(): int =
-  return int(musicGain.gain.value * 256.0)
-
-proc sfxVol*(value: int) =
-  sfxGain.gain.value = value.float / 256.0
-
-proc sfxVol*(): int =
-  return int(sfxGain.gain.value * 256.0)
-
 proc mute*() {.exportc:"mute".} =
   if masterGain.gain.value != 0.0:
     masterGain.gain.value = 0.0
   else:
     masterGain.gain.value = 1.0
 
-
 proc sfx*(sfxId: SfxId, channel: range[-1..15] = -1, loop: int = 0) =
   if sfxData[sfxId] != nil:
-    var source = audioContext.createBufferSource()
-    source.buffer = sfxData[sfxId]
-    source.connect(sfxGain)
-    source.start()
+    if audioChannels[channel].source != nil:
+      audioChannels[channel].stop()
+      var source = audioContext.createBufferSource()
+      source.buffer = sfxData[sfxId]
+      source.connect(sfxGain)
+      source.start()
+      audioChannels[channel].source = source
 
 proc getMusic*(channel: int): int =
   ## returns the id of the music currently being played on `channel` or -1 if no music is playing
   return -1
 
-proc music*(musicId: MusicId, channel: AudioChannelId) =
+proc music*(musicId: MusicId, channel: AudioChannelId, loop: int = -1) =
   if audioChannels[channel].source != nil:
     audioChannels[channel].source.stop()
     audioChannels[channel].source = nil
@@ -534,32 +565,49 @@ proc synth*(channel: int, shape: SynthShape, freq: float, init: range[0..15], en
   audioChannels[channel].vibspeed = 1
 
   if shape == synNoise or shape == synNoise2:
-    var gen = audioContext.createScriptProcessor(16384, 0, 1);
+    when true:
+      var n = audioContext.createBufferSource()
 
-    var nextClick = 0
-    var outputValue = 0.0
-    var lfsr = 0xfeed
+      if shape == synNoise:
+        if noiseBuffer == nil:
+          noiseBuffer = initNoiseBuffer(4096, 1000.0)
+        n.buffer = noiseBuffer
+      elif shape == synNoise2:
+        if noiseBuffer2 == nil:
+          noiseBuffer2 = initNoiseBuffer(128, 1000.0)
+        n.buffer = noiseBuffer2
 
-    gen.onaudioprocess = proc(e: AudioProcessingEvent) =
-      console.log("audio process", nextClick)
-      var output = e.outputBuffer;
-      var data = output.getChannelData(0)
-      for i in 0..<output.length:
-        if nextClick <= 0:
-          nextClick = ((1.0 / freq) * sampleRate).int
-          let lsb: uint = (lfsr and 1)
-          lfsr = lfsr shr 1
-          if lsb == 1:
-            lfsr = lfsr xor 0xb400
-          outputValue = if lsb == 1: 1.0 else: -1.0
-        nextClick -= 1
-        data[i] = outputValue
+      audioChannels[channel].source = n
+      n.loop = true
+      connect(n, audioChannels[channel].gain)
+      connect(audioChannels[channel].gain, sfxGain)
+      n.start()
+    when false:
+      var gen = audioContext.createScriptProcessor(16384, 0, 1);
 
-    audioChannels[channel].source = gen
+      var nextClick = 0
+      var outputValue = 0.0
+      var lfsr = 0xfeed
 
-    connect(gen, audioChannels[channel].gain)
-    connect(audioChannels[channel].gain, sfxGain)
+      gen.onaudioprocess = proc(e: AudioProcessingEvent) =
+        console.log("audio process", nextClick)
+        var output = e.outputBuffer;
+        var data = output.getChannelData(0)
+        for i in 0..<output.length:
+          if nextClick <= 0:
+            nextClick = ((1.0 / freq) * sampleRate).int
+            let lsb: uint = (lfsr and 1)
+            lfsr = lfsr shr 1
+            if lsb == 1:
+              lfsr = lfsr xor 0xb400
+            outputValue = if lsb == 1: 1.0 else: -1.0
+          nextClick -= 1
+          data[i] = outputValue
 
+      audioChannels[channel].source = gen
+
+      connect(gen, audioChannels[channel].gain)
+      connect(audioChannels[channel].gain, sfxGain)
   else:
     var osc = audioContext.createOscillator();
     osc.`type` = case shape:
@@ -598,8 +646,8 @@ proc synth*(channel: int, shape: SynthShape, freq: float, init: range[0..15], en
       var p = audioContext.createPeriodicWave(real, imag)
       osc.setPeriodicWave(p)
 
-    audioChannels[channel].source = osc
     osc.start()
+    audioChannels[channel].source = osc
 
     connect(audioChannels[channel].source, audioChannels[channel].gain)
     connect(audioChannels[channel].gain, sfxGain)

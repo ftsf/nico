@@ -36,8 +36,13 @@ task platformerthreads, "compile platformer example":
   #exec "nim js -p:. -d:release -o:examples/platformer.js examples/platformer.nim"
 
 task sfx, "compile sfx example":
-  exec "nim c -p:. --threads:on -d:debug -o:examples/sfx examples/sfx.nim"
+  exec "nim c -p:. --threads:on -d:release -o:examples/sfx examples/sfx.nim"
   exec "nim js -p:. -d:release -o:examples/sfx.js examples/sfx.nim"
+
+task sfxd, "compile sfx example":
+  exec "nim c -p:. --threads:on -d:debug -o:examples/sfx examples/sfx.nim"
+  exec "nim js -p:. -d:debug -o:examples/sfx.js examples/sfx.nim"
+
 
 task audio, "compile sfx example":
   exec "nim c -p:. --threads:on -d:debug -o:examples/audio examples/audio.nim"

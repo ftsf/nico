@@ -674,6 +674,9 @@ proc setScreenSize*(w,h: int) =
   window.setWindowSize(w,h)
   resize()
 
+proc queuedAudioSize*(): int =
+  return getQueuedAudioSize(audioDeviceId).int div 4
+
 proc step*() {.cdecl.} =
   checkInput()
 
@@ -710,7 +713,6 @@ proc step*() {.cdecl.} =
     acc -= timeStep
 
     when not compileOption("threads"):
-      #echo queuedAudioSize()
       if queuedAudioSize() < 8192:
         queueMixerAudio(4096)
 
@@ -765,9 +767,6 @@ proc queueAudio*(samples: var seq[float32]) =
   let ret = queueAudio(audioDeviceId, samples[0].addr, (samples.len * 4).uint32)
   if ret != 0:
     raise newException(Exception, "error queueing audio: " & $getError())
-
-proc queuedAudioSize*(): int =
-  return getQueuedAudioSize(audioDeviceId).int div 4
 
 proc process(self: var Channel): float32 =
   case kind:

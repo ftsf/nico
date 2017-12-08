@@ -1007,19 +1007,19 @@ proc fset*(s: uint8, f: range[0..7], v: bool) =
     spriteFlags[s].unset(f)
 
 proc masterVol*(newVol: int) =
-  masterVolume = newVol.float / 255.0
+  masterVolume = clamp(newVol.float / 255.0, 0, 1)
 
 proc masterVol*(): int =
   return (masterVolume * 255.0).int
 
 proc sfxVol*(newVol: int) =
-  sfxVolume = newVol.float / 255.0
+  sfxVolume = clamp(newVol.float / 255.0, 0, 1)
 
 proc sfxVol*(): int =
   return (sfxVolume * 255.0).int
 
 proc musicVol*(newVol: int) =
-  musicVolume = newVol.float / 255.0
+  musicVolume = clamp(newVol.float / 255.0, 0, 1)
 
 proc musicVol*(): int =
   return (musicVolume * 255.0).int

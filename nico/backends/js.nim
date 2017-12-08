@@ -261,10 +261,13 @@ proc process(self: var Channel) =
 
     if pchange != 0:
       targetFreq = targetFreq + targetFreq * pchange.float / 128.0
-      basefreq = targetFreq
-      freq = targetFreq
+
       if targetFreq > sampleRate / 2.0:
         targetFreq = sampleRate / 2.0
+
+      basefreq = targetFreq
+      freq = targetFreq
+
 
     if vibamount > 0:
       targetFreq = basefreq + sin(envPhase.float / vibspeed.float) * basefreq * 0.03 * vibamount.float
@@ -306,7 +309,6 @@ proc process(self: var Channel) =
           AudioBufferSourceNode(source).playbackRate.value = freq / 1000.0
         except:
           discard
-
     if env < 0:
       envValue = clamp(lerp(init.float / 15.0, 0, envPhase / (-env * 4)), 0.0, 1.0)
       if envValue <= 0:

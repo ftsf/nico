@@ -18,6 +18,7 @@ when defined(gif):
 
 import os
 import osproc
+import ospaths
 
 import parseCfg
 
@@ -1042,7 +1043,7 @@ proc init*(org: string, app: string) =
     basePath = $sdl.getBasePath()
     debug "basePath: ", basePath
 
-    assetPath = basePath & "/assets/"
+    assetPath = joinPath(basePath,"assets")
 
     writePath = $sdl.getPrefPath(org,app)
     debug "writePath: ", writePath
@@ -1106,8 +1107,8 @@ proc run*() =
     step()
 
 proc saveMap*(filename: string) =
-  createDir(assetPath & "/maps")
-  var fs = newFileStream(assetPath & "/maps/" & filename, fmWrite)
+  createDir(joinPath(assetPath,"maps"))
+  var fs = newFileStream(joinPath(assetPath,"maps",filename), fmWrite)
   if fs == nil:
     debug "error opening map for writing: ", filename
     return
@@ -1122,7 +1123,7 @@ proc saveMap*(filename: string) =
 
 proc loadMapBinary*(filename: string) =
   var tm: Tilemap
-  var fs = newFileStream(assetPath & "/maps/" & filename, fmRead)
+  var fs = newFileStream(joinPath(assetPath,"maps",filename), fmRead)
   if fs == nil:
     raise newException(IOError, "Unable to open " & filename & " for reading")
 
@@ -1166,12 +1167,12 @@ proc newSfxBuffer(filename: string): SfxBuffer =
 proc loadSfx*(index: range[-1..63], filename: string) =
   if index < 0 or index > 63:
     return
-  sfxBufferLibrary[index] = newSfxBuffer(assetPath & filename)
+  sfxBufferLibrary[index] = newSfxBuffer(joinPath(assetPath,filename))
 
 proc loadMusic*(index: int, filename: string) =
   if index < 0 or index > 63:
     return
-  musicFileLibrary[index] = assetPath & filename
+  musicFileLibrary[index] = joinPath(assetPath,filename)
 
 proc getMusic*(index: AudioChannelId): int =
   if audioChannels[index].kind != channelMusic:

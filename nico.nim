@@ -1,4 +1,5 @@
 import nico.backends.common
+import ospaths
 
 when defined(js):
   import nico.backends.js as backend
@@ -145,6 +146,7 @@ proc trifill*(x1,y1,x2,y2,x3,y3: Pint)
 # circles
 proc circfill*(cx,cy: Pint, r: Pint)
 proc circ*(cx,cy: Pint, r: Pint)
+proc ellipsefill*(cx,cy: Pint, rx,ry: Pint)
 
 # sprites
 proc spr*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false)
@@ -225,7 +227,7 @@ proc speed*(speed: int) =
   frameMult = speed
 
 proc loadPaletteFromGPL*(filename: string) =
-  var data = backend.readFile(assetPath & filename)
+  var data = backend.readFile(joinPath(assetPath,filename))
   var i = 0
   for line in data.splitLines():
     if i == 0:
@@ -667,6 +669,59 @@ proc plot4pointsfill(cx,cy,x,y: Pint) =
   if x != 0 and y != 0:
     hline(cx - x, cy - y, cx + x)
 
+template doWhile(a, b: untyped): untyped =
+  b
+  while a:
+    b
+
+proc ellipsefill*(cx,cy,rx,ry: Pint) =
+  var x,y: int
+  var dx,dy: int
+  var err: int
+  var stoppingX, stoppingY: int
+
+  let twoASquare = 2 * rx * rx
+  let twoBSquare = 2 * ry * ry
+
+  x = rx
+  y = 0
+  dx = ry*ry * (1-2*rx)
+  dy = rx*rx
+  err = 0
+  stoppingX = twoBSquare * rx
+  stoppingY = 0
+
+  while stoppingX >= stoppingY:
+    plot4pointsfill(cx,cy,x,y)
+    y+=1
+    stoppingY += twoASquare
+    err += dy
+    dy += twoASquare
+    if 2 * err + dx > 0:
+      x -= 1
+      stoppingX -= twoBSquare
+      err += dx
+      dx += twoBSquare
+
+  x = 0
+  y = ry
+  dx = ry*ry
+  dy = rx*rx*(1-2*ry)
+  err = 0
+  stoppingX = 0
+  stoppingY = twoASquare*ry
+  while stoppingX <= stoppingY:
+    plot4pointsfill(cx,cy,x,y)
+    x+=1
+    stoppingX += twoBSquare
+    err += dx
+    dx += twoBSquare
+    if 2 * err + dy > 0:
+      y -= 1
+      stoppingY -= twoASquare
+      err += dy
+      dy += twoASquare
+
 proc circfill*(cx,cy,r: Pint) =
   if r == 1:
       pset(cx,cy)
@@ -1070,7 +1125,7 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
 
 proc loadFont*(filename: string, chars: string) =
   debug "loadFont", filename, chars
-  loadSurface(assetPath & filename) do(surface: Surface):
+  loadSurface(joinPath(assetPath,filename)) do(surface: Surface):
     debug "got surface"
     fonts[currentFontId] = createFontFromSurface(surface, chars)
     debug("font created from ", filename)
@@ -1217,7 +1272,7 @@ proc setSpritesheet*(bank: range[0..15] = 0) =
   spriteSheet = spriteSheets[bank].addr
 
 proc loadSpriteSheet*(filename: string, w,h: Pint = 8) =
-  loadSurface(assetPath & filename) do(surface: Surface):
+  loadSurface(joinPath(assetPath,filename)) do(surface: Surface):
     spriteSheet[] = surface.convertToIndexed()
   tileSizeX = w
   tileSizeY = h
@@ -1315,7 +1370,7 @@ proc `%%/`[T](x,m: T): T =
 proc loadMapFromJson(filename: string) =
   var tm: Tilemap
   # read tiled output format
-  var data = readJsonFile(assetPath & "/maps/" & filename)
+  var data = readJsonFile(joinPath(assetPath, "maps", filename))
   tm.w = data["width"].getNum.int
   tm.h = data["height"].getNum.int
   # only look at first layer

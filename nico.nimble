@@ -10,11 +10,12 @@ license       = "MIT"
 requires "nim >= 0.16.0"
 requires "sdl2_nim#head"
 requires "gifenc >= 0.1.0"
-requires "stb_image >= 1.3"
+requires "stb_image >= 2.1"
 requires "webaudio >= 0.1.0"
 requires "html5_canvas >= 0.1.0"
 requires "ajax >= 0.1.0"
 requires "sndfile >= 0.1.0"
+requires "nimPNG"
 
 skipDirs = @["examples","tests","android"]
 

@@ -10,8 +10,9 @@ import math
 
 import sdl2.sdl
 
-import stb_image/read as stbi
+#import stb_image/read as stbi
 import stb_image/write as stbiw
+import nimPNG
 
 when defined(gif):
   import gifenc
@@ -325,20 +326,24 @@ proc loadSurface*(filename: string, callback: proc(surface: common.Surface)) =
   var w,h,components: int
   var pixels: seq[uint8]
 
-  var buffer = readFile(filename)
+  #var buffer = readFile(filename)
 
-  try:
-    pixels = stbi.load_from_memory(cast[seq[uint8]](buffer), w, h, components, 4)
-  except STBIException:
-    raise newException(IOError, "Unable to load surface: " & filename)
+  #echo "read buffer: ", buffer.len
 
-  debug("read image", w, h, components)
+  #try:
+  #  pixels = stbi.load_from_memory(cast[seq[uint8]](buffer), w, h, components, 4)
+  #except STBIException as e:
+  #  raise newException(IOError, "Unable to load surface: " & filename & " " & e.msg)
+
+  #debug("read image", w, h, components)
+
+  let png = loadPNG32(filename)
 
   var surface: common.Surface
-  surface.w = w
-  surface.h = h
-  surface.channels = components
-  surface.data = pixels
+  surface.w = png.width
+  surface.h = png.height
+  surface.channels = 4
+  surface.data = cast[seq[uint8]](png.data)
   callback(surface)
 
 proc readJsonFile*(filename: string): JsonNode =
@@ -614,8 +619,13 @@ proc appHandleEvent(evt: Event) =
 
   elif evt.kind == KeyDown or evt.kind == KeyUp:
     let sym = evt.key.keysym.sym
+    let mods = evt.key.keysym.mods
     let scancode = evt.key.keysym.scancode
     let down = evt.kind == Keydown
+
+    for listener in keyListeners:
+      if listener(sym.int, mods.int, scancode.int, down.bool):
+        return
 
     if sym == K_AC_BACK:
       controllers[0].setButtonState(pcBack, down)

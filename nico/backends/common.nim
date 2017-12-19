@@ -1,6 +1,7 @@
 # Constants
 
-const nAudioChannels* = 16;
+const MAX_COLORS* = 16
+const nAudioChannels* = 16
 const deadzone* = int16.high div 2
 const gifScale* = 2
 const maxPlayers* = 4
@@ -17,7 +18,7 @@ when defined(js):
 
 type
   Pint* = int32
-  ColorId* = range[0..15]
+  ColorId* = range[0..MAX_COLORS-1]
 
   Rect* = tuple
     x,y,w,h: int
@@ -163,16 +164,16 @@ var frame* = 0
 
 type NicoColor* = tuple[r,g,b: uint8]
 
-var colors*: array[16, NicoColor]
+var colors*: array[MAX_COLORS, NicoColor]
 
 var cameraX*: Pint = 0
 var cameraY*: Pint = 0
 
-var paletteSize*: range[0..16] = 16
+var paletteSize*: range[0..MAX_COLORS] = MAX_COLORS
 
-var paletteMapDraw*: array[256, ColorId]
-var paletteMapDisplay*: array[256, ColorId]
-var paletteTransparent*: array[256, bool]
+var paletteMapDraw*: array[MAX_COLORS, ColorId]
+var paletteMapDisplay*: array[MAX_COLORS, ColorId]
+var paletteTransparent*: array[MAX_COLORS, bool]
 
 for i in 0..<paletteSize.int:
   paletteMapDraw[i] = i

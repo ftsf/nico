@@ -100,6 +100,19 @@ proc pal*() # resets palette
 proc palt*(a: ColorId, trans: bool) # sets transparency for color
 proc palt*() # resets transparency
 
+proc palCol*(c: ColorId, r,g,b: uint8) =
+  ## sets the palette color to rgb value
+  colors[c] = RGB(r.int,g.int,b.int)
+
+proc palSet*(cols: array[MAX_COLORS, tuple[r,g,b: uint8]]) =
+  ## sets the entire color palette
+  for i in 0..<MAX_COLORS:
+    palCol(i, cols[i].r, cols[i].g, cols[i].b)
+
+proc palGet*(): array[MAX_COLORS, tuple[r,g,b: uint8]] =
+  for i in 0..<MAX_COLORS:
+    result[i] = colors[i]
+
 # Clipping
 proc clip*(x,y,w,h: Pint)
 proc clip*()
@@ -242,7 +255,7 @@ proc loadPaletteFromGPL*(filename: string) =
     if scanf(line, "$s$i $s$i $s$i", r,g,b):
       debug "matched ", i-1, ":", r,",",g,",",b
       colors[i-1] = RGB(r,g,b)
-      if i > 15:
+      if i > MAX_COLORS:
         break
       i += 1
     else:
@@ -1111,10 +1124,10 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
       if currentRect.w != 0:
         # go down until we find blank or h
         currentRect.h = font.h-1
-        for y in 0..<font.h:
+        for y in 0..font.h:
           let color = font.data[y*font.w+x]
-          if color == blankColor:
-            currentRect.h = y-2
+          if color != blankColor:
+            currentRect.h += 1
         let charId = chars[i].int
         font.rects[charId] = currentRect
         i += 1
@@ -1394,7 +1407,7 @@ proc newMap*(w,h: Pint) =
   currentTilemap.data = newSeq[uint8](w*h)
 
 proc rnd*[T: Natural](x: T): T =
-  assert x >= 1
+  assert x >= 1.T
   return random(x.int).T
 
 proc rnd*(x: float): float =

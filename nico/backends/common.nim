@@ -68,6 +68,8 @@ type
   LineIterator = iterator(): (Pint,Pint)
   Edge = tuple[xint, xfrac, dxint, dxfrac, dy, life: int]
 
+type KeyListener* = proc(sym: int, mods: int, scancode: int, down: bool): bool
+
 type ResizeFunc* = proc(x,y: int)
 
 ## CONVERTERS
@@ -98,6 +100,8 @@ var currentTpb*: Natural = 4
 
 var initialized*: bool
 var running*: bool
+
+var keyListeners*: seq[KeyListener] = @[]
 
 var loading*: int # number of resources loading
 

@@ -1589,6 +1589,15 @@ proc tpb*(newTpb: Natural) =
 proc setTickFunc*(f: proc()) =
   tickFunc = f
 
+proc addKeyListener*(p: KeyListener) =
+  keyListeners.add(p)
+
+proc removeKeyListener*(p: KeyListener) =
+  for i,v in keyListeners:
+    if v == p:
+      keyListeners.del(i)
+      break
+
 iterator all*[T](a: var openarray[T]): T {.inline.} =
   let len = a.len
   for i in 0..<len:

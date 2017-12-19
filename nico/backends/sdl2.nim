@@ -614,8 +614,13 @@ proc appHandleEvent(evt: Event) =
 
   elif evt.kind == KeyDown or evt.kind == KeyUp:
     let sym = evt.key.keysym.sym
+    let mods = evt.key.keysym.mods
     let scancode = evt.key.keysym.scancode
     let down = evt.kind == Keydown
+
+    for listener in keyListeners:
+      if listener(sym.int, mods.int, scancode.int, down.bool):
+        return
 
     if sym == K_AC_BACK:
       controllers[0].setButtonState(pcBack, down)

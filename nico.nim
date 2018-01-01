@@ -1124,7 +1124,7 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
       if currentRect.w != 0:
         # go down until we find blank or h
         currentRect.h = font.h-1
-        for y in 0..font.h:
+        for y in 0..<font.h:
           let color = font.data[y*font.w+x]
           if color != blankColor:
             currentRect.h += 1

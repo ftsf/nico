@@ -1196,7 +1196,7 @@ proc findFreeChannel(priority: float32): int =
     return -2
   return bestChannel
 
-proc sfx*(index: range[-1..63], channel: AudioChannelId = -1, loop: int = 1, gain: float32 = 1.0, pitch: float32 = 1.0, priority: float32 = Inf) =
+proc sfx*(index: range[-1..63], channel: AudioChannelId = -1, loop: int = 1, gain: Pfloat = 1.0, pitch: Pfloat = 1.0, priority: Pfloat = Inf) =
   let channel = if channel == -1: findFreeChannel(priority) else: channel
   if channel == -2:
     return
@@ -1260,7 +1260,7 @@ proc wavData*(channel: int): array[32, uint8] =
 proc wavData*(channel: int, data: array[32, uint8]) =
   audioChannels[channel].wavData = data
 
-proc pitch*(channel: int, freq: float32) =
+proc pitch*(channel: int, freq: Pfloat) =
   audioChannels[channel].targetFreq = freq
 
 proc synthShape*(channel: int, newShape: SynthShape) =
@@ -1275,7 +1275,7 @@ proc reset*(channel: int) =
   audioChannels[channel].loop = 0
   audioChannels[channel].musicIndex = 0
 
-proc synth*(channel: int, shape: SynthShape, freq: float32, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
+proc synth*(channel: int, shape: SynthShape, freq: Pfloat, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
   audioChannels[channel].kind = channelSynth
@@ -1301,7 +1301,7 @@ proc arp*(channel: int, arp: uint16, speed: uint8 = 1) =
   audioChannels[channel].arp = arp
   audioChannels[channel].arpSpeed = max(1.uint8, speed)
 
-proc synthUpdate*(channel: int, shape: SynthShape, freq: float32) =
+proc synthUpdate*(channel: int, shape: SynthShape, freq: Pfloat) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
   if shape != synSame:

@@ -56,6 +56,8 @@ export timeStep
 
 export Pint
 export toPint
+export Pfloat
+export toPfloat
 
 export setKeyMap
 
@@ -111,12 +113,12 @@ proc getCamera*(): (Pint,Pint)
 proc btn*(b: NicoButton): bool
 proc btnp*(b: NicoButton): bool
 proc btnpr*(b: NicoButton, repeat = 48): bool
-proc jaxis*(axis: NicoAxis): float32
+proc jaxis*(axis: NicoAxis): Pfloat
 
 proc btn*(b: NicoButton, player: range[0..maxPlayers]): bool
 proc btnp*(b: NicoButton, player: range[0..maxPlayers]): bool
 proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool
-proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): float32
+proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): Pfloat
 proc mouse*(): (int,int)
 proc mousebtn*(b: range[0..2]): bool
 proc mousebtnp*(b: range[0..2]): bool
@@ -201,14 +203,14 @@ export screenWidth
 export screenHeight
 
 # Maths functions
-proc flr*(x: float32): float32
-proc ceil*(x: float32): float32 =
+proc flr*(x: Pfloat): Pfloat
+proc ceil*(x: Pfloat): Pfloat =
   -flr(-x)
-proc lerp*[T](a,b: T, t: float32): T
+proc lerp*[T](a,b: T, t: Pfloat): T
 
 proc rnd*[T: Natural](x: T): T
 proc rnd*[T](a: openarray[T]): T
-proc rnd*(x: float32): float32
+proc rnd*(x: Pfloat): Pfloat
 
 ## Internal functions
 
@@ -340,14 +342,14 @@ proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool =
     return false
   return controllers[player].btnpr(b, repeat)
 
-proc jaxis*(axis: NicoAxis): float32 =
+proc jaxis*(axis: NicoAxis): Pfloat =
   for c in controllers:
     let v = c.axis(axis)
     if abs(v) > c.deadzone:
       return v
   return 0.0
 
-proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): float32 =
+proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): Pfloat =
   if player > controllers.high:
     return 0.0
   return controllers[player].axis(axis)
@@ -541,10 +543,10 @@ proc rect*(x1,y1,x2,y2: Pint) =
   # left
   vline(x, y+1, y+h-1)
 
-proc flr*(x: float32): float32 =
+proc flr*(x: Pfloat): Pfloat =
   return x.floor()
 
-proc lerp[T](a, b: T, t: float32): T =
+proc lerp[T](a, b: T, t: Pfloat): T =
   return a + (b - a) * t
 
 {.push checks: off, optimization: speed.}
@@ -724,7 +726,7 @@ proc circ*(cx,cy,r: Pint) =
       x -= 1
       err += 1 - 2*x
 
-proc arc*(cx,cy,r: Pint, startAngle, endAngle: float32) =
+proc arc*(cx,cy,r: Pint, startAngle, endAngle: Pfloat) =
   let startX = cos(startAngle) * r
   let startY = sin(startAngle) * r
   let endX = cos(endAngle) * r
@@ -1341,11 +1343,11 @@ proc rnd*[T: Natural](x: T): T =
   assert x >= 1
   return rand(x.int).T
 
-proc rnd*(x: float32): float32 =
+proc rnd*(x: Pfloat): Pfloat =
   return rand(x)
 
 proc rnd*[T](a: openarray[T]): T =
-  return random(a)
+  return rand(a)
 
 proc srand*(seed: int) =
   randomize(seed+1)
@@ -1439,12 +1441,12 @@ proc noteStrToNote(s: string): int =
   let octave = parseInt($s[2])
   return 12 * octave + note + (if sharp: 1 else: 0)
 
-proc note*(n: int): float32 =
+proc note*(n: int): Pfloat =
   # takes a note integer and converts it to a frequency float32
   # synth(0, sin, note(48))
   return pow(2.0, ((n.float32 - 69.0) / 12.0)) * 440.0
 
-proc note*(n: string): float32 =
+proc note*(n: string): Pfloat =
   return note(noteStrToNote(n))
 
 

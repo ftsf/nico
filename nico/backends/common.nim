@@ -17,6 +17,7 @@ when defined(js):
 
 type
   Pint* = int32
+  Pfloat* = float32
   ColorId* = range[0..15]
 
   Rect* = tuple
@@ -83,6 +84,9 @@ converter toPint*(x: float32): Pint {.inline.} =
 
 converter toPint*(x: int): Pint {.inline.} =
   return x.Pint
+
+converter toPfloat*(x: float): Pfloat {.inline.} =
+  return x.Pfloat
 
 ## GLOBALS
 ##
@@ -154,7 +158,7 @@ var tileSizeX* = 8
 var tileSizeY* = 8
 
 var initFunc*: proc()
-var updateFunc*: proc(dt:float32)
+var updateFunc*: proc(dt: Pfloat)
 var drawFunc*: proc()
 var textFunc*: proc(text: string): bool
 var resizeFunc*: ResizeFunc
@@ -199,10 +203,10 @@ var mouseButtonsDown*: array[3,bool]
 var mouseButtons*: array[3,int]
 var mouseWheelState*: int
 
-proc lerp*[T](a,b: T, t: float32): T =
+proc lerp*[T](a,b: T, t: Pfloat): T =
   return a + (b - a) * t
 
-proc interpolatedLookup*[T](a: openarray[T], s: float32): T =
+proc interpolatedLookup*[T](a: openarray[T], s: Pfloat): T =
   let alpha = s mod 1.0
   let sample = s.int mod a.len
   let nextSample = (sample + 1) mod a.len

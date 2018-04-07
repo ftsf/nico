@@ -37,7 +37,7 @@ import random
 type
   SfxBuffer = ref object
     data: seq[float32]
-    rate: float
+    rate: float32
     channels: range[1..2]
     length: int
 
@@ -55,14 +55,14 @@ type
     arpSpeed: uint8
 
     loop: int
-    phase: float # or position
-    freq: float # or speed
-    basefreq: float
-    targetFreq: float
-    width: float
-    pan: float
+    phase: float32 # or position
+    freq: float32 # or speed
+    basefreq: float32
+    targetFreq: float32
+    width: float32
+    pan: float32
     shape: SynthShape
-    gain: float
+    gain: float32
 
     init: range[0..15]
     env: range[-7..7]
@@ -81,7 +81,7 @@ type
     nextClick: int
     outvalue: float32
 
-    priority: float
+    priority: float32
 
     wavData: array[32, uint8]
 
@@ -132,7 +132,8 @@ var next_time: uint32
 
 var config: Config
 
-var recordFrame: common.Surface
+when defined(gif):
+  var recordFrame: common.Surface
 var recordFrames: RingBuffer[common.Surface]
 
 var sfxBufferLibrary: array[64,SfxBuffer]
@@ -198,20 +199,20 @@ proc resize*(w,h: int) =
 
   if integerScreenScale:
     screenScale = max(1.0, min(
-      (w.float / targetScreenWidth.float).floor,
-      (h.float / targetScreenHeight.float).floor,
+      (w.float32 / targetScreenWidth.float32).floor,
+      (h.float32 / targetScreenHeight.float32).floor,
     ))
   else:
     screenScale = max(1.0, min(
-      (w.float / targetScreenWidth.float),
-      (h.float / targetScreenHeight.float),
+      (w.float32 / targetScreenWidth.float32),
+      (h.float32 / targetScreenHeight.float32),
     ))
 
   var displayW,displayH: int
 
   if fixedScreenSize:
-    displayW = (targetScreenWidth.float * screenScale).int
-    displayH = (targetScreenHeight.float * screenScale).int
+    displayW = (targetScreenWidth.float32 * screenScale).int
+    displayH = (targetScreenHeight.float32 * screenScale).int
     debug "display", displayW, displayH
 
     # add padding
@@ -233,8 +234,8 @@ proc resize*(w,h: int) =
       screenHeight = displayH div screenScale
       debug "screen", screenWidth, screenHeight
     else:
-      screenWidth = (displayW.float / screenScale).int
-      screenHeight = (displayH.float / screenScale).int
+      screenWidth = (displayW.float32 / screenScale).int
+      screenHeight = (displayH.float32 / screenScale).int
       debug "screen", screenWidth, screenHeight
 
   debug "resize event: scale: ", screenScale, ": ", displayW, " x ", displayH, " ( ", screenWidth, " x ", screenHeight, " )"
@@ -512,8 +513,8 @@ proc appHandleEvent(evt: Event) =
   elif evt.kind == MouseMotion:
     if evt.motion.which != TOUCH_MOUSEID:
       mouseDetected = true
-    mouseX = ((evt.motion.x - screenPaddingX).float / screenScale.float).int
-    mouseY = ((evt.motion.y - screenPaddingY).float / screenScale.float).int
+    mouseX = ((evt.motion.x - screenPaddingX).float32 / screenScale.float32).int
+    mouseY = ((evt.motion.y - screenPaddingY).float32 / screenScale.float32).int
 
   elif evt.kind == ControllerDeviceAdded:
     for v in controllers:
@@ -578,7 +579,7 @@ proc appHandleEvent(evt: Event) =
   elif evt.kind == ControllerAxisMotion:
     for controller in mitems(controllers):
       if controller.id == evt.caxis.which:
-        let value = evt.caxis.value.float / int16.high.float
+        let value = evt.caxis.value.float32 / int16.high.float32
         case evt.caxis.axis.GameControllerAxis:
         of CONTROLLER_AXIS_LEFTX:
           controller.setAxisValue(pcXAxis, value)
@@ -683,7 +684,7 @@ proc step*() {.cdecl.} =
   checkInput()
 
   next_time = getTicks()
-  var diff = float(next_time - current_time)/1000.0 * frameMult.float
+  var diff = float32(next_time - current_time)/1000.0 * frameMult.float32
   if diff > timeStep * 2.0:
     diff = timeStep
   acc += diff
@@ -836,10 +837,10 @@ proc process(self: var Channel): float32 =
         envPhase += 1
 
         if vibamount > 0:
-          freq = basefreq + sin(envPhase.float / vibspeed.float) * basefreq * 0.03 * vibamount.float
+          freq = basefreq + sin(envPhase.float32 / vibspeed.float32) * basefreq * 0.03 * vibamount.float32
 
         if pchange != 0:
-          targetFreq = targetFreq + targetFreq * pchange.float / 128.0
+          targetFreq = targetFreq + targetFreq * pchange.float32 / 128.0
           basefreq = targetFreq
           freq = targetFreq
           if targetFreq > sampleRate / 2.0:
@@ -864,27 +865,27 @@ proc process(self: var Channel): float32 =
 
           if arpSteps > 0:
             if (envPhase / arpSpeed.int) mod arpSteps == 1:
-              targetFreq = basefreq + basefreq * 0.06 * a0.float
+              targetFreq = basefreq + basefreq * 0.06 * a0.float32
             elif (envPhase / arpSpeed.int) mod arpSteps == 2:
-              targetFreq = basefreq + basefreq * 0.06 * a1.float
+              targetFreq = basefreq + basefreq * 0.06 * a1.float32
             elif (envPhase / arpSpeed.int) mod arpSteps == 3:
-              targetFreq = basefreq + basefreq * 0.06 * a2.float
+              targetFreq = basefreq + basefreq * 0.06 * a2.float32
             elif (envPhase / arpSpeed.int) mod arpSteps == 4:
-              targetFreq = basefreq + basefreq * 0.06 * a3.float
+              targetFreq = basefreq + basefreq * 0.06 * a3.float32
             else:
               targetFreq = basefreq
 
         # determine the env value
         if env < 0:
           # decay
-          envValue = clamp(lerp(init.float / 15.0, 0, envPhase / (-env * 4)), 0.0, 1.0)
+          envValue = clamp(lerp(init.float32 / 15.0, 0, envPhase / (-env * 4)), 0.0, 1.0)
           if envValue <= 0:
             kind = channelNone
         elif env > 0:
           # attack
-          envValue = clamp(lerp(init.float / 15.0, 1.0, envPhase / (env * 4)), 0.0, 1.0)
+          envValue = clamp(lerp(init.float32 / 15.0, 1.0, envPhase / (env * 4)), 0.0, 1.0)
         elif env == 0:
-          envValue = init.float / 15.0
+          envValue = init.float32 / 15.0
 
         gain = clamp(lerp(gain, envValue, 0.9), 0.0, 1.0)
 
@@ -896,7 +897,7 @@ proc process(self: var Channel): float32 =
     if audioSampleId mod 2 == 0:
       phase += freq
       if phase >= buffer.data.len:
-        phase = phase mod buffer.data.len.float
+        phase = phase mod buffer.data.len.float32
         if loop > 0:
           loop -= 1
           if loop == 0:
@@ -924,33 +925,33 @@ proc process(self: var Channel): float32 =
     return 0.0
 
 
+when compileOption("threads"):
+  proc audioCallback(userdata: pointer, stream: ptr uint8, bytes: cint) {.cdecl.} =
+    when compileOption("threads"):
+      setupForeignThreadGc()
 
-proc audioCallback(userdata: pointer, stream: ptr uint8, bytes: cint) {.cdecl.} =
-  when compileOption("threads"):
-    setupForeignThreadGc()
+    var samples = cast[ptr array[int32.high,float32]](stream)
+    let nSamples = bytes div sizeof(float32)
 
-  var samples = cast[ptr array[int32.high,float32]](stream)
-  let nSamples = bytes div sizeof(float32)
+    for i in 0..<nSamples:
 
-  for i in 0..<nSamples:
+      if i mod 2 == 0:
+        nextClock -= 1
+        if nextClock <= 0:
+          clock = true
+          nextClock = (sampleRate div 60)
+        else:
+          clock = false
 
-    if i mod 2 == 0:
-      nextClock -= 1
-      if nextClock <= 0:
-        clock = true
-        nextClock = (sampleRate div 60)
-      else:
-        clock = false
+        nextTick -= 1
+        if nextTick <= 0 and tickFunc != nil:
+          tickFunc()
+          nextTick = (sampleRate / (currentBpm.float32 / 60.0 * currentTpb.float32)).int
 
-      nextTick -= 1
-      if nextTick <= 0 and tickFunc != nil:
-        tickFunc()
-        nextTick = (sampleRate / (currentBpm.float / 60.0 * currentTpb.float)).int
-
-    samples[i] = 0
-    for j in 0..<audioChannels.len:
-      samples[i] += audioChannels[j].process() * masterVolume
-    audioSampleId += 1
+      samples[i] = 0
+      for j in 0..<audioChannels.len:
+        samples[i] += audioChannels[j].process() * masterVolume
+      audioSampleId += 1
 
 proc queueMixerAudio*(nSamples: int) =
   var samples = newSeq[float32](nSamples)
@@ -968,7 +969,7 @@ proc queueMixerAudio*(nSamples: int) =
       nextTick -= 1
       if nextTick <= 0 and tickFunc != nil:
         tickFunc()
-        nextTick = (sampleRate / (currentBpm.float / 60.0 * currentTpb.float)).int
+        nextTick = (sampleRate / (currentBpm.float32 / 60.0 * currentTpb.float32)).int
 
     samples[i] = 0
     for j in 0..<audioChannels.len:
@@ -982,7 +983,7 @@ proc initMixer*() =
     # use web audio
     discard
   else:
-    echo "initMixer"
+    debug "initMixer"
     if sdl.init(INIT_AUDIO) != 0:
       raise newException(Exception, "Unable to initialize audio")
 
@@ -1004,28 +1005,28 @@ proc initMixer*() =
     if audioDeviceId == 0:
       raise newException(Exception, "Unable to open audio device: " & $getError())
 
-    sampleRate = obtained.freq.float
-    invSampleRate = 1.0 / obtained.freq.float
+    sampleRate = obtained.freq.float32
+    invSampleRate = 1.0 / obtained.freq.float32
 
-    echo obtained
+    debug obtained
 
     for c in audioChannels.mitems:
       c.lfsr = 0xfeed
       c.lfsr2 = 0x00fe
       c.glide = 0
       for j in 0..<32:
-        c.wavData[j] = random(16).uint8
+        c.wavData[j] = rand(16).uint8
 
     # start the audio thread
     when compileOption("threads"):
       pauseAudioDevice(audioDeviceId, 0)
       if obtained.callback != audioCallback:
-        echo "wtf no callback"
-      echo "audio initialised using audio thread"
+        debug "wtf no callback"
+      debug "audio initialised using audio thread"
     else:
       queueMixerAudio(4096)
       pauseAudioDevice(audioDeviceId, 0)
-      echo "audio initialised using main thread"
+      debug "audio initialised using main thread"
 
 proc init*(org: string, app: string) =
   discard setHint("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")
@@ -1138,7 +1139,7 @@ proc loadMapBinary*(filename: string) =
   currentTilemap = tm
 
 proc newSfxBuffer(filename: string): SfxBuffer =
-  echo "loading sfx: ", filename
+  debug "loading sfx: ", filename
   result = new(SfxBuffer)
   var info: Tinfo
   when defined(js):
@@ -1146,12 +1147,12 @@ proc newSfxBuffer(filename: string): SfxBuffer =
   else:
     zeroMem(info.addr, sizeof(Tinfo))
   var fp = sndfile.open(filename.cstring, READ, info.addr)
-  echo "file opened"
+  debug "file opened"
   if fp == nil:
     raise newException(IOError, "unable to open file for reading: " & filename)
 
   result.data = newSeq[float32](info.frames * info.channels)
-  result.rate = info.samplerate.float
+  result.rate = info.samplerate.float32
   result.channels = info.channels
   result.length = info.frames.int * info.channels.int
 
@@ -1162,9 +1163,9 @@ proc newSfxBuffer(filename: string): SfxBuffer =
 
   discard fp.close()
 
-  echo "loaded sfx: " & filename & " frames: " & $result.length
-  echo result.channels
-  echo result.rate
+  debug "loaded sfx: " & filename & " frames: " & $result.length
+  debug result.channels
+  debug result.rate
 
 proc loadSfx*(index: range[-1..63], filename: string) =
   if index < 0 or index > 63:
@@ -1181,11 +1182,11 @@ proc getMusic*(index: AudioChannelId): int =
     return -1
   return audioChannels[index].musicIndex
 
-proc findFreeChannel(priority: float): int =
+proc findFreeChannel(priority: float32): int =
   for i,c in audioChannels:
     if c.kind == channelNone:
       return i
-  var lowestPriority: float = Inf
+  var lowestPriority: float32 = Inf
   var bestChannel: AudioChannelId = -2
   for i,c in audioChannels:
     if c.priority < lowestPriority:
@@ -1195,12 +1196,12 @@ proc findFreeChannel(priority: float): int =
     return -2
   return bestChannel
 
-proc sfx*(index: range[-1..63], channel: AudioChannelId = -1, loop: int = 1, gain: float = 1.0, pitch: float = 1.0, priority: float = Inf) =
+proc sfx*(index: range[-1..63], channel: AudioChannelId = -1, loop: int = 1, gain: float32 = 1.0, pitch: float32 = 1.0, priority: float32 = Inf) =
   let channel = if channel == -1: findFreeChannel(priority) else: channel
   if channel == -2:
     return
 
-  echo "sfx: ", index, " channel: ", channel
+  debug "sfx: ", index, " channel: ", channel
 
   if index < 0:
     audioChannels[channel].reset()
@@ -1237,13 +1238,11 @@ proc music*(index: int, channel: AudioChannelId = -1, loop: int = 1) =
   audioChannels[channel].loop = loop
   audioChannels[channel].musicBuffer = 0
 
-  block:
-    let read = snd.read_float(audioChannels[channel].musicBuffers[0][0].addr, musicBufferSize)
-  block:
-    let read = snd.read_float(audioChannels[channel].musicBuffers[1][0].addr, musicBufferSize)
+  discard snd.read_float(audioChannels[channel].musicBuffers[0][0].addr, musicBufferSize)
+  discard snd.read_float(audioChannels[channel].musicBuffers[1][0].addr, musicBufferSize)
 
 proc volume*(channel: int, volume: int) =
-  audioChannels[channel].gain = (volume.float / 255.0)
+  audioChannels[channel].gain = (volume.float32 / 255.0)
 
 proc pitchbend*(channel: int, changeSpeed: range[-128..128]) =
   audioChannels[channel].pchange = changeSpeed
@@ -1261,7 +1260,7 @@ proc wavData*(channel: int): array[32, uint8] =
 proc wavData*(channel: int, data: array[32, uint8]) =
   audioChannels[channel].wavData = data
 
-proc pitch*(channel: int, freq: float) =
+proc pitch*(channel: int, freq: float32) =
   audioChannels[channel].targetFreq = freq
 
 proc synthShape*(channel: int, newShape: SynthShape) =
@@ -1276,7 +1275,7 @@ proc reset*(channel: int) =
   audioChannels[channel].loop = 0
   audioChannels[channel].musicIndex = 0
 
-proc synth*(channel: int, shape: SynthShape, freq: float, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
+proc synth*(channel: int, shape: SynthShape, freq: float32, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
   audioChannels[channel].kind = channelSynth
@@ -1302,7 +1301,7 @@ proc arp*(channel: int, arp: uint16, speed: uint8 = 1) =
   audioChannels[channel].arp = arp
   audioChannels[channel].arpSpeed = max(1.uint8, speed)
 
-proc synthUpdate*(channel: int, shape: SynthShape, freq: float) =
+proc synthUpdate*(channel: int, shape: SynthShape, freq: float32) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
   if shape != synSame:

@@ -72,6 +72,9 @@ type ResizeFunc* = proc(x,y: int)
 
 ## CONVERTERS
 
+converter toFloat32*(x: float): float32 {.inline.} =
+  return x.float32
+
 converter toPint*(x: float): Pint {.inline.} =
   return x.Pint
 
@@ -151,7 +154,7 @@ var tileSizeX* = 8
 var tileSizeY* = 8
 
 var initFunc*: proc()
-var updateFunc*: proc(dt:float)
+var updateFunc*: proc(dt:float32)
 var drawFunc*: proc()
 var textFunc*: proc(text: string): bool
 var resizeFunc*: ResizeFunc
@@ -196,10 +199,10 @@ var mouseButtonsDown*: array[3,bool]
 var mouseButtons*: array[3,int]
 var mouseWheelState*: int
 
-proc lerp*[T](a,b: T, t: float): T =
+proc lerp*[T](a,b: T, t: float32): T =
   return a + (b - a) * t
 
-proc interpolatedLookup*[T](a: openarray[T], s: float): T =
+proc interpolatedLookup*[T](a: openarray[T], s: float32): T =
   let alpha = s mod 1.0
   let sample = s.int mod a.len
   let nextSample = (sample + 1) mod a.len

@@ -111,12 +111,12 @@ proc getCamera*(): (Pint,Pint)
 proc btn*(b: NicoButton): bool
 proc btnp*(b: NicoButton): bool
 proc btnpr*(b: NicoButton, repeat = 48): bool
-proc jaxis*(axis: NicoAxis): float
+proc jaxis*(axis: NicoAxis): float32
 
 proc btn*(b: NicoButton, player: range[0..maxPlayers]): bool
 proc btnp*(b: NicoButton, player: range[0..maxPlayers]): bool
 proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool
-proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): float
+proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): float32
 proc mouse*(): (int,int)
 proc mousebtn*(b: range[0..2]): bool
 proc mousebtnp*(b: range[0..2]): bool
@@ -201,14 +201,14 @@ export screenWidth
 export screenHeight
 
 # Maths functions
-proc flr*(x: float): float
-proc ceil*(x: float): float =
+proc flr*(x: float32): float32
+proc ceil*(x: float32): float32 =
   -flr(-x)
-proc lerp*[T](a,b: T, t: float): T
+proc lerp*[T](a,b: T, t: float32): T
 
 proc rnd*[T: Natural](x: T): T
 proc rnd*[T](a: openarray[T]): T
-proc rnd*(x: float): float
+proc rnd*(x: float32): float32
 
 ## Internal functions
 
@@ -216,7 +216,7 @@ proc psetRaw*(x,y: int, c: ColorId) {.inline.}
 
 proc fps*(fps: int) =
   frameRate = fps
-  timeStep = 1.0 / fps.float
+  timeStep = 1.0 / fps.float32
 
 proc fps*(): int =
   return frameRate
@@ -340,14 +340,14 @@ proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool =
     return false
   return controllers[player].btnpr(b, repeat)
 
-proc jaxis*(axis: NicoAxis): float =
+proc jaxis*(axis: NicoAxis): float32 =
   for c in controllers:
     let v = c.axis(axis)
     if abs(v) > c.deadzone:
       return v
   return 0.0
 
-proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): float =
+proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): float32 =
   if player > controllers.high:
     return 0.0
   return controllers[player].axis(axis)
@@ -437,8 +437,8 @@ proc innerLine(x0,y0,x1,y1: Pint) =
   var sx: int = if x0 < x1: 1 else: -1
   var dy: int = abs(y1-y0)
   var sy: int = if y0 < y1: 1 else: -1
-  var err: float = (if dx>dy: dx else: -dy).float/2.0
-  var e2: float = 0
+  var err: float32 = (if dx>dy: dx else: -dy).float32/2.0
+  var e2: float32 = 0
 
   while true:
     pset(x,y)
@@ -446,10 +446,10 @@ proc innerLine(x0,y0,x1,y1: Pint) =
       break
     e2 = err
     if e2 > -dx:
-      err -= dy.float
+      err -= dy.float32
       x += sx
     if e2 < dy:
-      err += dx.float
+      err += dx.float32
       y += sy
 
 proc lineDashed*(x0,y0,x1,y1: Pint, pattern: uint8 = 0b10101010) =
@@ -459,8 +459,8 @@ proc lineDashed*(x0,y0,x1,y1: Pint, pattern: uint8 = 0b10101010) =
   var sx: int = if x0 < x1: 1 else: -1
   var dy: int = abs(y1-y0)
   var sy: int = if y0 < y1: 1 else: -1
-  var err: float = (if dx>dy: dx else: -dy).float/2.0
-  var e2: float = 0
+  var err: float32 = (if dx>dy: dx else: -dy).float32/2.0
+  var e2: float32 = 0
 
   var i = 0
 
@@ -472,10 +472,10 @@ proc lineDashed*(x0,y0,x1,y1: Pint, pattern: uint8 = 0b10101010) =
       break
     e2 = err
     if e2 > -dx:
-      err -= dy.float
+      err -= dy.float32
       x += sx
     if e2 < dy:
-      err += dx.float
+      err += dx.float32
       y += sy
 
 
@@ -486,8 +486,8 @@ iterator lineIterator*(x0,y0,x1,y1: Pint): (Pint,Pint) =
   var sx: Pint = if x0 < x1: 1 else: -1
   var dy: Pint = abs(y1-y0)
   var sy: Pint = if y0 < y1: 1 else: -1
-  var err: float = (if dx>dy: dx else: -dy).float/2.0
-  var e2: float = 0
+  var err: float32 = (if dx>dy: dx else: -dy).float32/2.0
+  var e2: float32 = 0
 
   while true:
     yield (x,y)
@@ -495,10 +495,10 @@ iterator lineIterator*(x0,y0,x1,y1: Pint): (Pint,Pint) =
       break
     e2 = err
     if e2 > -dx:
-      err -= dy.float
+      err -= dy.float32
       x += sx
     if e2 < dy:
-      err += dx.float
+      err += dx.float32
       y += sy
 
 proc line*(x0,y0,x1,y1: Pint) =
@@ -541,10 +541,10 @@ proc rect*(x1,y1,x2,y2: Pint) =
   # left
   vline(x, y+1, y+h-1)
 
-proc flr*(x: float): float =
+proc flr*(x: float32): float32 =
   return x.floor()
 
-proc lerp[T](a, b: T, t: float): T =
+proc lerp[T](a, b: T, t: float32): T =
   return a + (b - a) * t
 
 {.push checks: off, optimization: speed.}
@@ -553,8 +553,8 @@ type Bresenham = object
   x1,y1: int
   dx,sx: int
   dy,sy: int
-  err: float
-  e2: float
+  err: float32
+  e2: float32
   finished: bool
 
 proc initBresenham(x0,y0,x1,y1: int): Bresenham =
@@ -566,7 +566,7 @@ proc initBresenham(x0,y0,x1,y1: int): Bresenham =
   result.sx = if x0 < x1: 1 else: -1
   result.dy = abs(y1-y0)
   result.sy = if y0 < y1: 1 else: -1
-  result.err = (if result.dx > result.dy: result.dx else: -result.dy).float / 2.0
+  result.err = (if result.dx > result.dy: result.dx else: -result.dy).float32 / 2.0
   result.e2 = 0.0
   result.finished = false
 
@@ -580,10 +580,10 @@ proc step(self: var Bresenham): (int,int) =
       return (x,y)
     e2 = err
     if e2 > -dx:
-      err -= dy.float
+      err -= dy.float32
       x += sx
     if e2 < dy:
-      err += dx.float
+      err += dx.float32
       y += sy
       return (x,y)
 
@@ -724,7 +724,7 @@ proc circ*(cx,cy,r: Pint) =
       x -= 1
       err += 1 - 2*x
 
-proc arc*(cx,cy,r: Pint, startAngle, endAngle: float) =
+proc arc*(cx,cy,r: Pint, startAngle, endAngle: float32) =
   let startX = cos(startAngle) * r
   let startY = sin(startAngle) * r
   let endX = cos(endAngle) * r
@@ -761,17 +761,17 @@ proc arc*(cx,cy,r: Pint, startAngle, endAngle: float) =
 
 
 proc fontBlit(font: Font, srcRect, dstRect: Rect, color: ColorId) =
-  var dx = dstRect.x.float
-  var dy = dstRect.y.float
-  var sx = srcRect.x.float
-  var sy = srcRect.y.float
-  let dw = dstRect.w.float
-  let dh = dstRect.h.float
-  let sw = srcRect.w.float
-  let sh = srcRect.h.float
+  var dx = dstRect.x.float32
+  var dy = dstRect.y.float32
+  var sx = srcRect.x.float32
+  var sy = srcRect.y.float32
+  let dw = dstRect.w.float32
+  let dh = dstRect.h.float32
+  let sw = srcRect.w.float32
+  let sh = srcRect.h.float32
   for y in 0..dstRect.h-1:
-    dx = dstRect.x.float
-    sx = srcRect.x.float
+    dx = dstRect.x.float32
+    sx = srcRect.x.float32
     for x in 0..dstRect.w-1:
       if sx < 0 or sy < 0 or sx > font.w - 1 or sy > font.h - 1:
         continue
@@ -885,27 +885,27 @@ proc blit(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = false) =
   if not overlap(dstrect, clippingRect):
     return
 
-  var dx = dstRect.x.float
-  var dy = dstRect.y.float
-  var dw = dstRect.w.float
-  var dh = dstRect.h.float
+  var dx = dstRect.x.float32
+  var dy = dstRect.y.float32
+  var dw = dstRect.w.float32
+  var dh = dstRect.h.float32
 
-  var sx = srcRect.x.float
-  var sy = srcRect.y.float
-  var sw = srcRect.w.float
-  var sh = srcRect.h.float
+  var sx = srcRect.x.float32
+  var sy = srcRect.y.float32
+  var sw = srcRect.w.float32
+  var sh = srcRect.h.float32
 
   if vflip:
-    dy = dy + (dstRect.h - 1).float
-    sy = sy + (srcRect.h - 1).float
+    dy = dy + (dstRect.h - 1).float32
+    sy = sy + (srcRect.h - 1).float32
 
   for y in 0..dstRect.h-1:
     if hflip:
-      sx = (srcRect.x + srcRect.w-1).float
-      dx = (dstRect.x + dstRect.w-1).float
+      sx = (srcRect.x + srcRect.w-1).float32
+      dx = (dstRect.x + dstRect.w-1).float32
     else:
-      sx = srcRect.x.float
-      dx = dstRect.x.float
+      sx = srcRect.x.float32
+      dx = dstRect.x.float32
     for x in 0..dstRect.w-1:
       if sx < 0 or sy < 0 or sx > src.w-1 or sy > src.h-1:
         continue
@@ -931,27 +931,27 @@ proc blitStretch(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = fals
   if not overlap(dstrect, clippingRect):
     return
 
-  var dx = dstRect.x.float
-  var dy = dstRect.y.float
-  var dw = dstRect.w.float
-  var dh = dstRect.h.float
+  var dx = dstRect.x.float32
+  var dy = dstRect.y.float32
+  var dw = dstRect.w.float32
+  var dh = dstRect.h.float32
 
-  var sx = srcRect.x.float
-  var sy = srcRect.y.float
-  var sw = srcRect.w.float
-  var sh = srcRect.h.float
+  var sx = srcRect.x.float32
+  var sy = srcRect.y.float32
+  var sw = srcRect.w.float32
+  var sh = srcRect.h.float32
 
   if vflip:
-    dy = dy + (dstRect.h - 1).float
-    sy = sy + (srcRect.h - 1).float
+    dy = dy + (dstRect.h - 1).float32
+    sy = sy + (srcRect.h - 1).float32
 
   for y in 0..dstRect.h-1:
     if hflip:
-      sx = (srcRect.x + srcRect.w-1).float
-      dx = (dstRect.x + dstRect.w-1).float
+      sx = (srcRect.x + srcRect.w-1).float32
+      dx = (dstRect.x + dstRect.w-1).float32
     else:
-      sx = srcRect.x.float
-      dx = dstRect.x.float
+      sx = srcRect.x.float32
+      dx = dstRect.x.float32
     for x in 0..dstRect.w-1:
       if sx < 0 or sy < 0 or sx > src.w-1 or sy > src.h-1:
         continue
@@ -1007,19 +1007,19 @@ proc fset*(s: uint8, f: range[0..7], v: bool) =
     spriteFlags[s].unset(f)
 
 proc masterVol*(newVol: int) =
-  masterVolume = newVol.float / 255.0
+  masterVolume = newVol.float32 / 255.0
 
 proc masterVol*(): int =
   return (masterVolume * 255.0).int
 
 proc sfxVol*(newVol: int) =
-  sfxVolume = newVol.float / 255.0
+  sfxVolume = newVol.float32 / 255.0
 
 proc sfxVol*(): int =
   return (sfxVolume * 255.0).int
 
 proc musicVol*(newVol: int) =
-  musicVolume = newVol.float / 255.0
+  musicVolume = newVol.float32 / 255.0
 
 proc musicVol*(): int =
   return (musicVolume * 255.0).int
@@ -1232,7 +1232,6 @@ proc getSprRect(spr: range[0..255], w,h: Pint = 1): Rect {.inline.} =
 proc spr*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false) =
   # draw a sprite
   var src = getSprRect(spr, w, h)
-  var dst: Rect = ((x-cameraX).int,(y-cameraY).int,src.w,src.h)
   if hflip or vflip:
     blitFastFlip(spriteSheet[], src.x, src.y, x-cameraX, y-cameraY, src.w, src.h, hflip, vflip)
   else:
@@ -1316,12 +1315,12 @@ proc loadMapFromJson(filename: string) =
   var tm: Tilemap
   # read tiled output format
   var data = readJsonFile(assetPath & "/maps/" & filename)
-  tm.w = data["width"].getNum.int
-  tm.h = data["height"].getNum.int
+  tm.w = data["width"].getBiggestInt.int
+  tm.h = data["height"].getBiggestInt.int
   # only look at first layer
   tm.data = newSeq[uint8](tm.w*tm.h)
   for i in 0..<(tm.w*tm.h):
-    let t = data["layers"][0]["data"][i].getNum().uint8 - 1
+    let t = data["layers"][0]["data"][i].getBiggestInt().uint8 - 1
     tm.data[i] = t.uint8
 
   currentTilemap = tm
@@ -1340,10 +1339,10 @@ proc newMap*(w,h: Pint) =
 
 proc rnd*[T: Natural](x: T): T =
   assert x >= 1
-  return random(x.int).T
+  return rand(x.int).T
 
-proc rnd*(x: float): float =
-  return random(x)
+proc rnd*(x: float32): float32 =
+  return rand(x)
 
 proc rnd*[T](a: openarray[T]): T =
   return random(a)
@@ -1440,12 +1439,12 @@ proc noteStrToNote(s: string): int =
   let octave = parseInt($s[2])
   return 12 * octave + note + (if sharp: 1 else: 0)
 
-proc note*(n: int): float =
-  # takes a note integer and converts it to a frequency float
+proc note*(n: int): float32 =
+  # takes a note integer and converts it to a frequency float32
   # synth(0, sin, note(48))
-  return pow(2.0, ((n.float - 69.0) / 12.0)) * 440.0
+  return pow(2.0, ((n.float32 - 69.0) / 12.0)) * 440.0
 
-proc note*(n: string): float =
+proc note*(n: string): float32 =
   return note(noteStrToNote(n))
 
 
@@ -1479,7 +1478,7 @@ proc init*(org, app: string) =
 proc setInitFunc*(init: (proc())) =
   initFunc = init
 
-proc setUpdateFunc*(update: (proc(dt:float))) =
+proc setUpdateFunc*(update: (proc(dt:float32))) =
   updateFunc = update
 
 proc setDrawFunc*(draw: (proc())) =
@@ -1491,7 +1490,7 @@ proc setControllerAdded*(cadded: proc(controller: NicoController)) =
 proc setControllerRemoved*(cremoved: proc(controller: NicoController)) =
   controllerRemovedFunc = cremoved
 
-proc run*(init: (proc()), update: (proc(dt:float)), draw: (proc())) =
+proc run*(init: (proc()), update: (proc(dt:float32)), draw: (proc())) =
   debug "run"
   assert(update != nil)
   assert(draw != nil)

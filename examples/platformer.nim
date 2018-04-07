@@ -662,7 +662,7 @@ proc gameInit() =
             objects.add(newFloater(x*8,y*8))
 
 
-proc gameUpdate(dt: float) =
+proc gameUpdate(dt: float32) =
   frame += 1
 
   if btnp(pcY):

@@ -76,8 +76,8 @@ type
     pchange: range[-127..127]
 
     trigger: bool
-    lfsr: int
-    lfsr2: int
+    lfsr: uint
+    lfsr2: uint
     nextClick: int
     outvalue: float32
 
@@ -674,6 +674,11 @@ proc setScreenSize*(w,h: int) =
   window.setWindowSize(w,h)
   resize()
 
+proc queueMixerAudio*(nSamples: int)
+
+proc queuedAudioSize*(): int =
+  return getQueuedAudioSize(audioDeviceId).int div 4
+
 proc step*() {.cdecl.} =
   checkInput()
 
@@ -766,9 +771,6 @@ proc queueAudio*(samples: var seq[float32]) =
   if ret != 0:
     raise newException(Exception, "error queueing audio: " & $getError())
 
-proc queuedAudioSize*(): int =
-  return getQueuedAudioSize(audioDeviceId).int div 4
-
 proc process(self: var Channel): float32 =
   case kind:
   of channelNone:
@@ -798,7 +800,7 @@ proc process(self: var Channel): float32 =
     of synNoise:
       if freq != 0.0:
         if nextClick <= 0:
-          let lsb: uint = (lfsr and 1)
+          let lsb: uint = (lfsr and 1).uint
           lfsr = lfsr shr 1
           if lsb == 1:
             lfsr = lfsr xor 0xb400

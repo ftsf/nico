@@ -1,6 +1,6 @@
 import nico
 import math
-import vec
+import nico.vec
 import sequtils
 
 var frame = 0

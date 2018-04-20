@@ -1,4 +1,5 @@
 import math
+import nico
 
 type
   Vec2[T] = tuple
@@ -7,9 +8,9 @@ type
   Vec2f* = Vec2[float32]
   Vec2i* = Vec2[int]
 
-proc vec2f*(x,y: float32): Vec2f =
-  result.x = x
-  result.y = y
+proc vec2f*(x,y: Pfloat | Pint): Vec2f =
+  result.x = x.float32
+  result.y = y.float32
 
 proc vec2f*(): Vec2f =
   result.x = 0
@@ -103,10 +104,20 @@ proc `*=`*[T](a: var Vec2[T], s: T) =
   a.x*=s
   a.y*=s
 
+proc `/=`*[T](a: var Vec2[T], s: T) =
+  a.x /= s
+  a.y /= s
+
 proc length*[T](a: Vec2[T]): T =
   return sqrt(a.x*a.x + a.y*a.y)
 
 proc length2*[T](a: Vec2[T]): T =
+  return a.x*a.x + a.y*a.y
+
+proc magnitude*[T](a: Vec2[T]): T =
+  return sqrt(a.x*a.x + a.y*a.y)
+
+proc sqrMagnitude*[T](a: Vec2[T]): T =
   return a.x*a.x + a.y*a.y
 
 proc normalized*[T](a: Vec2[T]): Vec2[T] =
@@ -130,3 +141,42 @@ proc dot*[T](a,b: Vec2[T]): T =
   result = 0.0
   result += a.x*b.x
   result += a.y*b.y
+
+proc line*[T](a,b: Vec2[T]) =
+  line(a.x, a.y, b.x, b.y)
+
+proc rndVec*(mag: float32): Vec2f =
+  result.x = rnd(mag*2.0) - mag
+  result.y = rnd(mag*2.0) - mag
+  result = result.normalized
+
+proc diff*(a,b: Vec2f): Vec2f =
+  return a - b
+
+proc dist*(a,b: Vec2f): float32 =
+  return (a-b).length
+
+proc dist2*(a,b: Vec2f): float32 =
+  return (a-b).length2
+
+proc nearer*(a,b: Vec2f, compDist: float32): bool =
+  return dist2(a,b) < compDist
+
+proc further*(a,b: Vec2f, compDist: float32): bool =
+  return dist2(a,b) > compDist
+
+proc clamp*(a: Vec2f, maxLength: float32): Vec2f =
+  let d2 = a.length2
+  if d2 > maxLength * maxLength:
+    let d = sqrt(d2)
+    result = (a / d) * maxLength
+  else:
+    result = a
+
+proc insideRect*(p: Vec2f, a: Vec2f, b: Vec2f): bool =
+  # returns if a is inside min and max (inclusive)
+  let minx = min(a.x, b.x)
+  let miny = min(a.y, b.y)
+  let maxx = max(a.x, b.x)
+  let maxy = max(a.y, b.y)
+  return p.x >= minx and p.y >= miny and p.x <= maxx and p.y <= maxy

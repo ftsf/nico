@@ -34,6 +34,7 @@ import random
 
 # Types
 
+type KeyListener = proc(sym: int, mods: uint16, scancode: int, down: bool): bool
 type
   SfxBuffer = ref object
     data: seq[float32]
@@ -110,6 +111,8 @@ else:
     write(stderr, "\n")
 
 # Globals
+
+var keyListeners = newSeq[KeyListener]()
 
 var audioDeviceId: AudioDeviceID
 
@@ -315,7 +318,9 @@ proc readFile*(filename: string): string =
     offset += r
     if r == 0:
       break
-  discard rwClose(fp)
+
+  if rwClose(fp) != 0:
+    debug getError()
 
   result = cast[string](buffer)
 
@@ -616,22 +621,27 @@ proc appHandleEvent(evt: Event) =
     let sym = evt.key.keysym.sym
     let scancode = evt.key.keysym.scancode
     let down = evt.kind == Keydown
+    let mods = evt.key.keysym.mods
+
+    for kl in keyListeners:
+      if kl(sym.int, mods, scancode.int, down):
+        return
 
     if sym == K_AC_BACK:
       controllers[0].setButtonState(pcBack, down)
 
-    elif sym == K_q and down and (int16(evt.key.keysym.mods) and int16(KMOD_CTRL)) != 0:
+    elif sym == K_q and down and (mods and uint16(KMOD_CTRL)) != 0:
       # ctrl+q to quit
       keepRunning = false
 
-    elif sym == K_f and not down and (int16(evt.key.keysym.mods) and int16(KMOD_CTRL)) != 0:
+    elif sym == K_f and not down and (mods and uint16(KMOD_CTRL)) != 0:
       if getFullscreen():
         setFullscreen(false)
       else:
         setFullscreen(true)
       return
 
-    elif sym == K_return and not down and (int16(evt.key.keysym.mods) and int16(KMOD_ALT)) != 0:
+    elif sym == K_return and not down and (mods and uint16(KMOD_ALT)) != 0:
       if getFullscreen():
         setFullscreen(false)
       else:
@@ -1072,6 +1082,13 @@ proc init*(org: string, app: string) =
 
 proc setEventFunc*(ef: proc(event: Event): bool) =
   eventFunc = ef
+
+proc addKeyListener*(f: KeyListener) =
+  keyListeners.add(f)
+
+proc removeKeyListener*(f: KeyListener) =
+  let i = keyListeners.find(f)
+  keyListeners.del(i)
 
 proc setTextFunc*(text: (proc(text: string): bool)) =
   if text == nil:

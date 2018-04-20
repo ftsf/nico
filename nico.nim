@@ -23,6 +23,9 @@ export wavData
 export pitchbend
 export pitch
 
+export addKeyListener
+export removeKeyListener
+
 export debug
 import nico.controller
 export NicoController
@@ -242,7 +245,7 @@ proc loadPaletteFromGPL*(filename: string) =
       continue
     var r,g,b: int
     if scanf(line, "$s$i $s$i $s$i", r,g,b):
-      debug "matched ", i-1, ":", r,",",g,",",b
+      #debug "matched ", i-1, ":", r,",",g,",",b
       colors[i-1] = RGB(r,g,b)
       if i > 255:
         break
@@ -261,18 +264,10 @@ proc loadPaletteCGA*() =
   colors[1]  = RGB(85,255,255)
   colors[2]  = RGB(255,85,255)
   colors[3]  = RGB(255,255,255)
-  colors[4]  = RGB(0,0,0)
-  colors[5]  = RGB(0,0,0)
-  colors[6]  = RGB(0,0,0)
-  colors[7]  = RGB(0,0,0)
-  colors[8]  = RGB(0,0,0)
-  colors[9]  = RGB(0,0,0)
-  colors[10] = RGB(0,0,0)
-  colors[11] = RGB(0,0,0)
-  colors[12] = RGB(0,0,0)
-  colors[13] = RGB(0,0,0)
-  colors[14] = RGB(0,0,0)
-  colors[15] = RGB(0,0,0)
+  paletteSize = 4;
+  pal()
+  pald()
+  palt()
 
 proc loadPalettePico8*() =
   colors[0]  = RGB(0,0,0)
@@ -291,6 +286,10 @@ proc loadPalettePico8*() =
   colors[13] = RGB(131,118,156)
   colors[14] = RGB(255,119,168)
   colors[15] = RGB(255,204,170)
+  paletteSize = 16;
+  pal()
+  pald()
+  palt()
 
 clipMaxX = screenWidth-1
 clipMaxY = screenHeight-1

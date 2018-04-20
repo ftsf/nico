@@ -97,7 +97,9 @@ proc loadPalettePico8*()
 proc loadPaletteCGA*()
 
 proc pal*(a,b: ColorId) # maps one color to another
+proc pald*(a,b: ColorId) # maps one color to another on display output
 proc pal*() # resets palette
+proc pald*() # resets display palette
 proc palt*(a: ColorId, trans: bool) # sets transparency for color
 proc palt*() # resets transparency
 
@@ -242,11 +244,16 @@ proc loadPaletteFromGPL*(filename: string) =
     if scanf(line, "$s$i $s$i $s$i", r,g,b):
       debug "matched ", i-1, ":", r,",",g,",",b
       colors[i-1] = RGB(r,g,b)
-      if i > 15:
+      if i > 255:
         break
       i += 1
     else:
       debug "not matched: ", line
+  paletteSize = i-1
+  pal()
+  pald()
+  palt()
+  debug "loaded palette: ", paletteSize
 
 
 proc loadPaletteCGA*() =
@@ -360,6 +367,13 @@ proc pal*(a,b: ColorId) =
 proc pal*() =
   for i in 0..<paletteSize.int:
     paletteMapDraw[i] = i
+
+proc pald*(a,b: ColorId) =
+  paletteMapDisplay[a] = b
+
+proc pald*() =
+  for i in 0..<paletteSize.int:
+    paletteMapDisplay[i] = i
 
 proc palt*(a: ColorId, trans: bool) =
   paletteTransparent[a] = trans

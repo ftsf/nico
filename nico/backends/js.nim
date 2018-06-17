@@ -114,7 +114,6 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   canvas.height = h
   canvas.style.width = $(w * scale) & "px"
   canvas.style.height = $(h * scale) & "px"
-  canvas.style.cursor = "none"
 
   canvas.onmousemove = proc(e: Event) =
     mouseDetected = true
@@ -538,7 +537,7 @@ proc synth*(channel: int, shape: SynthShape, freq: float, init: range[0..15], en
 
     var nextClick = 0
     var outputValue = 0.0
-    var lfsr = 0xfeed
+    var lfsr = 0xfeed.uint
 
     gen.onaudioprocess = proc(e: AudioProcessingEvent) =
       console.log("audio process", nextClick)
@@ -639,3 +638,8 @@ proc setFullscreen*(fullscreen: bool) =
 proc getFullscreen*(): bool =
   return false
 
+proc addKeyListener*(f: KeyListener) =
+  return
+
+proc removeKeyListener*(f: KeyListener) =
+  return

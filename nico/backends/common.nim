@@ -1,6 +1,6 @@
 # Constants
 
-const maxPaletteSize = 256
+const maxPaletteSize* = 256
 
 const nAudioChannels* = 16
 const deadzone* = int16.high div 2
@@ -13,6 +13,8 @@ const musicBufferSize* = 4096
 
 import nico.controller
 import nico.ringbuffer
+
+type KeyListener* = proc(sym: int, mods: uint16, scancode: int, down: bool): bool
 
 when defined(js):
   type Scancode = int
@@ -61,11 +63,15 @@ type
     data*: seq[uint8]
     channels*: int
     w*,h*: int
+    tw*,th*: int
 
 type
   Tilemap* = object
     data*: seq[uint8]
     w*,h*: int
+    hex*: bool
+    hexOffset*: int
+    tw*,th*: int
 
 type
   LineIterator = iterator(): (Pint,Pint)
@@ -155,9 +161,6 @@ var writePath*: string # should be a writable dir
 var screenScale* = 4.0
 var spriteSheets*: array[16,Surface]
 var spriteSheet*: ptr Surface
-
-var tileSizeX* = 8
-var tileSizeY* = 8
 
 var initFunc*: proc()
 var updateFunc*: proc(dt: Pfloat)

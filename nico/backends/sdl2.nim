@@ -10,8 +10,7 @@ import math
 
 import sdl2.sdl
 
-import stb_image/read as stbi
-import stb_image/write as stbiw
+import nimPNG
 
 when defined(gif):
   import gifenc
@@ -34,7 +33,6 @@ import random
 
 # Types
 
-type KeyListener = proc(sym: int, mods: uint16, scancode: int, down: bool): bool
 type
   SfxBuffer = ref object
     data: seq[float32]
@@ -109,6 +107,7 @@ else:
       if i != args.high:
         write(stderr, ", ")
     write(stderr, "\n")
+    flushFile(stderr)
 
 # Globals
 
@@ -282,7 +281,7 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   when defined(android):
     window = createWindow(title.cstring, WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, (w * scale).cint, (h * scale).cint, WINDOW_FULLSCREEN)
   else:
-    window = createWindow(title.cstring, WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, (w * scale).cint, (h * scale).cint, 
+    window = createWindow(title.cstring, WINDOWPOS_CENTERED, WINDOWPOS_CENTERED, (w * scale).cint, (h * scale).cint, 
       (WINDOW_RESIZABLE or (if fullscreen: WINDOW_FULLSCREEN_DESKTOP else: 0)).uint32)
 
   if window == nil:
@@ -299,17 +298,17 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   debug "initial resize: ", displayW, displayH
   resize(displayW,displayH)
 
-  discard showCursor(0)
+  discard showCursor(1)
+
+  window.raiseWindow()
 
 proc readFile*(filename: string): string =
-  debug "readFile: ", filename
   var fp = rwFromFile(filename, "r")
 
   if fp == nil:
     raise newException(IOError, "Unable to open file: " & filename)
 
   let size = rwSize(fp)
-  debug size
   var buffer = newSeq[uint8](size)
 
   var offset = 0
@@ -326,24 +325,16 @@ proc readFile*(filename: string): string =
 
 
 proc loadSurface*(filename: string, callback: proc(surface: common.Surface)) =
-  debug "loadSurface", filename
-  var w,h,components: int
-  var pixels: seq[uint8]
-
   var buffer = readFile(filename)
-
-  try:
-    pixels = stbi.load_from_memory(cast[seq[uint8]](buffer), w, h, components, 4)
-  except STBIException:
-    raise newException(IOError, "Unable to load surface: " & filename)
-
-  debug("read image", w, h, components)
+  let ss = newStringStream(buffer)
+  let png = decodePNG(ss, LCT_PALETTE, 8)
+  debug("read image", filename, png.width, png.height)
 
   var surface: common.Surface
-  surface.w = w
-  surface.h = h
-  surface.channels = components
-  surface.data = pixels
+  surface.w = png.width
+  surface.h = png.height
+  surface.channels = 4
+  surface.data = cast[seq[uint8]](png.data)
   callback(surface)
 
 proc readJsonFile*(filename: string): JsonNode =
@@ -389,7 +380,6 @@ proc saveScreenshot*() =
   # convert RGBA to BGRA
   convertToRGBA(frame, abgr[0].addr, screenWidth*4, screenWidth, screenHeight)
   let filename = writePath & "/screenshots/screenshot-$1T$2.png".format(getDateStr(), getClockStr())
-  discard stbiw.writePNG(filename, screenWidth, screenHeight, 4, abgr, screenWidth*4)
   debug "saved screenshot to: ", filename
 
 proc saveRecording*() =
@@ -402,8 +392,8 @@ proc saveRecording*() =
       debug "unable to create video output directory"
       return
 
-    var palette: array[16,array[3,uint8]]
-    for i in 0..15:
+    var palette: array[maxPaletteSize,array[3,uint8]]
+    for i in 0..<maxPaletteSize:
       palette[i] = [colors[i].r, colors[i].g, colors[i].b]
 
     let filename = writePath & "/video/video-$1T$2.gif".format(getDateStr(), getClockStr().replace(":","-"))
@@ -412,14 +402,14 @@ proc saveRecording*() =
       filename.cstring,
       (screenWidth*gifScale).uint16,
       (screenHeight*gifScale).uint16,
-      palette[0][0].addr, 4, 0
+      palette[0][0].addr, if paletteSize <= 16: 4 else: 8, 0
     )
 
     if gif == nil:
-      debug "unable to create gif"
+      debug "unable to create gif: ", filename
       return
 
-    debug "created gif"
+    debug "created gif: ", filename
     var pixels: ptr[array[int32.high, uint8]]
 
     for j in 0..recordFrames.size:
@@ -604,14 +594,12 @@ proc appHandleEvent(evt: Event) =
 
   elif evt.kind == WindowEvent:
     if evt.window.event == WindowEvent_Resized:
-      debug "resize event"
-      debug("padding", evt.window.padding1.int, evt.window.padding2.int, evt.window.padding3.int, evt.window.data1, evt.window.data2)
       resize(evt.window.data1, evt.window.data2)
       discard render.setRenderTarget(nil)
       discard render.setRenderDrawColor(0,0,0,255)
       discard render.renderClear()
     elif evt.window.event == WindowEvent_Size_Changed:
-      debug "size changed event"
+      discard
     elif evt.window.event == WindowEvent_FocusLost:
       focused = false
     elif evt.window.event == WindowEvent_FocusGained:
@@ -666,7 +654,7 @@ proc appHandleEvent(evt: Event) =
       elif system.hostOS == "linux":
         discard startProcess("xdg-open", writePath, [writePath], nil, {poUsePath})
 
-    if not evt.key.repeat != 0:
+    if evt.key.repeat == 0:
       for btn,btnScancodes in keymap:
         for btnScancode in btnScancodes:
           if scancode == btnScancode:
@@ -748,7 +736,6 @@ proc getUnmappedJoysticks*(): seq[Joystick] =
       result.add(j)
 
 proc loadConfig*() =
-  # TODO check for config file in user config directioy, use that first
   try:
     config = loadConfig(writePath & "/config.ini")
     debug "loaded config from " & writePath & "/config.ini"
@@ -1045,18 +1032,15 @@ proc init*(org: string, app: string) =
     debug sdl.getError()
     quit(1)
 
-  debug "SDL initialized"
-
   # add keyboard controller
-  debug "adding controllers"
   when not defined(android):
     controllers.add(newNicoController(-1))
 
-    debug "get base path: "
     basePath = $sdl.getBasePath()
     debug "basePath: ", basePath
 
-    assetPath = basePath & "/assets/"
+    assetPath = joinPath(basePath, "assets")
+    debug "assetPath: ", assetPath
 
     writePath = $sdl.getPrefPath(org,app)
     debug "writePath: ", writePath

@@ -6,6 +6,8 @@ when defined(js):
 else:
   import nico.backends.sdl2 as backend
 
+import os
+
 # Audio
 export loadSfx
 export loadMusic
@@ -47,6 +49,9 @@ import json
 import sequtils
 
 export math.sin
+export math.sqrt
+export math.PI
+export math.TAU
 
 import random
 import times
@@ -154,8 +159,8 @@ proc circfill*(cx,cy: Pint, r: Pint)
 proc circ*(cx,cy: Pint, r: Pint)
 
 # sprites
-proc spr*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false)
-proc sprs*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip, vflip: bool = false)
+proc spr*(spr: Pint, x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false)
+proc sprs*(spr: Pint, x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip, vflip: bool = false)
 proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = false)
 
 # misc
@@ -166,6 +171,9 @@ export sin
 export cos
 export abs
 export `mod`
+
+proc clamp01*[T](a: T): T =
+  clamp(a, 0, 1)
 
 proc mid*[T](a,b,c: T): T =
   var a = a
@@ -197,9 +205,8 @@ proc mget*(tx,ty: Pint): uint8
 proc mapDraw*(tx,ty, tw,th, dx,dy: Pint)
 proc loadMap*(filename: string)
 proc newMap*(w,h: Pint)
-proc tileSize*(w,h: Pint) =
-  tileSizeX = w
-  tileSizeY = h
+proc pixelToMap*(px,py: Pint): (Pint,Pint) # returns the tile coordinates at pixel position
+proc mapToPixel*(tx,ty: Pint): (Pint,Pint) # returns the pixel position of the tile coordinates
 
 #proc saveMap*(filename: string)
 
@@ -232,7 +239,7 @@ proc speed*(speed: int) =
   frameMult = speed
 
 proc loadPaletteFromGPL*(filename: string) =
-  var data = backend.readFile(assetPath & filename)
+  var data = backend.readFile(joinPath(assetPath,filename))
   var i = 0
   for line in data.splitLines():
     if i == 0:
@@ -256,8 +263,7 @@ proc loadPaletteFromGPL*(filename: string) =
   pal()
   pald()
   palt()
-  debug "loaded palette: ", paletteSize
-
+  debug "loaded palette", filename, paletteSize
 
 proc loadPaletteCGA*() =
   colors[0]  = RGB(0,0,0)
@@ -784,10 +790,10 @@ proc fontBlit(font: Font, srcRect, dstRect: Rect, color: ColorId) =
   let dh = dstRect.h.float32
   let sw = srcRect.w.float32
   let sh = srcRect.h.float32
-  for y in 0..dstRect.h-1:
+  for y in 0..<dstRect.h:
     dx = dstRect.x.float32
     sx = srcRect.x.float32
-    for x in 0..dstRect.w-1:
+    for x in 0..<dstRect.w:
       if sx < 0 or sy < 0 or sx > font.w - 1 or sy > font.h - 1:
         continue
       if dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY:
@@ -803,7 +809,7 @@ proc overlap(a,b: Rect): bool =
   return not ( a.x > b.x + b.w or a.y > b.y + b.h or a.x + a.w < b.x or a.y + a.h < b.y )
 
 proc blitFastRaw(src: Surface, sx,sy, dx,dy, w,h: Pint) =
-  # used for tile drawing, no stretch or flipping
+  # used for tile drawing, no stretch or flipping or palette mapping
   var sxi = sx
   var syi = sy
   var dxi = dx
@@ -823,6 +829,38 @@ proc blitFastRaw(src: Surface, sx,sy, dx,dy, w,h: Pint) =
         sxi += 1
         continue
       let srcCol = src.data[syi * src.w + sxi]
+      swCanvas.data[dyi * swCanvas.w + dxi] = srcCol
+      sxi += 1
+      dxi += 1
+    syi += 1
+    dyi += 1
+    sxi = sx
+    dxi = dx
+
+proc blitFastRaw*(sx,sy, dx,dy, w,h: Pint) =
+  # used for tile drawing, no stretch or flipping or palette mapping
+  var sxi = sx
+  var syi = sy
+  var dxi = dx
+  var dyi = dy
+
+  let srcw = spriteSheet[].w
+  let srch = spriteSheet[].w
+
+  while dyi < dy + h:
+    if syi < 0 or syi > srch-1 or dyi < clipMinY or dyi > min(swCanvas.h-1,clipMaxY):
+      syi += 1
+      dyi += 1
+      sxi = sx
+      dxi = dx
+      continue
+    while dxi < dx + w:
+      if sxi < 0 or sxi > srcw-1 or dxi < clipMinX or dxi > min(swCanvas.w-1,clipMaxX):
+        # ignore if it goes outside the source size
+        dxi += 1
+        sxi += 1
+        continue
+      let srcCol = spriteSheet[].data[syi * srcw + sxi]
       swCanvas.data[dyi * swCanvas.w + dxi] = srcCol
       sxi += 1
       dxi += 1
@@ -1047,12 +1085,10 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
   font.data = newSeq[uint8](font.w*font.h)
 
   for i in 0..<font.w*font.h:
-    if surface.data[i*4+3] == 0:
-      font.data[i] = 0
-    elif surface.data[i*4+0] > 0.uint8:
-      font.data[i] = 2
-    else:
-      font.data[i] = 1
+    font.data[i] = surface.data[i]
+
+  let borderColor = 2.uint8
+  let transparentColor = 0.uint8
 
   var highestChar: char
   for c in chars:
@@ -1061,19 +1097,19 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
   font.rects = newSeq[Rect](highestChar.int+1)
 
   var newChar = false
-  let blankColor = font.data[0]
   var currentRect: Rect = (0,0,0,0)
   var i = 0
+  # scan across the top of the font image
   for x in 0..<font.w:
     let color = font.data[x]
-    if color == blankColor:
+    if color == borderColor:
       currentRect.w = x - currentRect.x
       if currentRect.w != 0:
-        # go down until we find blank or h
+        # go down until we find border or h
         currentRect.h = font.h-1
         for y in 0..<font.h:
           let color = font.data[y*font.w+x]
-          if color == blankColor:
+          if color == borderColor:
             currentRect.h = y-2
         let charId = chars[i].int
         font.rects[charId] = currentRect
@@ -1081,14 +1117,13 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
       newChar = true
       currentRect.x = x + 1
 
+  echo "loaded ", font.rects.len, " characters"
+
   return font
 
 proc loadFont*(filename: string, chars: string) =
-  debug "loadFont", filename, chars
-  loadSurface(assetPath & filename) do(surface: Surface):
-    debug "got surface"
+  loadSurface(joinPath(assetPath,filename)) do(surface: Surface):
     fonts[currentFontId] = createFontFromSurface(surface, chars)
-    debug("font created from ", filename)
 
 proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint =
   let font = fonts[currentFontId]
@@ -1232,19 +1267,20 @@ proc setSpritesheet*(bank: range[0..15] = 0) =
   spriteSheet = spriteSheets[bank].addr
 
 proc loadSpriteSheet*(filename: string, w,h: Pint = 8) =
-  loadSurface(assetPath & filename) do(surface: Surface):
-    spriteSheet[] = surface.convertToIndexed()
-  tileSizeX = w
-  tileSizeY = h
+  loadSurface(joinPath(assetPath,filename)) do(surface: Surface):
+    spriteSheet[] = surface
+    spriteSheet[].tw = w
+    spriteSheet[].th = h
 
-proc getSprRect(spr: range[0..255], w,h: Pint = 1): Rect {.inline.} =
-  let tilesX = spriteSheet.w div tileSizeX
-  result.x = spr %% tilesX * tileSizeY
-  result.y = spr div tilesX * tileSizeY
-  result.w = w * tileSizeX
-  result.h = h * tileSizeY
 
-proc spr*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false) =
+proc getSprRect(spr: Pint, w,h: Pint = 1): Rect {.inline.} =
+  let tilesX = spriteSheet.w div spriteSheet.tw
+  result.x = spr mod tilesX * spriteSheet.tw
+  result.y = spr div tilesX * spriteSheet.th
+  result.w = w * spriteSheet.tw
+  result.h = h * spriteSheet.th
+
+proc spr*(spr: Pint, x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false) =
   # draw a sprite
   var src = getSprRect(spr, w, h)
   if hflip or vflip:
@@ -1252,46 +1288,46 @@ proc spr*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = fal
   else:
     blitFast(spriteSheet[], src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
 
-proc sprBlit*(spr: range[0..255], x,y: Pint, w,h: Pint = 1) =
+proc sprBlit*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
   # draw a sprite
   let src = getSprRect(spr, w, h)
   let dst: Rect = ((x-cameraX).int,(y-cameraY).int,src.w,src.h)
   blit(spriteSheet[], src, dst)
 
-proc sprBlitFast*(spr: range[0..255], x,y: Pint, w,h: Pint = 1) =
+proc sprBlitFast*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
   # draw a sprite
   let src = getSprRect(spr, w, h)
   blitFast(spriteSheet[], src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
 
-proc sprBlitFastRaw*(spr: range[0..255], x,y: Pint, w,h: Pint = 1) =
+proc sprBlitFastRaw*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
   # draw a sprite
   let src = getSprRect(spr, w, h)
   blitFastRaw(spriteSheet[], src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
 
-proc sprBlitStretch*(spr: range[0..255], x,y: Pint, w,h: Pint = 1) =
+proc sprBlitStretch*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
   # draw a sprite
   let src = getSprRect(spr, w, h)
   let dst: Rect = ((x-cameraX).int,(y-cameraY).int,src.w,src.h)
   blitStretch(spriteSheet[], src, dst)
 
-proc sprs*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip, vflip: bool = false) =
+proc sprs*(spr: Pint, x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip, vflip: bool = false) =
   # draw an integer scaled sprite
   var src = getSprRect(spr, w, h)
   var dst: Rect = ((x-cameraX).int,(y-cameraY).int,(dw*8).int,(dh*8).int)
   blitStretch(spriteSheet[], src, dst, hflip, vflip)
 
-proc sprss*(spr: range[0..255], x,y: Pint, w,h: Pint = 1, dw,dh: Pint, hflip, vflip: bool = false) =
+proc sprss*(spr: Pint, x,y: Pint, w,h: Pint = 1, dw,dh: Pint, hflip, vflip: bool = false) =
   # draw a scaled sprite
   var src = getSprRect(spr, w, h)
   var dst: Rect = ((x-cameraX).int,(y-cameraY).int,dw.int,dh.int)
   blit(spriteSheet[], src, dst, hflip, vflip)
 
-proc drawTile(spr: range[0..255], x,y: Pint) =
-  var src = getSprRect(spr)
+proc drawTile(spr: uint8, x,y: Pint) =
+  var src = getSprRect(spr.Pint)
   let x = x-cameraX
   let y = y-cameraY
-  if overlap(clippingRect,(x.int,y.int,tileSizeX,tileSizeY)):
-    blitFast(spriteSheet[], src.x, src.y, x, y, tileSizeX, tileSizeY)
+  if overlap(clippingRect,(x.int,y.int, spriteSheet.tw, spriteSheet.th)):
+    blitFast(spriteSheet[], src.x, src.y, x, y, spriteSheet.tw, spriteSheet.th)
 
 proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = false) =
   var src: Rect = (sx.int,sy.int,sw.int,sh.int)
@@ -1300,22 +1336,48 @@ proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = fal
   var dst: Rect = ((dx-cameraX).int,(dy-cameraY).int,dw.int,dh.int)
   blitStretch(spriteSheet[], src, dst, hflip, vflip)
 
+proc roundTo*(a: int, n: int): int =
+  if a < 0:
+    ((a - (n - 1)) div n * n)
+  else:
+    a div n * n
+
+proc remainder*(a: int, n: int): int =
+  if a < 0:
+    let r = a mod n
+    if r != 0:
+      r + n
+    else:
+      r
+  else:
+    a mod n
+
 proc mapDraw*(tx,ty, tw,th, dx,dy: Pint) =
   if currentTilemap.data == nil:
+    debug "mapDraw with no tilemap"
     return
   # draw map tiles to the screen
-  var xi = dx
-  var yi = dy
-  for y in ty..ty+th-1:
-    if y >= 0 and y < currentTilemap.h:
-      for x in tx..tx+tw-1:
-        if x >= 0  and x < currentTilemap.w:
-          let t = currentTilemap.data[y * currentTilemap.w + x]
-          if t != 0:
-            drawTile(t, xi, yi)
-        xi += tileSizeX
-    yi += tileSizeY
-    xi = dx
+  let yincrement = if currentTilemap.hex: currentTilemap.hexOffset else: currentTilemap.th
+  let xincrement = currentTilemap.tw
+
+  let drawWidth = clipMaxX - clipMinX
+  let drawHeight = clipMaxY - clipMinY
+
+  let hex = currentTilemap.hex
+  let startCol = max(max((cameraX + clipMinX) div xincrement - (if hex: 1 else: 0) + tx, 0), tx)
+  let startRow = max(max((cameraY + clipMinY) div yincrement - (if hex: 2 else: 0) + ty, 0), ty)
+  let endCol = min(min(startCol + ((drawWidth + xincrement - 1) div xincrement) + (if hex: 2 else: 0), currentTilemap.w - 1), tx + tw - 1)
+  let endRow = min(min(startRow + ((drawHeight + yincrement - 1) div yincrement) + (if hex: 2 else: 0), currentTilemap.h - 1), ty + th - 1)
+  let offsetX = -(cameraX) + startCol * xincrement + dx
+  let offsetY = -(cameraY) + startRow * yincrement + dy
+
+  for y in startRow..endRow:
+    for x in startCol..endCol:
+      let t = currentTilemap.data[y * currentTilemap.w + x]
+      let px = (x - startCol) * xincrement - (if currentTilemap.hex and y mod 2 == 0: xincrement div 2 else: 0) + offsetX
+      let py = (y - startRow) * yincrement + offsetY
+      if t != 0:
+        drawTile(t, px + cameraX, py + cameraY)
 
 proc mapWidth*(): Pint =
   return currentTilemap.w
@@ -1329,9 +1391,15 @@ proc `%%/`[T](x,m: T): T =
 proc loadMapFromJson(filename: string) =
   var tm: Tilemap
   # read tiled output format
-  var data = readJsonFile(assetPath & "/maps/" & filename)
+  var data = readJsonFile(joinPath(assetPath,"maps",filename))
   tm.w = data["width"].getBiggestInt.int
   tm.h = data["height"].getBiggestInt.int
+  tm.hex = data["orientation"].getStr == "hexagonal"
+  tm.tw = data["tilewidth"].getBiggestInt.int
+  tm.th = data["tileheight"].getBiggestInt.int
+  if tm.hex:
+    let hsl = data["hexsidelength"].getBiggestInt.int
+    tm.hexOffset = hsl + ((tm.th - hsl) div 2)
   # only look at first layer
   tm.data = newSeq[uint8](tm.w*tm.h)
   for i in 0..<(tm.w*tm.h):
@@ -1339,6 +1407,24 @@ proc loadMapFromJson(filename: string) =
     tm.data[i] = t.uint8
 
   currentTilemap = tm
+
+proc pixelToMap*(px,py: Pint): (Pint,Pint) = # returns the tile coordinates at pixel position
+  if currentTilemap.hex:
+    # pretend they're rectangles
+    let ty = py div currentTilemap.hexOffset
+    let tx = (px.float32 / currentTilemap.tw.float32) + (if ty mod 2 == 0: 0.5 else: 0)
+    return (tx.Pint, ty.Pint)
+  else:
+    return ((px div currentTilemap.tw).Pint, (py div currentTilemap.th).Pint)
+
+proc mapToPixel*(tx,ty: Pint): (Pint,Pint) = # returns the pixel coordinates at map coord
+  if currentTilemap.hex:
+    # pretend they're rectangles
+    let py = ty * currentTilemap.hexOffset
+    let px = tx * currentTilemap.tw - (if ty mod 2 == 0: currentTilemap.tw div 2 else: 0)
+    return (px.Pint, py.Pint)
+  else:
+    return ((ty * currentTilemap.tw).Pint, (ty * currentTilemap.th).Pint)
 
 proc loadMap*(filename: string) =
   if filename.endsWith(".json"):
@@ -1350,6 +1436,8 @@ proc loadMap*(filename: string) =
 proc newMap*(w,h: Pint) =
   currentTilemap.w = w
   currentTilemap.h = h
+  currentTilemap.tw = spriteSheet[].tw
+  currentTilemap.th = spriteSheet[].th
   currentTilemap.data = newSeq[uint8](w*h)
 
 proc rnd*[T: Natural](x: T): T =
@@ -1358,6 +1446,9 @@ proc rnd*[T: Natural](x: T): T =
 
 proc rnd*(x: Pfloat): Pfloat =
   return rand(x)
+
+proc rndbi*(x: Pfloat): Pfloat =
+  return rand(x) - rand(x)
 
 proc rnd*[T](a: openarray[T]): T =
   return rand(a)
@@ -1379,6 +1470,7 @@ proc getFont*(): FontId =
 
 proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = false) =
   backend.createWindow(title, w, h, scale, fullscreen)
+  clip()
 
 proc readFile*(filename: string): string =
   return backend.readFile(filename)
@@ -1466,26 +1558,21 @@ proc note*(n: string): Pfloat =
 
 proc init*(org, app: string) =
   ## Initializes Nico ready to be used
-  debug "init", org, app
   controllers = newSeq[NicoController]()
 
-  debug "backend init"
   backend.init(org, app)
 
-  debug "load palette"
   loadPalettePico8()
   setSpritesheet(0)
 
   initialized = true
 
-  debug "load font"
   randomize()
   setFont(0)
   try:
     loadFont("font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{:}~")
   except IOError:
-    discard
-  debug "load config"
+    debug "Error loading default font"
   loadConfig()
 
   clip()
@@ -1548,6 +1635,26 @@ proc tpb*(newTpb: Natural) =
 proc setTickFunc*(f: proc()) =
   tickFunc = f
 
+proc sgn*(x: Pint): Pint =
+  if x < 0:
+    return -1
+  if x >= 0:
+    return 1
+  else:
+    return 0
+
+const DEG2RAD* = PI / 180.0
+const RAD2DEG* = 180.0 / PI
+
+proc deg2rad*[T](x: T): T =
+  x * DEG2RAD
+
+proc rad2deg*[T](x: T): T =
+  x * RAD2DEG
+
+converter toPint*(x: uint8): Pint =
+  x.Pint
+
 iterator all*[T](a: var openarray[T]): T {.inline.} =
   let len = a.len
   for i in 0..<len:
@@ -1572,3 +1679,49 @@ when defined(android):
   }
 
   """.}
+
+when defined(test):
+  import unittest
+
+  suite "nico":
+    test "roundTo":
+      check(roundTo(16, 16) == 16)
+      check(roundTo(0, 16) == 0)
+      check(roundTo(8, 16) == 0)
+      check(roundTo(17, 16) == 16)
+      check(roundTo(32, 16) == 32)
+      check(roundTo(31, 16) == 16)
+      check(roundTo(-1, 16) == -16)
+      check(roundTo(-16, 16) == -16)
+      check(roundTo(-17, 16) == -32)
+
+    test "remainder":
+      check(remainder(16, 16) == 0)
+      check(remainder(8, 16) == 8)
+      check(remainder(17, 16) == 1)
+      check(remainder(32, 16) == 0)
+      check(remainder(31, 16) == 15)
+      check(remainder(-16, 16) == 0)
+      check(remainder(-15, 16) == 1)
+      check(remainder(-4, 4) == 0)
+      check(remainder(-3, 4) == 1)
+      check(remainder(-2, 4) == 2)
+      check(remainder(-1, 4) == 3)
+      check(remainder(0, 4) == 0)
+      check(remainder(1, 4) == 1)
+      check(remainder(2, 4) == 2)
+      check(remainder(3, 4) == 3)
+      check(remainder(4, 4) == 0)
+
+    test "mid":
+      check(mid(0, 1, 10) == 1)
+      check(mid(10, 1, -1) == 1)
+      check(mid(1, 10, -1) == 1)
+      check(mid(-10, 10, 100) == 10)
+      check(mid(-100, -10, 100) == -10)
+
+    test "ceil":
+      check(ceil(0.5) == 1)
+      check(ceil(0.1) == 1)
+      check(ceil(0) == 0)
+      check(ceil(-0.1) == 0)

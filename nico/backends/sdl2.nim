@@ -688,6 +688,7 @@ proc setScreenSize*(w,h: int) =
 proc queuedAudioSize*(): int =
   return getQueuedAudioSize(audioDeviceId).int div 4
 
+proc queueMixerAudio*(nSamples: int)
 proc step*() {.cdecl.} =
   checkInput()
 

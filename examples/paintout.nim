@@ -34,7 +34,7 @@ proc gameInit() =
   bxv = 0.5
   byv = 0.75
 
-proc gameUpdate(dt: float) =
+proc gameUpdate(dt: Pfloat) =
   frame += 1
   t += 0.1
   if t >= 16.0:

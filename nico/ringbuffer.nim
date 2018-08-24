@@ -11,10 +11,10 @@ proc newRingBuffer*[T](length: int): RingBuffer[T] =
   let s = newSeq[T](length)
   RingBuffer[T](data: s, head: 0, tail: -1, size: 0, length: length)
 
-template adjustHead(b: expr): stmt =
+template adjustHead(b: untyped): untyped =
   b.head = (b.length + b.tail - b.size + 1) mod b.length
 
-template adjustTail(b, change: expr): stmt =
+template adjustTail(b, change: untyped): untyped =
   b.tail = (b.tail + change) mod b.length
 
 proc add*[T](b: var RingBuffer[T], data: openArray[T]) =

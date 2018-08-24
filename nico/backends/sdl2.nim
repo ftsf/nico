@@ -10,8 +10,6 @@ import math
 
 import sdl2.sdl
 
-#import stb_image/read as stbi
-import stb_image/write as stbiw
 import nimPNG
 
 when defined(gif):
@@ -39,7 +37,7 @@ import random
 type
   SfxBuffer = ref object
     data: seq[float32]
-    rate: float
+    rate: float32
     channels: range[1..2]
     length: int
 
@@ -57,14 +55,14 @@ type
     arpSpeed: uint8
 
     loop: int
-    phase: float # or position
-    freq: float # or speed
-    basefreq: float
-    targetFreq: float
-    width: float
-    pan: float
+    phase: float32 # or position
+    freq: float32 # or speed
+    basefreq: float32
+    targetFreq: float32
+    width: float32
+    pan: float32
     shape: SynthShape
-    gain: float
+    gain: float32
 
     init: range[0..15]
     env: range[-7..7]
@@ -78,12 +76,12 @@ type
     pchange: range[-127..127]
 
     trigger: bool
-    lfsr: int
-    lfsr2: int
+    lfsr: uint
+    lfsr2: uint
     nextClick: int
     outvalue: float32
 
-    priority: float
+    priority: float32
 
     wavData: array[32, uint8]
 
@@ -110,8 +108,11 @@ else:
       if i != args.high:
         write(stderr, ", ")
     write(stderr, "\n")
+    flushFile(stderr)
 
 # Globals
+
+var keyListeners = newSeq[KeyListener]()
 
 var audioDeviceId: AudioDeviceID
 
@@ -134,7 +135,8 @@ var next_time: uint32
 
 var config: Config
 
-var recordFrame: common.Surface
+when defined(gif):
+  var recordFrame: common.Surface
 var recordFrames: RingBuffer[common.Surface]
 
 var sfxBufferLibrary: array[64,SfxBuffer]
@@ -200,20 +202,20 @@ proc resize*(w,h: int) =
 
   if integerScreenScale:
     screenScale = max(1.0, min(
-      (w.float / targetScreenWidth.float).floor,
-      (h.float / targetScreenHeight.float).floor,
+      (w.float32 / targetScreenWidth.float32).floor,
+      (h.float32 / targetScreenHeight.float32).floor,
     ))
   else:
     screenScale = max(1.0, min(
-      (w.float / targetScreenWidth.float),
-      (h.float / targetScreenHeight.float),
+      (w.float32 / targetScreenWidth.float32),
+      (h.float32 / targetScreenHeight.float32),
     ))
 
   var displayW,displayH: int
 
   if fixedScreenSize:
-    displayW = (targetScreenWidth.float * screenScale).int
-    displayH = (targetScreenHeight.float * screenScale).int
+    displayW = (targetScreenWidth.float32 * screenScale).int
+    displayH = (targetScreenHeight.float32 * screenScale).int
     debug "display", displayW, displayH
 
     # add padding
@@ -235,8 +237,8 @@ proc resize*(w,h: int) =
       screenHeight = displayH div screenScale
       debug "screen", screenWidth, screenHeight
     else:
-      screenWidth = (displayW.float / screenScale).int
-      screenHeight = (displayH.float / screenScale).int
+      screenWidth = (displayW.float32 / screenScale).int
+      screenHeight = (displayH.float32 / screenScale).int
       debug "screen", screenWidth, screenHeight
 
   debug "resize event: scale: ", screenScale, ": ", displayW, " x ", displayH, " ( ", screenWidth, " x ", screenHeight, " )"
@@ -280,7 +282,7 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   when defined(android):
     window = createWindow(title.cstring, WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, (w * scale).cint, (h * scale).cint, WINDOW_FULLSCREEN)
   else:
-    window = createWindow(title.cstring, WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, (w * scale).cint, (h * scale).cint, 
+    window = createWindow(title.cstring, WINDOWPOS_CENTERED, WINDOWPOS_CENTERED, (w * scale).cint, (h * scale).cint, 
       (WINDOW_RESIZABLE or (if fullscreen: WINDOW_FULLSCREEN_DESKTOP else: 0)).uint32)
 
   if window == nil:
@@ -297,17 +299,17 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   debug "initial resize: ", displayW, displayH
   resize(displayW,displayH)
 
-  discard showCursor(0)
+  discard showCursor(1)
+
+  window.raiseWindow()
 
 proc readFile*(filename: string): string =
-  debug "readFile: ", filename
   var fp = rwFromFile(filename, "r")
 
   if fp == nil:
     raise newException(IOError, "Unable to open file: " & filename)
 
   let size = rwSize(fp)
-  debug size
   var buffer = newSeq[uint8](size)
 
   var offset = 0
@@ -316,28 +318,31 @@ proc readFile*(filename: string): string =
     offset += r
     if r == 0:
       break
-  discard rwClose(fp)
+
+  if rwClose(fp) != 0:
+    debug getError()
 
   result = cast[string](buffer)
 
 
-proc loadSurface*(filename: string, callback: proc(surface: common.Surface)) =
-  debug "loadSurface", filename
-  var w,h,components: int
-  var pixels: seq[uint8]
+proc loadSurfaceIndexed*(filename: string, callback: proc(surface: common.Surface)) =
+  var buffer = readFile(filename)
+  let ss = newStringStream(buffer)
+  let png = decodePNG(ss, LCT_PALETTE, 8)
+  debug("read image", filename, png.width, png.height)
 
-  #var buffer = readFile(filename)
+  var surface: common.Surface
+  surface.w = png.width
+  surface.h = png.height
+  surface.channels = 1
+  surface.data = cast[seq[uint8]](png.data)
+  callback(surface)
 
-  #echo "read buffer: ", buffer.len
-
-  #try:
-  #  pixels = stbi.load_from_memory(cast[seq[uint8]](buffer), w, h, components, 4)
-  #except STBIException as e:
-  #  raise newException(IOError, "Unable to load surface: " & filename & " " & e.msg)
-
-  #debug("read image", w, h, components)
-
-  let png = loadPNG32(filename)
+proc loadSurfaceRGBA*(filename: string, callback: proc(surface: common.Surface)) =
+  var buffer = readFile(filename)
+  let ss = newStringStream(buffer)
+  let png = decodePNG(ss, LCT_RGBA, 8)
+  debug("read image", filename, png.width, png.height)
 
   var surface: common.Surface
   surface.w = png.width
@@ -389,7 +394,6 @@ proc saveScreenshot*() =
   # convert RGBA to BGRA
   convertToRGBA(frame, abgr[0].addr, screenWidth*4, screenWidth, screenHeight)
   let filename = writePath & "/screenshots/screenshot-$1T$2.png".format(getDateStr(), getClockStr())
-  discard stbiw.writePNG(filename, screenWidth, screenHeight, 4, abgr, screenWidth*4)
   debug "saved screenshot to: ", filename
 
 proc saveRecording*() =
@@ -402,8 +406,8 @@ proc saveRecording*() =
       debug "unable to create video output directory"
       return
 
-    var palette: array[16,array[3,uint8]]
-    for i in 0..15:
+    var palette: array[maxPaletteSize,array[3,uint8]]
+    for i in 0..<maxPaletteSize:
       palette[i] = [colors[i].r, colors[i].g, colors[i].b]
 
     let filename = writePath & "/video/video-$1T$2.gif".format(getDateStr(), getClockStr().replace(":","-"))
@@ -412,14 +416,14 @@ proc saveRecording*() =
       filename.cstring,
       (screenWidth*gifScale).uint16,
       (screenHeight*gifScale).uint16,
-      palette[0][0].addr, 4, 0
+      palette[0][0].addr, if paletteSize <= 16: 4 else: 8, 0
     )
 
     if gif == nil:
-      debug "unable to create gif"
+      debug "unable to create gif: ", filename
       return
 
-    debug "created gif"
+    debug "created gif: ", filename
     var pixels: ptr[array[int32.high, uint8]]
 
     for j in 0..recordFrames.size:
@@ -518,8 +522,8 @@ proc appHandleEvent(evt: Event) =
   elif evt.kind == MouseMotion:
     if evt.motion.which != TOUCH_MOUSEID:
       mouseDetected = true
-    mouseX = ((evt.motion.x - screenPaddingX).float / screenScale.float).int
-    mouseY = ((evt.motion.y - screenPaddingY).float / screenScale.float).int
+    mouseX = ((evt.motion.x - screenPaddingX).float32 / screenScale.float32).int
+    mouseY = ((evt.motion.y - screenPaddingY).float32 / screenScale.float32).int
 
   elif evt.kind == ControllerDeviceAdded:
     for v in controllers:
@@ -584,7 +588,7 @@ proc appHandleEvent(evt: Event) =
   elif evt.kind == ControllerAxisMotion:
     for controller in mitems(controllers):
       if controller.id == evt.caxis.which:
-        let value = evt.caxis.value.float / int16.high.float
+        let value = evt.caxis.value.float32 / int16.high.float32
         case evt.caxis.axis.GameControllerAxis:
         of CONTROLLER_AXIS_LEFTX:
           controller.setAxisValue(pcXAxis, value)
@@ -604,14 +608,12 @@ proc appHandleEvent(evt: Event) =
 
   elif evt.kind == WindowEvent:
     if evt.window.event == WindowEvent_Resized:
-      debug "resize event"
-      debug("padding", evt.window.padding1.int, evt.window.padding2.int, evt.window.padding3.int, evt.window.data1, evt.window.data2)
       resize(evt.window.data1, evt.window.data2)
       discard render.setRenderTarget(nil)
       discard render.setRenderDrawColor(0,0,0,255)
       discard render.renderClear()
     elif evt.window.event == WindowEvent_Size_Changed:
-      debug "size changed event"
+      discard
     elif evt.window.event == WindowEvent_FocusLost:
       focused = false
     elif evt.window.event == WindowEvent_FocusGained:
@@ -624,24 +626,24 @@ proc appHandleEvent(evt: Event) =
     let down = evt.kind == Keydown
 
     for listener in keyListeners:
-      if listener(sym.int, mods.int, scancode.int, down.bool):
+      if listener(sym.int, mods.uint16, scancode.int, down.bool):
         return
 
     if sym == K_AC_BACK:
       controllers[0].setButtonState(pcBack, down)
 
-    elif sym == K_q and down and (int16(evt.key.keysym.mods) and int16(KMOD_CTRL)) != 0:
+    elif sym == K_q and down and (mods and uint16(KMOD_CTRL)) != 0:
       # ctrl+q to quit
       keepRunning = false
 
-    elif sym == K_f and not down and (int16(evt.key.keysym.mods) and int16(KMOD_CTRL)) != 0:
+    elif sym == K_f and not down and (mods and uint16(KMOD_CTRL)) != 0:
       if getFullscreen():
         setFullscreen(false)
       else:
         setFullscreen(true)
       return
 
-    elif sym == K_return and not down and (int16(evt.key.keysym.mods) and int16(KMOD_ALT)) != 0:
+    elif sym == K_return and not down and (mods and uint16(KMOD_ALT)) != 0:
       if getFullscreen():
         setFullscreen(false)
       else:
@@ -666,7 +668,7 @@ proc appHandleEvent(evt: Event) =
       elif system.hostOS == "linux":
         discard startProcess("xdg-open", writePath, [writePath], nil, {poUsePath})
 
-    if not evt.key.repeat != 0:
+    if evt.key.repeat == 0:
       for btn,btnScancodes in keymap:
         for btnScancode in btnScancodes:
           if scancode == btnScancode:
@@ -685,6 +687,8 @@ proc setScreenSize*(w,h: int) =
   window.setWindowSize(w,h)
   resize()
 
+proc queueMixerAudio*(nSamples: int)
+
 proc queuedAudioSize*(): int =
   return getQueuedAudioSize(audioDeviceId).int div 4
 
@@ -692,7 +696,7 @@ proc step*() {.cdecl.} =
   checkInput()
 
   next_time = getTicks()
-  var diff = float(next_time - current_time)/1000.0 * frameMult.float
+  var diff = float32(next_time - current_time)/1000.0 * frameMult.float32
   if diff > timeStep * 2.0:
     diff = timeStep
   acc += diff
@@ -745,7 +749,6 @@ proc getUnmappedJoysticks*(): seq[Joystick] =
       result.add(j)
 
 proc loadConfig*() =
-  # TODO check for config file in user config directioy, use that first
   try:
     config = loadConfig(writePath & "/config.ini")
     debug "loaded config from " & writePath & "/config.ini"
@@ -844,10 +847,10 @@ proc process(self: var Channel): float32 =
         envPhase += 1
 
         if vibamount > 0:
-          freq = basefreq + sin(envPhase.float / vibspeed.float) * basefreq * 0.03 * vibamount.float
+          freq = basefreq + sin(envPhase.float32 / vibspeed.float32) * basefreq * 0.03 * vibamount.float32
 
         if pchange != 0:
-          targetFreq = targetFreq + targetFreq * pchange.float / 128.0
+          targetFreq = targetFreq + targetFreq * pchange.float32 / 128.0
           basefreq = targetFreq
           freq = targetFreq
           if targetFreq > sampleRate / 2.0:
@@ -872,27 +875,27 @@ proc process(self: var Channel): float32 =
 
           if arpSteps > 0:
             if (envPhase / arpSpeed.int) mod arpSteps == 1:
-              targetFreq = basefreq + basefreq * 0.06 * a0.float
+              targetFreq = basefreq + basefreq * 0.06 * a0.float32
             elif (envPhase / arpSpeed.int) mod arpSteps == 2:
-              targetFreq = basefreq + basefreq * 0.06 * a1.float
+              targetFreq = basefreq + basefreq * 0.06 * a1.float32
             elif (envPhase / arpSpeed.int) mod arpSteps == 3:
-              targetFreq = basefreq + basefreq * 0.06 * a2.float
+              targetFreq = basefreq + basefreq * 0.06 * a2.float32
             elif (envPhase / arpSpeed.int) mod arpSteps == 4:
-              targetFreq = basefreq + basefreq * 0.06 * a3.float
+              targetFreq = basefreq + basefreq * 0.06 * a3.float32
             else:
               targetFreq = basefreq
 
         # determine the env value
         if env < 0:
           # decay
-          envValue = clamp(lerp(init.float / 15.0, 0, envPhase / (-env * 4)), 0.0, 1.0)
+          envValue = clamp(lerp(init.float32 / 15.0, 0, envPhase / (-env * 4)), 0.0, 1.0)
           if envValue <= 0:
             kind = channelNone
         elif env > 0:
           # attack
-          envValue = clamp(lerp(init.float / 15.0, 1.0, envPhase / (env * 4)), 0.0, 1.0)
+          envValue = clamp(lerp(init.float32 / 15.0, 1.0, envPhase / (env * 4)), 0.0, 1.0)
         elif env == 0:
-          envValue = init.float / 15.0
+          envValue = init.float32 / 15.0
 
         gain = clamp(lerp(gain, envValue, 0.9), 0.0, 1.0)
 
@@ -902,9 +905,9 @@ proc process(self: var Channel): float32 =
     var o: float32 = 0.0
     o = buffer.data.interpolatedLookup(phase) * gain
     if audioSampleId mod 2 == 0:
-      phase += freq
+      phase += freq * invSampleRate * TAU
       if phase >= buffer.data.len:
-        phase = phase mod buffer.data.len.float
+        phase = phase mod buffer.data.len.float32
         if loop > 0:
           loop -= 1
           if loop == 0:
@@ -913,7 +916,7 @@ proc process(self: var Channel): float32 =
   of channelMusic:
     var o: float32
     o = self.musicBuffers[self.musicBuffer].interpolatedLookup(phase) * gain
-    phase += freq
+    phase += freq / TAU
     if phase >= musicBufferSize:
       # end of buffer, switch buffers and fill
       phase = 0.0
@@ -932,33 +935,33 @@ proc process(self: var Channel): float32 =
     return 0.0
 
 
+when compileOption("threads"):
+  proc audioCallback(userdata: pointer, stream: ptr uint8, bytes: cint) {.cdecl.} =
+    when compileOption("threads"):
+      setupForeignThreadGc()
 
-proc audioCallback(userdata: pointer, stream: ptr uint8, bytes: cint) {.cdecl.} =
-  when compileOption("threads"):
-    setupForeignThreadGc()
+    var samples = cast[ptr array[int32.high,float32]](stream)
+    let nSamples = bytes div sizeof(float32)
 
-  var samples = cast[ptr array[int32.high,float32]](stream)
-  let nSamples = bytes div sizeof(float32)
+    for i in 0..<nSamples:
 
-  for i in 0..<nSamples:
+      if i mod 2 == 0:
+        nextClock -= 1
+        if nextClock <= 0:
+          clock = true
+          nextClock = (sampleRate div 60)
+        else:
+          clock = false
 
-    if i mod 2 == 0:
-      nextClock -= 1
-      if nextClock <= 0:
-        clock = true
-        nextClock = (sampleRate div 60)
-      else:
-        clock = false
+        nextTick -= 1
+        if nextTick <= 0 and tickFunc != nil:
+          tickFunc()
+          nextTick = (sampleRate / (currentBpm.float32 / 60.0 * currentTpb.float32)).int
 
-      nextTick -= 1
-      if nextTick <= 0 and tickFunc != nil:
-        tickFunc()
-        nextTick = (sampleRate / (currentBpm.float / 60.0 * currentTpb.float)).int
-
-    samples[i] = 0
-    for j in 0..<audioChannels.len:
-      samples[i] += audioChannels[j].process() * masterVolume
-    audioSampleId += 1
+      samples[i] = 0
+      for j in 0..<audioChannels.len:
+        samples[i] += audioChannels[j].process() * masterVolume
+      audioSampleId += 1
 
 proc queueMixerAudio*(nSamples: int) =
   var samples = newSeq[float32](nSamples)
@@ -976,7 +979,7 @@ proc queueMixerAudio*(nSamples: int) =
       nextTick -= 1
       if nextTick <= 0 and tickFunc != nil:
         tickFunc()
-        nextTick = (sampleRate / (currentBpm.float / 60.0 * currentTpb.float)).int
+        nextTick = (sampleRate / (currentBpm.float32 / 60.0 * currentTpb.float32)).int
 
     samples[i] = 0
     for j in 0..<audioChannels.len:
@@ -990,12 +993,11 @@ proc initMixer*() =
     # use web audio
     discard
   else:
-    echo "initMixer"
+    debug "initMixer"
     if sdl.init(INIT_AUDIO) != 0:
       raise newException(Exception, "Unable to initialize audio")
 
     var audioSpec: AudioSpec
-    #audioSpec.freq = 44100.cint
     audioSpec.freq = sampleRate.cint
     audioSpec.format = AUDIO_F32
     audioSpec.channels = 2
@@ -1012,28 +1014,26 @@ proc initMixer*() =
     if audioDeviceId == 0:
       raise newException(Exception, "Unable to open audio device: " & $getError())
 
-    sampleRate = obtained.freq.float
-    invSampleRate = 1.0 / obtained.freq.float
-
-    echo obtained
+    sampleRate = obtained.freq.float32
+    invSampleRate = 1.0 / obtained.freq.float32
 
     for c in audioChannels.mitems:
       c.lfsr = 0xfeed
       c.lfsr2 = 0x00fe
       c.glide = 0
       for j in 0..<32:
-        c.wavData[j] = random(16).uint8
+        c.wavData[j] = rand(16).uint8
 
     # start the audio thread
     when compileOption("threads"):
       pauseAudioDevice(audioDeviceId, 0)
       if obtained.callback != audioCallback:
-        echo "wtf no callback"
-      echo "audio initialised using audio thread"
+        debug "wtf no callback"
+      debug "audio initialised using audio thread"
     else:
       queueMixerAudio(4096)
       pauseAudioDevice(audioDeviceId, 0)
-      echo "audio initialised using main thread"
+      debug "audio initialised using main thread"
 
 proc init*(org: string, app: string) =
   discard setHint("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")
@@ -1042,18 +1042,15 @@ proc init*(org: string, app: string) =
     debug sdl.getError()
     quit(1)
 
-  debug "SDL initialized"
-
   # add keyboard controller
-  debug "adding controllers"
   when not defined(android):
     controllers.add(newNicoController(-1))
 
-    debug "get base path: "
     basePath = $sdl.getBasePath()
     debug "basePath: ", basePath
 
-    assetPath = joinPath(basePath,"assets")
+    assetPath = joinPath(basePath, "assets")
+    debug "assetPath: ", assetPath
 
     writePath = $sdl.getPrefPath(org,app)
     debug "writePath: ", writePath
@@ -1079,6 +1076,13 @@ proc init*(org: string, app: string) =
 
 proc setEventFunc*(ef: proc(event: Event): bool) =
   eventFunc = ef
+
+proc addKeyListener*(f: KeyListener) =
+  keyListeners.add(f)
+
+proc removeKeyListener*(f: KeyListener) =
+  let i = keyListeners.find(f)
+  keyListeners.del(i)
 
 proc setTextFunc*(text: (proc(text: string): bool)) =
   if text == nil:
@@ -1127,7 +1131,7 @@ proc saveMap*(filename: string) =
   for y in 0..<currentTilemap.h:
     for x in 0..<currentTilemap.w:
       let t = currentTilemap.data[y * currentTilemap.w + x]
-      fs.write(t.uint8)
+      fs.write(t)
   fs.close()
   debug "saved map: ", filename
 
@@ -1146,7 +1150,7 @@ proc loadMapBinary*(filename: string) =
   currentTilemap = tm
 
 proc newSfxBuffer(filename: string): SfxBuffer =
-  echo "loading sfx: ", filename
+  debug "loading sfx: ", filename
   result = new(SfxBuffer)
   var info: Tinfo
   when defined(js):
@@ -1154,12 +1158,12 @@ proc newSfxBuffer(filename: string): SfxBuffer =
   else:
     zeroMem(info.addr, sizeof(Tinfo))
   var fp = sndfile.open(filename.cstring, READ, info.addr)
-  echo "file opened"
+  debug "file opened"
   if fp == nil:
     raise newException(IOError, "unable to open file for reading: " & filename)
 
   result.data = newSeq[float32](info.frames * info.channels)
-  result.rate = info.samplerate.float
+  result.rate = info.samplerate.float32
   result.channels = info.channels
   result.length = info.frames.int * info.channels.int
 
@@ -1170,30 +1174,28 @@ proc newSfxBuffer(filename: string): SfxBuffer =
 
   discard fp.close()
 
-  echo "loaded sfx: " & filename & " frames: " & $result.length
-  echo result.channels
-  echo result.rate
+  debug "loaded sfx: " & filename & " frames: " & $result.length
 
 proc loadSfx*(index: range[-1..63], filename: string) =
   if index < 0 or index > 63:
     return
-  sfxBufferLibrary[index] = newSfxBuffer(joinPath(assetPath,filename))
+  sfxBufferLibrary[index] = newSfxBuffer(joinPath(assetPath, filename))
 
 proc loadMusic*(index: int, filename: string) =
   if index < 0 or index > 63:
     return
-  musicFileLibrary[index] = joinPath(assetPath,filename)
+  musicFileLibrary[index] = joinPath(assetPath, filename)
 
 proc getMusic*(index: AudioChannelId): int =
   if audioChannels[index].kind != channelMusic:
     return -1
   return audioChannels[index].musicIndex
 
-proc findFreeChannel(priority: float): int =
+proc findFreeChannel(priority: float32): int =
   for i,c in audioChannels:
     if c.kind == channelNone:
       return i
-  var lowestPriority: float = Inf
+  var lowestPriority: float32 = Inf
   var bestChannel: AudioChannelId = -2
   for i,c in audioChannels:
     if c.priority < lowestPriority:
@@ -1203,12 +1205,10 @@ proc findFreeChannel(priority: float): int =
     return -2
   return bestChannel
 
-proc sfx*(index: range[-1..63], channel: AudioChannelId = -1, loop: int = 1, gain: float = 1.0, pitch: float = 1.0, priority: float = Inf) =
+proc sfx*(index: range[-1..63], channel: AudioChannelId = -1, loop: int = 1, gain: Pfloat = 1.0, pitch: Pfloat = 1.0, priority: Pfloat = Inf) =
   let channel = if channel == -1: findFreeChannel(priority) else: channel
   if channel == -2:
     return
-
-  echo "sfx: ", index, " channel: ", channel
 
   if index < 0:
     audioChannels[channel].reset()
@@ -1245,13 +1245,11 @@ proc music*(index: int, channel: AudioChannelId = -1, loop: int = 1) =
   audioChannels[channel].loop = loop
   audioChannels[channel].musicBuffer = 0
 
-  block:
-    let read = snd.read_float(audioChannels[channel].musicBuffers[0][0].addr, musicBufferSize)
-  block:
-    let read = snd.read_float(audioChannels[channel].musicBuffers[1][0].addr, musicBufferSize)
+  discard snd.read_float(audioChannels[channel].musicBuffers[0][0].addr, musicBufferSize)
+  discard snd.read_float(audioChannels[channel].musicBuffers[1][0].addr, musicBufferSize)
 
 proc volume*(channel: int, volume: int) =
-  audioChannels[channel].gain = (volume.float / 255.0)
+  audioChannels[channel].gain = (volume.float32 / 255.0)
 
 proc pitchbend*(channel: int, changeSpeed: range[-128..128]) =
   audioChannels[channel].pchange = changeSpeed
@@ -1269,7 +1267,7 @@ proc wavData*(channel: int): array[32, uint8] =
 proc wavData*(channel: int, data: array[32, uint8]) =
   audioChannels[channel].wavData = data
 
-proc pitch*(channel: int, freq: float) =
+proc pitch*(channel: int, freq: Pfloat) =
   audioChannels[channel].targetFreq = freq
 
 proc synthShape*(channel: int, newShape: SynthShape) =
@@ -1284,7 +1282,7 @@ proc reset*(channel: int) =
   audioChannels[channel].loop = 0
   audioChannels[channel].musicIndex = 0
 
-proc synth*(channel: int, shape: SynthShape, freq: float, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
+proc synth*(channel: int, shape: SynthShape, freq: Pfloat, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
   audioChannels[channel].kind = channelSynth
@@ -1310,7 +1308,7 @@ proc arp*(channel: int, arp: uint16, speed: uint8 = 1) =
   audioChannels[channel].arp = arp
   audioChannels[channel].arpSpeed = max(1.uint8, speed)
 
-proc synthUpdate*(channel: int, shape: SynthShape, freq: float) =
+proc synthUpdate*(channel: int, shape: SynthShape, freq: Pfloat) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
   if shape != synSame:

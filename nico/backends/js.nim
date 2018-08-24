@@ -116,7 +116,6 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   canvas.height = h
   canvas.style.width = $(w * scale) & "px"
   canvas.style.height = $(h * scale) & "px"
-  canvas.style.cursor = "none"
 
   canvas.onmousemove = proc(e: Event) =
     mouseDetected = true
@@ -208,7 +207,7 @@ proc readFile*(filename: string): string =
 proc readJsonFile*(filename: string): JsonNode =
   return parseJson(readFile(filename))
 
-proc loadSurface*(filename: string, callback: proc(surface: Surface)) =
+proc loadSurfaceRGBA*(filename: string, callback: proc(surface: Surface)) =
   loading += 1
   var img = dom.document.createElement("img").ImageElement
   img.addEventListener("load") do(event: Event):
@@ -230,6 +229,10 @@ proc loadSurface*(filename: string, callback: proc(surface: Surface)) =
     surface.data = imgData.data
     callback(surface)
   img.src = filename
+
+proc loadSurfaceIndexed*(filename: string, callback: proc(surface: Surface)) =
+  loadSurfaceRGBA(filename) do(surface: Surface):
+    callback(surface.convertToIndexed())
 
 proc stop(self: var Channel) =
   if source != nil:
@@ -356,7 +359,7 @@ proc step() =
     controller.update()
 
   if updateFunc != nil:
-    updateFunc(1.0/60.0)
+    updateFunc(timeStep)
 
   if drawFunc != nil:
     drawFunc()
@@ -675,7 +678,7 @@ proc tpb*(newTpb: Natural) =
 proc run*() =
   if interval != nil:
     dom.window.clearInterval(interval)
-  interval = dom.window.setInterval(step, 1000 div 60)
+  interval = dom.window.setInterval(step, (timeStep * 1000.0).int)
 
 proc setScreenSize*(w,h: int) =
   discard
@@ -689,3 +692,8 @@ proc setFullscreen*(fullscreen: bool) =
 proc getFullscreen*(): bool =
   return false
 
+proc addKeyListener*(f: KeyListener) =
+  return
+
+proc removeKeyListener*(f: KeyListener) =
+  return

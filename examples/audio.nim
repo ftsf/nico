@@ -4,7 +4,7 @@ import strutils
 var n = 69
 var shape = 0
 
-type Instrument = tuple[shape: uint8, init: uint8, change: uint8]
+type Instrument = tuple[shape: SynthShape, init: range[0..15], change: range[-7..7]]
 type Row = tuple[note: uint8, inst: uint8, command: uint8, arg: uint8]
 type Pattern = array[16, Row]
 type SongRow = array[4, uint8]
@@ -45,8 +45,7 @@ proc musicUpdate() =
         if i == 0:
           pitch(channel, note(n.int))
         else:
-          let change = if inst.change > 0x8.uint8: (inst.change.int - 0x8).float else: -inst.change.float
-          synth(channel, inst.shape.SynthShape, note(n.int), inst.init.int * 16, change)
+          synth(channel, inst.shape, note(n.int), inst.init, inst.change)
   tick += 1
   if tick mod 16 == 0:
     # move cursors
@@ -75,29 +74,29 @@ proc gameInit() =
   currentPatternRow = 0
   currentPatternCol = 0
 
-  instruments[1].shape = 2
-  instruments[1].init = 0xa
-  instruments[1].change = 0x1
+  instruments[1].shape = synP25
+  instruments[1].init = 7
+  instruments[1].change = -1
 
-  instruments[2].shape = 2
-  instruments[2].init = 0xa
-  instruments[2].change = 0x7
+  instruments[2].shape = synP12
+  instruments[2].init = 5
+  instruments[2].change = -2
 
-  instruments[3].shape = 2
-  instruments[3].init = 0xa
-  instruments[3].change = 0x3
+  instruments[3].shape = synSaw
+  instruments[3].init = 3
+  instruments[3].change = -3
 
-  instruments[4].shape = 4
-  instruments[4].init = 0xa
-  instruments[4].change = 0x1
+  instruments[4].shape = synNoise
+  instruments[4].init = 5
+  instruments[4].change = -7
 
-  instruments[5].shape = 5
-  instruments[5].init = 0xa
-  instruments[5].change = 0x1
+  instruments[5].shape = synTri
+  instruments[5].init = 0
+  instruments[5].change = 1
 
   setTickFunc(musicUpdate)
 
-proc gameUpdate(dt: float) =
+proc gameUpdate(dt: float32) =
   if btn(pcX):
     if btnp(pcLeft):
       if view > view.low:
@@ -223,19 +222,25 @@ proc gameUpdate(dt: float) =
       case currentInstrumentSetting:
       of 0:
         if btnp(pcLeft):
-          instruments[currentInstrument].shape -= 1
+          if instruments[currentInstrument].shape < SynthShape.high:
+            instruments[currentInstrument].shape.inc()
         if btnp(pcRight):
-          instruments[currentInstrument].shape += 1
+          if instruments[currentInstrument].shape > SynthShape.low:
+            instruments[currentInstrument].shape.dec()
       of 1:
         if btnp(pcLeft):
-          instruments[currentInstrument].init -= 1
+          if instruments[currentInstrument].init > 0:
+            instruments[currentInstrument].init -= 1
         if btnp(pcRight):
-          instruments[currentInstrument].init += 1
+          if instruments[currentInstrument].init < 15:
+            instruments[currentInstrument].init += 1
       of 2:
         if btnp(pcLeft):
-          instruments[currentInstrument].change -= 1
+          if instruments[currentInstrument].change > -7:
+            instruments[currentInstrument].change -= 1
         if btnp(pcRight):
-          instruments[currentInstrument].change += 1
+          if instruments[currentInstrument].change < 7:
+            instruments[currentInstrument].change += 1
       of 3:
         discard
     else:
@@ -329,9 +334,9 @@ proc gameDraw() =
     setColor(if currentInstrumentSetting == 0: 7 else: 5)
     print("SHAPE:  " & $instruments[currentInstrument].shape.SynthShape, 1, 10)
     setColor(if currentInstrumentSetting == 1: 7 else: 5)
-    print("INIT:   " & toHex(instruments[currentInstrument].init), 1, 30)
+    print("INIT:   " & $instruments[currentInstrument].init, 1, 30)
     setColor(if currentInstrumentSetting == 2: 7 else: 5)
-    print("CHANGE: " & toHex(instruments[currentInstrument].change), 1, 40)
+    print("CHANGE: " & $instruments[currentInstrument].change, 1, 40)
   else:
     discard
 

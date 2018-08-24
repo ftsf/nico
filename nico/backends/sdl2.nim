@@ -324,10 +324,23 @@ proc readFile*(filename: string): string =
   result = cast[string](buffer)
 
 
-proc loadSurface*(filename: string, callback: proc(surface: common.Surface)) =
+proc loadSurfaceIndexed*(filename: string, callback: proc(surface: common.Surface)) =
   var buffer = readFile(filename)
   let ss = newStringStream(buffer)
   let png = decodePNG(ss, LCT_PALETTE, 8)
+  debug("read image", filename, png.width, png.height)
+
+  var surface: common.Surface
+  surface.w = png.width
+  surface.h = png.height
+  surface.channels = 1
+  surface.data = cast[seq[uint8]](png.data)
+  callback(surface)
+
+proc loadSurfaceRGBA*(filename: string, callback: proc(surface: common.Surface)) =
+  var buffer = readFile(filename)
+  let ss = newStringStream(buffer)
+  let png = decodePNG(ss, LCT_RGBA, 8)
   debug("read image", filename, png.width, png.height)
 
   var surface: common.Surface
@@ -892,7 +905,7 @@ proc process(self: var Channel): float32 =
     var o: float32 = 0.0
     o = buffer.data.interpolatedLookup(phase) * gain
     if audioSampleId mod 2 == 0:
-      phase += freq
+      phase += freq * invSampleRate * TAU
       if phase >= buffer.data.len:
         phase = phase mod buffer.data.len.float32
         if loop > 0:
@@ -903,7 +916,7 @@ proc process(self: var Channel): float32 =
   of channelMusic:
     var o: float32
     o = self.musicBuffers[self.musicBuffer].interpolatedLookup(phase) * gain
-    phase += freq
+    phase += freq / TAU
     if phase >= musicBufferSize:
       # end of buffer, switch buffers and fill
       phase = 0.0
@@ -985,7 +998,6 @@ proc initMixer*() =
       raise newException(Exception, "Unable to initialize audio")
 
     var audioSpec: AudioSpec
-    #audioSpec.freq = 44100.cint
     audioSpec.freq = sampleRate.cint
     audioSpec.format = AUDIO_F32
     audioSpec.channels = 2
@@ -1004,8 +1016,6 @@ proc initMixer*() =
 
     sampleRate = obtained.freq.float32
     invSampleRate = 1.0 / obtained.freq.float32
-
-    debug obtained
 
     for c in audioChannels.mitems:
       c.lfsr = 0xfeed
@@ -1121,7 +1131,7 @@ proc saveMap*(filename: string) =
   for y in 0..<currentTilemap.h:
     for x in 0..<currentTilemap.w:
       let t = currentTilemap.data[y * currentTilemap.w + x]
-      fs.write(t.uint8)
+      #fs.write(t)
   fs.close()
   debug "saved map: ", filename
 
@@ -1165,18 +1175,16 @@ proc newSfxBuffer(filename: string): SfxBuffer =
   discard fp.close()
 
   debug "loaded sfx: " & filename & " frames: " & $result.length
-  debug result.channels
-  debug result.rate
 
 proc loadSfx*(index: range[-1..63], filename: string) =
   if index < 0 or index > 63:
     return
-  sfxBufferLibrary[index] = newSfxBuffer(assetPath & filename)
+  sfxBufferLibrary[index] = newSfxBuffer(joinPath(assetPath, filename))
 
 proc loadMusic*(index: int, filename: string) =
   if index < 0 or index > 63:
     return
-  musicFileLibrary[index] = assetPath & filename
+  musicFileLibrary[index] = joinPath(assetPath, filename)
 
 proc getMusic*(index: AudioChannelId): int =
   if audioChannels[index].kind != channelMusic:
@@ -1201,8 +1209,6 @@ proc sfx*(index: range[-1..63], channel: AudioChannelId = -1, loop: int = 1, gai
   let channel = if channel == -1: findFreeChannel(priority) else: channel
   if channel == -2:
     return
-
-  debug "sfx: ", index, " channel: ", channel
 
   if index < 0:
     audioChannels[channel].reset()

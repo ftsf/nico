@@ -3,12 +3,22 @@ import nico.backends.common
 when defined(js):
   import nico.backends.js as backend
   export convertToConsoleLoggable
+
+  proc joinPath(a,b: string): string =
+    if a[a.high] == '/':
+      return a & b
+    return a & "/" & b
+
+  proc joinPath(parts: varargs[string]): string =
+    result = parts[0]
+    for i in 1..parts.high:
+      result = joinPath(result, parts[i])
 else:
   import nico.backends.sdl2 as backend
-
-import os
+  import os
 
 # Audio
+export joinPath
 export loadSfx
 export loadMusic
 export sfx
@@ -44,6 +54,7 @@ export axisp
 
 import nico.ringbuffer
 import math
+export pow
 import algorithm
 import json
 import sequtils
@@ -166,6 +177,7 @@ proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = fal
 # misc
 proc copy*(sx,sy,dx,dy,w,h: Pint) # copy one area of the screen to another
 
+
 # math
 export sin
 export cos
@@ -204,7 +216,7 @@ proc mset*(tx,ty: Pint, t: uint8)
 proc mget*(tx,ty: Pint): uint8
 proc mapDraw*(tx,ty, tw,th, dx,dy: Pint)
 proc loadMap*(filename: string)
-proc newMap*(w,h: Pint)
+proc newMap*(w,h: Pint, tw,th: Pint)
 proc pixelToMap*(px,py: Pint): (Pint,Pint) # returns the tile coordinates at pixel position
 proc mapToPixel*(tx,ty: Pint): (Pint,Pint) # returns the pixel position of the tile coordinates
 
@@ -242,6 +254,8 @@ proc loadPaletteFromGPL*(filename: string) =
   var data = backend.readFile(joinPath(assetPath,filename))
   var i = 0
   for line in data.splitLines():
+    if line.len == 0:
+      continue
     if i == 0:
       if scanf(line, "GIMP Palette"):
         i += 1
@@ -320,6 +334,30 @@ proc clip*(x,y,w,h: Pint) =
   clippingRect.w = min(w, screenWidth - x)
   clippingRect.h = min(h, screenHeight - y)
 
+proc ditherPattern*(pattern: uint16 = 0b1111_1111_1111_1111) =
+  # 0123
+  # 4567
+  # 89ab
+  # cdef
+  gDitherPattern = pattern
+
+proc ditherPatternScanlines*() =
+  gDitherPattern = 0b1111_0000_1111_0000
+
+proc ditherPatternScanlines2*() =
+  gDitherPattern = 0b0000_1111_0000_1111
+
+proc ditherPatternCheckerboard*() =
+  gDitherPattern = 0b1010_0101_1010_0101
+
+proc ditherPatternCheckerboard2*() =
+  gDitherPattern = 0b0101_1010_0101_1010
+
+proc ditherPass(x,y: int): bool =
+  let x4 = (x mod 4).uint16
+  let y4 = (y mod 4).uint16
+  let bit = (y4 * 4 + x4).uint16
+  return (gDitherPattern and (1.uint16 shl bit)) != 0
 
 proc btn*(b: NicoButton): bool =
   for c in controllers:
@@ -798,7 +836,7 @@ proc fontBlit(font: Font, srcRect, dstRect: Rect, color: ColorId) =
         continue
       if dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY:
         continue
-      if font.data[sy * font.w + sx] == 1:
+      if font.data[sy * font.w + sx] == 1 and ditherPass(dx.int,dy.int):
         swCanvas.data[dy * swCanvas.w + dx] = currentColor
       sx += 1.0 * (sw/dw)
       dx += 1.0
@@ -828,8 +866,9 @@ proc blitFastRaw(src: Surface, sx,sy, dx,dy, w,h: Pint) =
         dxi += 1
         sxi += 1
         continue
-      let srcCol = src.data[syi * src.w + sxi]
-      swCanvas.data[dyi * swCanvas.w + dxi] = srcCol
+      if ditherPass(dxi,dyi):
+        let srcCol = src.data[syi * src.w + sxi]
+        swCanvas.data[dyi * swCanvas.w + dxi] = srcCol
       sxi += 1
       dxi += 1
     syi += 1
@@ -860,8 +899,9 @@ proc blitFastRaw*(sx,sy, dx,dy, w,h: Pint) =
         dxi += 1
         sxi += 1
         continue
-      let srcCol = spriteSheet[].data[syi * srcw + sxi]
-      swCanvas.data[dyi * swCanvas.w + dxi] = srcCol
+      if ditherPass(dxi,dyi):
+        let srcCol = spriteSheet[].data[syi * srcw + sxi]
+        swCanvas.data[dyi * swCanvas.w + dxi] = srcCol
       sxi += 1
       dxi += 1
     syi += 1
@@ -889,9 +929,10 @@ proc blitFast(src: Surface, sx,sy, dx,dy, w,h: Pint) =
         dxi += 1
         sxi += 1
         continue
-      let srcCol = src.data[syi * src.w + sxi]
-      if not paletteTransparent[srcCol]:
-        swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol]
+      if ditherPass(dxi,dyi):
+        let srcCol = src.data[syi * src.w + sxi]
+        if not paletteTransparent[srcCol]:
+          swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol]
       sxi += 1
       dxi += 1
     syi += 1
@@ -923,9 +964,10 @@ proc blitFastFlip(src: Surface, sx,sy, dx,dy, w,h: Pint, hflip, vflip: bool) =
         dxi += 1
         sxi += xi
         continue
-      let srcCol = src.data[syi * src.w + sxi]
-      if not paletteTransparent[srcCol]:
-        swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol]
+      if ditherPass(dxi,dyi):
+        let srcCol = src.data[syi * src.w + sxi]
+        if not paletteTransparent[srcCol]:
+          swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol]
       sxi += xi
       dxi += 1
     syi += yi
@@ -963,9 +1005,10 @@ proc blit(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = false) =
       if sx < 0 or sy < 0 or sx > src.w-1 or sy > src.h-1:
         continue
       if not (dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY):
-        let srcCol = src.data[sy * src.w + sx]
-        if not paletteTransparent[srcCol]:
-          swCanvas.data[dy * swCanvas.w + dx] = paletteMapDraw[srcCol]
+        if ditherPass(dx.int,dy.int):
+          let srcCol = src.data[sy.int * src.w + sx.int]
+          if not paletteTransparent[srcCol]:
+            swCanvas.data[dy.int * swCanvas.w + dx.int] = paletteMapDraw[srcCol]
       if hflip:
         sx -= 1.0 * (sw/dw)
         dx -= 1.0
@@ -1008,9 +1051,9 @@ proc blitStretch(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = fals
     for x in 0..dstRect.w-1:
       if sx < 0 or sy < 0 or sx > src.w-1 or sy > src.h-1:
         continue
-      if not (dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY):
-        let srcCol = src.data[sy * src.w + sx]
-        if not paletteTransparent[srcCol]:
+      if not (dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY or sx < 0 or sy < 0 or sx >= src.w or sy >= src.h):
+        let srcCol = src.data[sy.int * src.w + sx.int]
+        if ditherPass(dx.int,dy.int) and not paletteTransparent[srcCol]:
           swCanvas.data[dy * swCanvas.w + dx] = paletteMapDraw[srcCol]
       if hflip:
         sx -= 1.0 * (sw/dw)
@@ -1084,11 +1127,33 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
   font.h = surface.h
   font.data = newSeq[uint8](font.w*font.h)
 
-  for i in 0..<font.w*font.h:
-    font.data[i] = surface.data[i]
-
   let borderColor = 2.uint8
+  let solidColor = 1.uint8
   let transparentColor = 0.uint8
+
+  echo surface.channels
+
+  if surface.channels == 4:
+    let borderColorRGBA = (surface.data[0],surface.data[1],surface.data[2],surface.data[3])
+    let transparentColorRGBA = (surface.data[4],surface.data[5],surface.data[6],surface.data[7])
+
+    for i in 0..<font.w*font.h:
+      var col = (
+        surface.data[i*surface.channels+0],
+        surface.data[i*surface.channels+1],
+        surface.data[i*surface.channels+2],
+        surface.data[i*surface.channels+3]
+      )
+      if col == borderColorRGBA:
+        font.data[i] = borderColor
+      elif col == transparentColorRGBA:
+        font.data[i] = transparentColor
+      else:
+        font.data[i] = solidColor
+
+  elif surface.channels == 1:
+    for i in 0..<font.w*font.h:
+      font.data[i] = surface.data[i]
 
   var highestChar: char
   for c in chars:
@@ -1121,9 +1186,9 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
 
   return font
 
-proc loadFont*(filename: string, chars: string) =
-  loadSurface(joinPath(assetPath,filename)) do(surface: Surface):
-    fonts[currentFontId] = createFontFromSurface(surface, chars)
+proc loadFont*(index: int, filename: string, chars: string) =
+  loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
+    fonts[index] = createFontFromSurface(surface, chars)
 
 proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint =
   let font = fonts[currentFontId]
@@ -1142,8 +1207,13 @@ proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint =
 
 proc print*(text: string, x,y: Pint, scale: Pint = 1) =
   var x = x - cameraX
-  let y = y - cameraY
+  var y = y - cameraY
+  let ix = x
   for c in text:
+    if c == '\n':
+      y += fonts[currentFontId].h
+      x = ix
+      continue
     x += glyph(c, x, y, scale)
 
 proc print*(text: string) =
@@ -1266,12 +1336,11 @@ proc integerScale*(enabled: bool) =
 proc setSpritesheet*(bank: range[0..15] = 0) =
   spriteSheet = spriteSheets[bank].addr
 
-proc loadSpriteSheet*(filename: string, w,h: Pint = 8) =
-  loadSurface(joinPath(assetPath,filename)) do(surface: Surface):
-    spriteSheet[] = surface
-    spriteSheet[].tw = w
-    spriteSheet[].th = h
-
+proc loadSpriteSheet*(index: range[0..15], filename: string, w,h: Pint = 8) =
+  loadSurfaceIndexed(joinPath(assetPath,filename)) do(surface: Surface):
+    spriteSheets[index] = surface
+    spriteSheets[index].tw = w
+    spriteSheets[index].th = h
 
 proc getSprRect(spr: Pint, w,h: Pint = 1): Rect {.inline.} =
   let tilesX = spriteSheet.w div spriteSheet.tw
@@ -1281,6 +1350,8 @@ proc getSprRect(spr: Pint, w,h: Pint = 1): Rect {.inline.} =
   result.h = h * spriteSheet.th
 
 proc spr*(spr: Pint, x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false) =
+  if spriteSheet.tw == 0 or spriteSheet.th == 0:
+    return
   # draw a sprite
   var src = getSprRect(spr, w, h)
   if hflip or vflip:
@@ -1433,11 +1504,11 @@ proc loadMap*(filename: string) =
     when not defined(js):
       loadMapBinary(filename)
 
-proc newMap*(w,h: Pint) =
+proc newMap*(w,h: Pint, tw,th: Pint) =
   currentTilemap.w = w
   currentTilemap.h = h
-  currentTilemap.tw = spriteSheet[].tw
-  currentTilemap.th = spriteSheet[].th
+  currentTilemap.tw = tw
+  currentTilemap.th = th
   currentTilemap.data = newSeq[uint8](w*h)
 
 proc rnd*[T: Natural](x: T): T =
@@ -1567,12 +1638,7 @@ proc init*(org, app: string) =
 
   initialized = true
 
-  randomize()
-  setFont(0)
-  try:
-    loadFont("font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{:}~")
-  except IOError:
-    debug "Error loading default font"
+  randomize(epochTime().int64)
   loadConfig()
 
   clip()

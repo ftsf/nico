@@ -149,6 +149,8 @@ var currentTilemap*: Tilemap
 var spriteFlags*: array[128, uint8]
 var mixerChannels* = 0
 
+var gDitherPattern*: uint16 = 0b1111_1111_1111_1111
+
 
 var frameRate* = 60
 var timeStep* = 1/frameRate
@@ -249,6 +251,14 @@ proc mapRGB*(r,g,b: uint8): ColorId =
       return i
   return 0
 
+proc mapRGBA*(r,g,b,a: uint8): ColorId =
+  for i,v in colors:
+    if a == 0 and i == 0:
+      return i
+    elif i != 0 and v[0] == r and v[1] == g and v[2] == b:
+      return i
+  return 0
+
 proc convertToIndexed*(surface: Surface): Surface =
   if surface.channels > 4 or surface.channels < 3:
     raise newException(Exception, "Converting non RGBA surface to indexed")
@@ -256,12 +266,21 @@ proc convertToIndexed*(surface: Surface): Surface =
   result.w = surface.w
   result.h = surface.h
   result.channels = 1
-  for i in 0..<surface.w*surface.h:
-    result.data[i] = mapRGB(
-      surface.data[i*surface.channels+0],
-      surface.data[i*surface.channels+1],
-      surface.data[i*surface.channels+2],
-    )
+  if surface.channels == 3:
+    for i in 0..<surface.w*surface.h:
+      result.data[i] = mapRGB(
+        surface.data[i*surface.channels+0],
+        surface.data[i*surface.channels+1],
+        surface.data[i*surface.channels+2]
+      )
+  elif surface.channels == 4:
+    for i in 0..<surface.w*surface.h:
+      result.data[i] = mapRGBA(
+        surface.data[i*surface.channels+0],
+        surface.data[i*surface.channels+1],
+        surface.data[i*surface.channels+2],
+        surface.data[i*surface.channels+3]
+      )
 
 proc RGB*(r,g,b: Pint): NicoColor =
   return (r.uint8,g.uint8,b.uint8)

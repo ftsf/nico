@@ -72,19 +72,22 @@ var currentMusic: AudioBufferSourceNode = nil
 var sfxGain, musicGain, masterGain: GainNode
 
 keymap = [
-  @[37, 65], # left
-  @[39, 68], # right
-  @[38, 87], # up
-  @[40, 83], # down
-  @[90, 89], # A, Y
-  @[88], # B
-  @[16], # X
-  @[67], # Y
-  @[70], # L1
+  @[37, 65], # left = arrow, a
+  @[39, 68], # right = arrow, d
+  @[38, 87], # up = arrow, w
+  @[40, 83], # down = arrow, s
+
+  @[90, 89, 72], # A = z, y, h
+  @[88, 85, 74], # B = x, u, j
+  @[67, 79, 75], # X = c, o, k
+  @[86, 80, 76], # Y = v, p, l
+
+  @[66], # L1
+
   @[71], # L2
-  @[86], # R1
-  @[66], # R2
-  @[13], # Start
+  @[72], # R1
+  @[78], # R2
+  @[13, 32], # Start
   @[27, 8], # Back
 ]
 

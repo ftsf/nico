@@ -131,11 +131,11 @@ proc gameDraw() =
 nico.init("nico", "test")
 
 # we want a fixed sized screen with perfect square pixels
-fixedSize(true)
-integerScale(true)
-
 # create the window
 nico.createWindow("nico",128,128,4)
+
+fixedSize(true)
+integerScale(true)
 
 # start, say which functions to use for init, update and draw
 nico.run(gameInit, gameUpdate, gameDraw)

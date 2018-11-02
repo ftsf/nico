@@ -1,8 +1,7 @@
-import nico.backends.common
-import ospaths
+import nico/backends/common
 
 when defined(js):
-  import nico.backends.js as backend
+  import nico/backends/js as backend
   export convertToConsoleLoggable
 
   proc joinPath(a,b: string): string =
@@ -15,7 +14,7 @@ when defined(js):
     for i in 1..parts.high:
       result = joinPath(result, parts[i])
 else:
-  import nico.backends.sdl2 as backend
+  import nico/backends/sdl2 as backend
   import os
 
 # Audio
@@ -40,7 +39,7 @@ export addKeyListener
 export removeKeyListener
 
 export debug
-import nico.controller
+import nico/controller
 export NicoController
 export NicoControllerKind
 export NicoAxis
@@ -53,7 +52,7 @@ export btnpr
 export axis
 export axisp
 
-import nico.ringbuffer
+import nico/ringbuffer
 import math
 export pow
 import algorithm
@@ -644,22 +643,21 @@ proc initBresenham(x0,y0,x1,y1: int): Bresenham =
   result.e2 = 0.0
   result.finished = false
 
-{.this:self.}
 proc step(self: var Bresenham): (int,int) =
-  if finished:
-    return (x,y)
+  if self.finished:
+    return (self.x,self.y)
   while true:
-    if x == x1 and y == y1:
-      finished = true
-      return (x,y)
-    e2 = err
-    if e2 > -dx:
-      err -= dy.float32
-      x += sx
-    if e2 < dy:
-      err += dx.float32
-      y += sy
-      return (x,y)
+    if self.x == self.x1 and self.y == self.y1:
+      self.finished = true
+      return (self.x,self.y)
+    self.e2 = self.err
+    if self.e2 > -self.dx:
+      self.err -= self.dy.float32
+      self.x += self.sx
+    if self.e2 < self.dy:
+      self.err += self.dx.float32
+      self.y += self.sy
+      return (self.x,self.y)
 
 proc trifill*(x1,y1,x2,y2,x3,y3: Pint) =
   var x1 = x1 - cameraX
@@ -1254,6 +1252,8 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
 
   return font
 
+
+
 proc loadFont*(index: int, filename: string, chars: string) =
   backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
     fonts[index] = createFontFromSurface(surface, chars)
@@ -1368,16 +1368,14 @@ proc shutdown*() =
 proc resize(w,h: int) =
   backend.resize(w,h)
   clip()
-  if swCanvas.data != nil:
-    cls()
-    present()
+  cls()
+  present()
 
 proc resize() =
   backend.resize()
   clip()
-  if swCanvas.data != nil:
-    cls()
-    present()
+  cls()
+  present()
 
 proc setResizeFunc*(newResizeFunc: ResizeFunc) =
   resizeFunc = newResizeFunc
@@ -1492,9 +1490,6 @@ proc remainder*(a: int, n: int): int =
     a mod n
 
 proc mapDraw*(tx,ty, tw,th, dx,dy: Pint) =
-  if currentTilemap.data == nil:
-    debug "mapDraw with no tilemap"
-    return
   # draw map tiles to the screen
   let yincrement = if currentTilemap.hex: currentTilemap.hexOffset else: currentTilemap.th
   let xincrement = currentTilemap.tw

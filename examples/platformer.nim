@@ -1,6 +1,6 @@
 import nico
 import math
-import nico.vec
+import nico/vec
 import sequtils
 
 var frame = 0
@@ -723,7 +723,9 @@ proc gameDraw() =
     print("GAME OVER", 48, 60)
 
 nico.init("nico","platformer")
+nico.createWindow("platformer", 128, 128, 4)
+
 fixedSize(true)
 integerScale(true)
-nico.createWindow("platformer", 128, 128, 4)
+
 nico.run(gameInit, gameUpdate, gameDraw)

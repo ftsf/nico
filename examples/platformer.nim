@@ -1,6 +1,6 @@
 import nico
 import math
-import nico.vec
+import nico/vec
 import sequtils
 
 var frame = 0
@@ -621,14 +621,14 @@ method draw(self: Platform) =
 
 proc gameInit() =
   loadPaletteCGA()
-  loadSpriteSheet("platformer.png")
+  loadSpriteSheet(0, "platformer.png")
 
   objects = newSeq[Obj]()
   player = newPlayer(16,8)
   objects.add(player)
   gameOver = false
 
-  newMap(16,256)
+  newMap(16,256,8,8)
   for y in 0..<256:
     for x in 0..<16:
       if x <= 1 or x >= 14:
@@ -723,7 +723,9 @@ proc gameDraw() =
     print("GAME OVER", 48, 60)
 
 nico.init("nico","platformer")
+nico.createWindow("platformer", 128, 128, 4)
+
 fixedSize(true)
 integerScale(true)
-nico.createWindow("platformer", 128, 128, 4)
+
 nico.run(gameInit, gameUpdate, gameDraw)

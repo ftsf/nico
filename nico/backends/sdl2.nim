@@ -4,11 +4,11 @@ import json
 import strutils
 import times
 
-import nico.ringbuffer
+import nico/ringbuffer
 
 import math
 
-import sdl2.sdl
+import sdl2/sdl
 
 import nimPNG
 
@@ -27,9 +27,6 @@ import strutils
 import sndfile
 import math
 import random
-
-{.this:self.}
-
 
 # Types
 
@@ -144,7 +141,7 @@ var musicFileLibrary: array[64,string]
 var audioSampleId: uint32
 var audioChannels: array[nAudioChannels, Channel]
 
-import nico.controller
+import nico/controller
 
 # map of scancodes to NicoButton
 
@@ -322,7 +319,6 @@ proc readFile*(filename: string): string =
     debug getError()
 
   result = cast[string](buffer)
-
 
 proc loadSurfaceIndexed*(filename: string, callback: proc(surface: common.Surface)) =
   var buffer = readFile(filename)
@@ -783,84 +779,84 @@ proc queueAudio*(samples: var seq[float32]) =
     raise newException(Exception, "error queueing audio: " & $getError())
 
 proc process(self: var Channel): float32 =
-  case kind:
+  case self.kind:
   of channelNone:
     return 0.0
   of channelSynth:
     if audioSampleId mod 2 == 0:
-      if glide == 0:
-        freq = targetFreq
+      if self.glide == 0:
+        self.freq = self.targetFreq
       elif clock:
-        freq = lerp(freq, targetFreq, 1.0 - (glide.float32 / 16.0))
-      phase += (freq * invSampleRate) * TAU
-      phase = phase mod TAU
+        self.freq = lerp(self.freq, self.targetFreq, 1.0 - (self.glide.float32 / 16.0))
+      self.phase += (self.freq * invSampleRate) * TAU
+      self.phase = self.phase mod TAU
     var o: float32 = 0.0
     case self.shape:
     of synSin:
-      o = sin(phase)
+      o = sin(self.phase)
     of synSqr:
-      o = ((if phase mod TAU < (TAU * 0.5): 1.0 else: -1.0) * 0.577).float32
+      o = ((if self.phase mod TAU < (TAU * 0.5): 1.0 else: -1.0) * 0.577).float32
     of synP12:
-      o = ((if phase mod TAU < (TAU * 0.125): 1.0 else: -1.0) * 0.577).float32
+      o = ((if self.phase mod TAU < (TAU * 0.125): 1.0 else: -1.0) * 0.577).float32
     of synP25:
-      o = ((if phase mod TAU < (TAU * 0.25): 1.0 else: -1.0) * 0.577).float32
+      o = ((if self.phase mod TAU < (TAU * 0.25): 1.0 else: -1.0) * 0.577).float32
     of synTri:
-      o = ((abs((phase mod TAU) / TAU * 2.0 - 1.0)*2.0 - 1.0) * 0.7).float32
+      o = ((abs((self.phase mod TAU) / TAU * 2.0 - 1.0)*2.0 - 1.0) * 0.7).float32
     of synSaw:
-      o = ((((phase mod TAU) - PI) / PI) * 0.5).float32
+      o = ((((self.phase mod TAU) - PI) / PI) * 0.5).float32
     of synNoise:
-      if freq != 0.0:
-        if nextClick <= 0:
-          let lsb: uint = (lfsr and 1).uint
-          lfsr = lfsr shr 1
+      if self.freq != 0.0:
+        if self.nextClick <= 0:
+          let lsb: uint = (self.lfsr and 1).uint
+          self.lfsr = self.lfsr shr 1
           if lsb == 1:
-            lfsr = lfsr xor 0xb400
-          outvalue = if lsb == 1: 1.0 else: -1.0
-          nextClick = ((1.0 / freq) * sampleRate).int
-        nextClick -= 1
-      o = outvalue
+            self.lfsr = self.lfsr xor 0xb400
+          self.outvalue = if lsb == 1: 1.0 else: -1.0
+          self.nextClick = ((1.0 / self.freq) * sampleRate).int
+        self.nextClick -= 1
+      o = self.outvalue
     of synNoise2:
-      if freq != 0.0:
-        if nextClick <= 0:
-          let lsb: uint = (lfsr2 and 1)
-          lfsr2 = lfsr2 shr 1
+      if self.freq != 0.0:
+        if self.nextClick <= 0:
+          let lsb: uint = (self.lfsr2 and 1)
+          self.lfsr2 = self.lfsr2 shr 1
           if lsb == 1:
-            lfsr2 = lfsr2 xor 0x0043
-          outvalue = if lsb == 1: 1.0 else: -1.0
-          nextClick = ((1.0 / freq) * sampleRate).int
-        nextClick -= 1
-      o = outvalue
+            self.lfsr2 = self.lfsr2 xor 0x0043
+          self.outvalue = if lsb == 1: 1.0 else: -1.0
+          self.nextClick = ((1.0 / self.freq) * sampleRate).int
+        self.nextClick -= 1
+      o = self.outvalue
     of synWav:
-      if freq != 0.0:
-        o = wavData[(phase mod 1.0 * 32.0).int].float32 / 16.0
+      if self.freq != 0.0:
+        o = self.wavData[(self.phase mod 1.0 * 32.0).int].float32 / 16.0
     else:
       o = 0.0
-    o = o * gain
+    o = o * self.gain
 
     if audioSampleId mod 2 == 0:
       if clock:
-        if length > 0:
-          length -= 1
-          if length == 0:
-            kind = channelNone
+        if self.length > 0:
+          self.length -= 1
+          if self.length == 0:
+            self.kind = channelNone
 
-        envPhase += 1
+        self.envPhase += 1
 
-        if vibamount > 0:
-          freq = basefreq + sin(envPhase.float32 / vibspeed.float32) * basefreq * 0.03 * vibamount.float32
+        if self.vibamount > 0:
+          self.freq = self.basefreq + sin(self.envPhase.float32 / self.vibspeed.float32) * self.basefreq * 0.03 * self.vibamount.float32
 
-        if pchange != 0:
-          targetFreq = targetFreq + targetFreq * pchange.float32 / 128.0
-          basefreq = targetFreq
-          freq = targetFreq
-          if targetFreq > sampleRate / 2.0:
-            targetFreq = sampleRate / 2.0
+        if self.pchange != 0:
+          self.targetFreq = self.targetFreq + self.targetFreq * self.pchange.float32 / 128.0
+          self.basefreq = self.targetFreq
+          self.freq = self.targetFreq
+          if self.targetFreq > sampleRate / 2.0:
+            self.targetFreq = sampleRate / 2.0
 
-        if arp != 0:
-          let a0 = (arp and 0x000f)
-          let a1 = (arp and 0x00f0) shr 4
-          let a2 = (arp and 0x0f00) shr 8
-          let a3 = (arp and 0xf000) shr 12
+        if self.arp != 0:
+          let a0 = (self.arp and 0x000f)
+          let a1 = (self.arp and 0x00f0) shr 4
+          let a2 = (self.arp and 0x0f00) shr 8
+          let a3 = (self.arp and 0xf000) shr 12
           var arpSteps = 0
           if a3 != 0:
             arpSteps = 5
@@ -874,59 +870,59 @@ proc process(self: var Channel): float32 =
             arpSteps = 1
 
           if arpSteps > 0:
-            if (envPhase / arpSpeed.int) mod arpSteps == 1:
-              targetFreq = basefreq + basefreq * 0.06 * a0.float32
-            elif (envPhase / arpSpeed.int) mod arpSteps == 2:
-              targetFreq = basefreq + basefreq * 0.06 * a1.float32
-            elif (envPhase / arpSpeed.int) mod arpSteps == 3:
-              targetFreq = basefreq + basefreq * 0.06 * a2.float32
-            elif (envPhase / arpSpeed.int) mod arpSteps == 4:
-              targetFreq = basefreq + basefreq * 0.06 * a3.float32
+            if (self.envPhase / self.arpSpeed.int) mod arpSteps == 1:
+              self.targetFreq = self.basefreq + self.basefreq * 0.06 * a0.float32
+            elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 2:
+              self.targetFreq = self.basefreq + self.basefreq * 0.06 * a1.float32
+            elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 3:
+              self.targetFreq = self.basefreq + self.basefreq * 0.06 * a2.float32
+            elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 4:
+              self.targetFreq = self.basefreq + self.basefreq * 0.06 * a3.float32
             else:
-              targetFreq = basefreq
+              self.targetFreq = self.basefreq
 
         # determine the env value
-        if env < 0:
+        if self.env < 0:
           # decay
-          envValue = clamp(lerp(init.float32 / 15.0, 0, envPhase / (-env * 4)), 0.0, 1.0)
-          if envValue <= 0:
-            kind = channelNone
-        elif env > 0:
+          self.envValue = clamp(lerp(self.init.float32 / 15.0, 0, self.envPhase / (-self.env * 4)), 0.0, 1.0)
+          if self.envValue <= 0:
+            self.kind = channelNone
+        elif self.env > 0:
           # attack
-          envValue = clamp(lerp(init.float32 / 15.0, 1.0, envPhase / (env * 4)), 0.0, 1.0)
-        elif env == 0:
-          envValue = init.float32 / 15.0
+          self.envValue = clamp(lerp(self.init.float32 / 15.0, 1.0, self.envPhase / (self.env * 4)), 0.0, 1.0)
+        elif self.env == 0:
+          self.envValue = self.init.float32 / 15.0
 
-        gain = clamp(lerp(gain, envValue, 0.9), 0.0, 1.0)
+        self.gain = clamp(lerp(self.gain, self.envValue, 0.9), 0.0, 1.0)
 
     return o * sfxVolume
 
   of channelWave:
     var o: float32 = 0.0
-    o = buffer.data.interpolatedLookup(phase) * gain
+    o = self.buffer.data.interpolatedLookup(self.phase) * self.gain
     if audioSampleId mod 2 == 0:
-      phase += freq * invSampleRate * TAU
-      if phase >= buffer.data.len:
-        phase = phase mod buffer.data.len.float32
-        if loop > 0:
-          loop -= 1
-          if loop == 0:
-            kind = channelNone
+      self.phase += self.freq
+      if self.phase >= self.buffer.data.len:
+        self.phase = self.phase mod self.buffer.data.len.float32
+        if self.loop > 0:
+          self.loop -= 1
+          if self.loop == 0:
+            self.kind = channelNone
     return o * sfxVolume
   of channelMusic:
     var o: float32
-    o = self.musicBuffers[self.musicBuffer].interpolatedLookup(phase) * gain
-    phase += freq / TAU
-    if phase >= musicBufferSize:
+    o = self.musicBuffers[self.musicBuffer].interpolatedLookup(self.phase) * self.gain
+    self.phase += self.freq / TAU
+    if self.phase >= musicBufferSize:
       # end of buffer, switch buffers and fill
-      phase = 0.0
-      let read = musicFile.read_float(self.musicBuffers[self.musicBuffer][0].addr, musicBufferSize)
+      self.phase = 0.0
+      let read = self.musicFile.read_float(self.musicBuffers[self.musicBuffer][0].addr, musicBufferSize)
       self.musicBuffer = (self.musicBuffer + 1) mod 2
       if read != musicBufferSize:
-        if loop != 0:
-          if loop > 0:
-            loop -= 1
-          discard musicFile.seek(0, SEEK_SET)
+        if self.loop != 0:
+          if self.loop > 0:
+            self.loop -= 1
+          discard self.musicFile.seek(0, SEEK_SET)
         else:
           self.reset()
 
@@ -1131,7 +1127,7 @@ proc saveMap*(filename: string) =
   for y in 0..<currentTilemap.h:
     for x in 0..<currentTilemap.w:
       let t = currentTilemap.data[y * currentTilemap.w + x]
-      #fs.write(t)
+      fs.write(t.char)
   fs.close()
   debug "saved map: ", filename
 
@@ -1228,9 +1224,6 @@ proc sfx*(index: range[-1..63], channel: AudioChannelId = -1, loop: int = 1, gai
   audioChannels[channel].loop = loop
 
 proc music*(index: int, channel: AudioChannelId = -1, loop: int = 1) =
-  if musicFileLibrary[index] == nil:
-    raise newException(IOError, "no music loaded in index: " & $index)
-
   var info: Tinfo
   var snd = sndfile.open(musicFileLibrary[index], READ, info.addr)
   if snd == nil:

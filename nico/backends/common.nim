@@ -11,8 +11,8 @@ const musicBufferSize* = 4096
 
 # TYPES
 
-import nico.controller
-import nico.ringbuffer
+import nico/controller
+import nico/ringbuffer
 
 type KeyListener* = proc(sym: int, mods: uint16, scancode: int, down: bool): bool
 

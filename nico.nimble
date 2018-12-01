@@ -7,14 +7,14 @@ license       = "MIT"
 
 # Dependencies
 
-requires "nim >= 0.16.0"
-requires "sdl2_nim#head"
+requires "nim >= 0.19.0"
+requires "sdl2_nim >= 2.0.9.0"
 requires "gifenc >= 0.1.0"
 requires "webaudio >= 0.1.0"
 requires "html5_canvas >= 0.1.0"
 requires "ajax >= 0.1.0"
 requires "sndfile >= 0.1.0"
-requires "nimPNG"
+requires "nimPNG#head"
 
 skipDirs = @["examples","tests","android"]
 

@@ -178,7 +178,7 @@ proc createRecordBuffer(forceClear: bool = false) =
     return
 
   when defined(gif):
-    if recordFrame.data == nil or screenWidth != recordFrame.w and screenHeight != recordFrame.h:
+    if recordFrame.data.len == 0 or screenWidth != recordFrame.w and screenHeight != recordFrame.h:
       recordFrame = newSurface(screenWidth,screenHeight)
 
     if recordSeconds <= 0:
@@ -282,7 +282,7 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   when defined(android):
     window = createWindow(title.cstring, WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, (w * scale).cint, (h * scale).cint, WINDOW_FULLSCREEN)
   else:
-    window = createWindow(title.cstring, WINDOWPOS_CENTERED, WINDOWPOS_CENTERED, (w * scale).cint, (h * scale).cint, 
+    window = createWindow(title.cstring, WINDOWPOS_CENTERED, WINDOWPOS_CENTERED, (w * scale).cint, (h * scale).cint,
       (WINDOW_RESIZABLE or (if fullscreen: WINDOW_FULLSCREEN_DESKTOP else: 0)).uint32)
 
   if window == nil:
@@ -381,7 +381,7 @@ proc flip*() =
   when defined(gif):
     if recordSeconds > 0:
       if fullSpeedGif or frame mod 2 == 0:
-        if recordFrame.data != nil:
+        if recordFrame.data.len != 0:
           copyMem(recordFrame.data[0].addr, swCanvas.data[0].addr, swCanvas.w * swCanvas.h)
           recordFrames.add([recordFrame])
 
@@ -428,7 +428,7 @@ proc saveRecording*() =
 
     for j in 0..recordFrames.size:
       var frame = recordFrames[j]
-      if frame.data == nil:
+      if frame.data.len == 0:
         debug "empty frame. breaking."
         break
 
@@ -1131,7 +1131,7 @@ proc saveMap*(filename: string) =
   for y in 0..<currentTilemap.h:
     for x in 0..<currentTilemap.w:
       let t = currentTilemap.data[y * currentTilemap.w + x]
-      fs.write(t)
+      fs.write(t.char)
   fs.close()
   debug "saved map: ", filename
 
@@ -1228,7 +1228,7 @@ proc sfx*(index: range[-1..63], channel: AudioChannelId = -1, loop: int = 1, gai
   audioChannels[channel].loop = loop
 
 proc music*(index: int, channel: AudioChannelId = -1, loop: int = 1) =
-  if musicFileLibrary[index] == nil:
+  if musicFileLibrary[index].len == 0:
     raise newException(IOError, "no music loaded in index: " & $index)
 
   var info: Tinfo

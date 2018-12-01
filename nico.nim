@@ -1368,14 +1368,14 @@ proc shutdown*() =
 proc resize(w,h: int) =
   backend.resize(w,h)
   clip()
-  if swCanvas.data != nil:
+  if swCanvas.data.len != 0:
     cls()
     present()
 
 proc resize() =
   backend.resize()
   clip()
-  if swCanvas.data != nil:
+  if swCanvas.data.len != 0:
     cls()
     present()
 
@@ -1492,7 +1492,7 @@ proc remainder*(a: int, n: int): int =
     a mod n
 
 proc mapDraw*(tx,ty, tw,th, dx,dy: Pint) =
-  if currentTilemap.data == nil:
+  if currentTilemap.data.len == 0:
     debug "mapDraw with no tilemap"
     return
   # draw map tiles to the screen

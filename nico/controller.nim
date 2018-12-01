@@ -1,5 +1,5 @@
 when not defined(js):
-  import sdl2.sdl
+  import sdl2/sdl
 
 type NicoControllerKind* = enum
   Keyboard

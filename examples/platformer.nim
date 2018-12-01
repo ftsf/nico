@@ -1,6 +1,6 @@
 import nico
 import math
-import nico.vec
+import nico/vec
 import sequtils
 
 var frame = 0
@@ -167,8 +167,6 @@ proc newGem(x,y: int,xv,yv: float, size: int): Gem =
 var cx,cy = 0.0
 var objects: seq[Obj]
 
-
-{.this:self.}
 
 proc overlaps(a,b: Obj): bool =
   let ax0 = a.pos.x + a.hitbox.x

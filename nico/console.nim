@@ -3,8 +3,8 @@ import strutils
 import tables
 
 when not defined(js):
-  include sdl2.private.scancode
-  include sdl2.private.keycode
+  include sdl2/private/scancode
+  include sdl2/private/keycode
 
 var consoleBG: ColorId = 9
 var consoleFG: ColorId = 1

@@ -1,5 +1,7 @@
 import common
 import json
+import tables
+import hashes
 
 import strutils
 import times
@@ -9,6 +11,15 @@ import nico/ringbuffer
 import math
 
 import sdl2/sdl
+from nico/keycodes as nkey import nil
+
+proc toNicoKeycode(x: sdl.Keycode): nkey.Keycode =
+  return (nkey.Keycode)(x)
+
+proc hash(x: nkey.Keycode): Hash =
+  var h: Hash = 0
+  h = h !& hash(x.int)
+  result = !$h
 
 import nimPNG
 
@@ -175,8 +186,7 @@ proc createRecordBuffer(forceClear: bool = false) =
     return
 
   when defined(gif):
-    if recordFrame.data == nil or screenWidth != recordFrame.w and screenHeight != recordFrame.h:
-      recordFrame = newSurface(screenWidth,screenHeight)
+    recordFrame = newSurface(screenWidth,screenHeight)
 
     if recordSeconds <= 0:
       recordFrames = newRingBuffer[common.Surface](1)
@@ -261,7 +271,8 @@ proc resize*(w,h: int) =
     debug "error creating RGB surface"
     quit(1)
   discard render.setRenderTarget(hwCanvas)
-  createRecordBuffer()
+
+  createRecordBuffer(true)
 
   if resizeFunc != nil:
     resizeFunc(screenWidth,screenHeight)
@@ -296,7 +307,7 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   debug "initial resize: ", displayW, displayH
   resize(displayW,displayH)
 
-  discard showCursor(1)
+  discard showCursor(0)
 
   window.raiseWindow()
 
@@ -347,6 +358,15 @@ proc loadSurfaceRGBA*(filename: string, callback: proc(surface: common.Surface))
   surface.data = cast[seq[uint8]](png.data)
   callback(surface)
 
+proc refreshSpritesheets*() =
+  for i in 0..<spriteSheets.len:
+    if spriteSheets[i].filename != "":
+      loadSurfaceIndexed(joinPath(assetPath,spriteSheets[i].filename)) do(surface: common.Surface):
+        spriteSheets[i].data = surface.data
+        spriteSheets[i].w = surface.w
+        spriteSheets[i].h = surface.h
+        spriteSheets[i].channels = surface.channels
+
 proc readJsonFile*(filename: string): JsonNode =
   return parseJson(readFile(filename))
 
@@ -377,9 +397,8 @@ proc flip*() =
   when defined(gif):
     if recordSeconds > 0:
       if fullSpeedGif or frame mod 2 == 0:
-        if recordFrame.data != nil:
-          copyMem(recordFrame.data[0].addr, swCanvas.data[0].addr, swCanvas.w * swCanvas.h)
-          recordFrames.add([recordFrame])
+        copyMem(recordFrame.data[0].addr, swCanvas.data[0].addr, swCanvas.w * swCanvas.h)
+        recordFrames.add([recordFrame])
 
   #delay(0)
 
@@ -422,25 +441,30 @@ proc saveRecording*() =
     debug "created gif: ", filename
     var pixels: ptr[array[int32.high, uint8]]
 
-    for j in 0..recordFrames.size:
-      var frame = recordFrames[j]
-      if frame.data == nil:
-        debug "empty frame. breaking."
-        break
+    block exportFrames:
+      for j in 0..<recordFrames.size:
+        var frame = recordFrames[j]
 
-      pixels = cast[ptr array[int32.high, uint8]](gif.frame)
+        pixels = cast[ptr array[int32.high, uint8]](gif.frame)
 
-      if gifScale != 1:
-        for y in 0..<screenHeight*gifScale:
-          for x in 0..<screenWidth*gifScale:
-            let sx = x div gifScale
-            let sy = y div gifScale
-            pixels[y*screenWidth*gifScale+x] = frame.data[sy*frame.w+sx]
-      else:
-        copyMem(gif.frame, frame.data[0].addr, screenWidth*screenHeight)
-      gif.add_frame(if fullSpeedGif: 2 else: 3)
+        if gifScale != 1:
+          for y in 0..<screenHeight*gifScale:
+            for x in 0..<screenWidth*gifScale:
+              let sx = x div gifScale
+              let sy = y div gifScale
+              if y*screenWidth*gifScale+x > pixels[].len - 1:
+                debug "went past end of output data on frame ", j, " of ", recordFrames.size
+                break exportFrames
+              if sy*frame.w+sx > frame.data.len - 1:
+                debug "went past end of input data on frame ", j, " of ", recordFrames.size
+                break exportFrames
+              pixels[y*screenWidth*gifScale+x] = frame.data[sy*frame.w+sx]
+        else:
+          copyMem(gif.frame, frame.data[0].addr, screenWidth*screenHeight)
+        gif.add_frame(if fullSpeedGif: 2 else: 3)
 
     gif.close()
+    echo "completed saving gif ", filename
 
 proc getKeyNamesForBtn*(btn: NicoButton): seq[string] =
   result = newSeq[string]()
@@ -459,6 +483,10 @@ proc getKeyMap*(): string =
       result.add(";")
 
 proc setKeyMap*(mapstr: string) =
+  if mapstr.len == 0:
+    echo "setKeyMap: empty string"
+    return
+  echo "setKeyMap: ", mapstr
   for btnkeysstr in mapstr.split(";"):
     var b = btnkeysstr.split(":",1)
     var btnstr = b[0]
@@ -614,12 +642,20 @@ proc appHandleEvent(evt: Event) =
       focused = false
     elif evt.window.event == WindowEvent_FocusGained:
       focused = true
+      refreshSpritesheets()
 
   elif evt.kind == KeyDown or evt.kind == KeyUp:
     let sym = evt.key.keysym.sym
     let mods = evt.key.keysym.mods
     let scancode = evt.key.keysym.scancode
     let down = evt.kind == Keydown
+
+    if down:
+      keysDown[toNicoKeycode(sym)] = 1.uint32
+      aKeyWasPressed = true
+    else:
+      keysDown[toNicoKeycode(sym)] = 0.uint32
+      aKeyWasReleased = true
 
     for listener in keyListeners:
       if listener(sym.int, mods.uint16, scancode.int, down.bool):
@@ -719,7 +755,14 @@ proc step*() {.cdecl.} =
       else:
         mouseButtons[i] = 0
 
+    for k,v in keysDown:
+      if v != 0:
+        keysDown[k] += 1
+
     mouseWheelState = 0
+
+    lastMouseX = mouseX
+    lastMouseY = mouseY
 
     acc -= timeStep
 
@@ -746,11 +789,11 @@ proc getUnmappedJoysticks*(): seq[Joystick] =
 
 proc loadConfig*() =
   try:
-    config = loadConfig(writePath & "/config.ini")
+    config = loadConfig(joinPath(writePath, "config.ini"))
     debug "loaded config from " & writePath & "/config.ini"
   except IOError:
     try:
-      config = loadConfig(basePath & "/config.ini")
+      config = loadConfig(joinPath(basePath, "config.ini"))
       debug "loaded config from " & basePath & "/config.ini"
     except IOError:
       debug "no config file loaded"
@@ -760,7 +803,7 @@ proc saveConfig*() =
   debug "saving config to " & writePath & "/config.ini"
   assert(config != nil)
   try:
-    config.writeConfig(writePath & "/config.ini")
+    config.writeConfig(joinPath(writePath, "config.ini"))
     debug "saved config to " & writePath & "/config.ini"
   except IOError:
     debug "error saving config"
@@ -769,8 +812,10 @@ proc updateConfigValue*(section, key, value: string) =
   debug "updateConfigValue", key, value
   config.setSectionKey(section, key, value)
 
-proc getConfigValue*(section, key: string): string =
+proc getConfigValue*(section, key: string, default: string = ""): string =
   result = config.getSectionValue(section, key)
+  if result == "":
+    result = default
   debug "getConfigValue", section, key, result
 
 proc queueAudio*(samples: var seq[float32]) =
@@ -912,7 +957,7 @@ proc process(self: var Channel): float32 =
   of channelMusic:
     var o: float32
     o = self.musicBuffers[self.musicBuffer].interpolatedLookup(self.phase) * self.gain
-    self.phase += self.freq / TAU
+    self.phase += self.freq
     if self.phase >= musicBufferSize:
       # end of buffer, switch buffers and fill
       self.phase = 0.0
@@ -1122,16 +1167,16 @@ proc saveMap*(filename: string) =
   if fs == nil:
     debug "error opening map for writing: ", filename
     return
-  fs.write(currentTilemap.w.int32)
-  fs.write(currentTilemap.h.int32)
-  for y in 0..<currentTilemap.h:
-    for x in 0..<currentTilemap.w:
-      let t = currentTilemap.data[y * currentTilemap.w + x]
+  fs.write(currentTilemap[].w.int32)
+  fs.write(currentTilemap[].h.int32)
+  for y in 0..<currentTilemap[].h:
+    for x in 0..<currentTilemap[].w:
+      let t = currentTilemap[].data[y * currentTilemap[].w + x]
       fs.write(t.char)
   fs.close()
   debug "saved map: ", filename
 
-proc loadMapBinary*(filename: string) =
+proc loadMapBinary*(index: int, filename: string) =
   var tm: Tilemap
   var fs = newFileStream(joinPath(assetPath,"maps",filename), fmRead)
   if fs == nil:
@@ -1140,13 +1185,15 @@ proc loadMapBinary*(filename: string) =
   discard fs.readData(tm.w.addr, sizeof(int32)).int32
   discard fs.readData(tm.h.addr, sizeof(int32)).int32
   tm.data = newSeq[uint8](tm.w*tm.h)
+  tm.tw = 8
+  tm.th = 8
+  tm.hex = false
   var r = fs.readData(tm.data[0].addr, tm.w * tm.h * sizeof(uint8))
   debug "read ", r, " tiles: ", tm.w, " x", tm.h
   fs.close()
-  currentTilemap = tm
+  tilemaps[index] = tm
 
 proc newSfxBuffer(filename: string): SfxBuffer =
-  debug "loading sfx: ", filename
   result = new(SfxBuffer)
   var info: Tinfo
   when defined(js):
@@ -1154,7 +1201,6 @@ proc newSfxBuffer(filename: string): SfxBuffer =
   else:
     zeroMem(info.addr, sizeof(Tinfo))
   var fp = sndfile.open(filename.cstring, READ, info.addr)
-  debug "file opened"
   if fp == nil:
     raise newException(IOError, "unable to open file for reading: " & filename)
 
@@ -1169,8 +1215,6 @@ proc newSfxBuffer(filename: string): SfxBuffer =
     loaded += count.int
 
   discard fp.close()
-
-  debug "loaded sfx: " & filename & " frames: " & $result.length
 
 proc loadSfx*(index: range[-1..63], filename: string) =
   if index < 0 or index > 63:

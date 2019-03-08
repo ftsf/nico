@@ -1,4 +1,9 @@
 import nico/backends/common
+import tables
+import unicode
+
+import nico/keycodes
+export keycodes
 
 when defined(js):
   import nico/backends/js as backend
@@ -65,6 +70,8 @@ export math.PI
 export math.TAU
 
 import random
+export shuffle
+
 import times
 import strscans
 import strutils
@@ -97,6 +104,7 @@ proc getFont*(): FontId
 proc setFont*(fontId: FontId)
 
 # Printing text
+proc glyph*(c: Rune, x,y: Pint, scale: Pint = 1): Pint {.discardable, inline.}
 proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint {.discardable, inline.}
 
 proc cursor*(x,y: Pint) # set cursor position
@@ -106,6 +114,7 @@ proc printc*(text: string, x,y: Pint, scale: Pint = 1) # centered
 proc printr*(text: string, x,y: Pint, scale: Pint = 1) # right aligned
 
 proc textWidth*(text: string, scale: Pint = 1): Pint
+proc glyphWidth*(c: Rune, scale: Pint = 1): Pint
 proc glyphWidth*(c: char, scale: Pint = 1): Pint
 
 # Colors
@@ -154,6 +163,7 @@ proc btnp*(b: NicoButton, player: range[0..maxPlayers]): bool
 proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool
 proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): Pfloat
 proc mouse*(): (int,int)
+proc mouserel*(): (int,int)
 proc mousebtn*(b: range[0..2]): bool
 proc mousebtnp*(b: range[0..2]): bool
 proc mousebtnpr*(b: range[0..2], r: Pint): bool
@@ -229,8 +239,9 @@ when not defined(js):
 proc mset*(tx,ty: Pint, t: uint8)
 proc mget*(tx,ty: Pint): uint8
 proc mapDraw*(tx,ty, tw,th, dx,dy: Pint)
-proc loadMap*(filename: string)
-proc newMap*(w,h: Pint, tw,th: Pint)
+proc setMap*(index: int)
+proc loadMap*(index: int, filename: string)
+proc newMap*(index: int, w,h: Pint, tw,th: Pint)
 proc pixelToMap*(px,py: Pint): (Pint,Pint) # returns the tile coordinates at pixel position
 proc mapToPixel*(tx,ty: Pint): (Pint,Pint) # returns the pixel position of the tile coordinates
 
@@ -260,6 +271,9 @@ proc fps*(fps: int) =
 
 proc fps*(): int =
   return frameRate
+
+proc time*(): float =
+  return epochTime()
 
 proc speed*(speed: int) =
   frameMult = speed
@@ -367,6 +381,12 @@ proc ditherPatternCheckerboard*() =
 proc ditherPatternCheckerboard2*() =
   gDitherPattern = 0b0101_1010_0101_1010
 
+proc ditherPatternBigCheckerboard*() =
+  gDitherPattern = 0b1100_1100_0011_0011
+
+proc ditherPatternBigCheckerboard2*() =
+  gDitherPattern = 0b0011_0011_1100_1100
+
 proc ditherPass(x,y: int): bool =
   let x4 = (x mod 4).uint16
   let y4 = (y mod 4).uint16
@@ -406,6 +426,18 @@ proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool =
     return false
   return controllers[player].btnpr(b, repeat)
 
+proc key*(k: Keycode): bool =
+  keysDown.hasKey(k)
+
+proc keyp*(k: Keycode): bool =
+  keysDown.hasKey(k) and keysDown[k] == 1
+
+proc keypr*(k: Keycode, repeat: int = 48): bool =
+  keysDown.hasKey(k) and keysDown[k].int mod repeat == 1
+
+proc anykeyp*(): bool =
+  aKeyWasPressed
+
 proc jaxis*(axis: NicoAxis): Pfloat =
   for c in controllers:
     let v = c.axis(axis)
@@ -439,6 +471,7 @@ proc palt*() =
   for i in 0..<paletteSize.int:
     paletteTransparent[i] = if i == 0: true else: false
 
+{.push checks:off, optimization: speed.}
 proc cls*() =
   for y in clipMinY..clipMaxY:
     for x in clipMinX..clipMaxX:
@@ -458,24 +491,25 @@ proc setColor*(colId: ColorId) =
 proc getColor*(): ColorId =
   return currentColor
 
-{.push checks: off, optimization: speed.}
 proc pset*(x,y: Pint) =
   let x = x-cameraX
   let y = y-cameraY
   if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
     return
-  swCanvas.data[y*swCanvas.w+x] = paletteMapDraw[currentColor]
+  if ditherPass(x,y):
+    swCanvas.data[y*swCanvas.w+x] = paletteMapDraw[currentColor]
 
 proc pset*(x,y: Pint, c: int) =
   let x = x-cameraX
   let y = y-cameraY
   if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
     return
-  swCanvas.data[y*swCanvas.w+x] = paletteMapDraw[c]
+  if ditherPass(x,y):
+    swCanvas.data[y*swCanvas.w+x] = paletteMapDraw[c]
 
 proc psetRaw*(x,y: int, c: ColorId) =
-  swCanvas.data[y*swCanvas.w+x] = c
-{.pop.}
+  if ditherPass(x,y):
+    swCanvas.data[y*swCanvas.w+x] = c
 
 proc sset*(x,y: Pint, c: int = -1) =
   let c = if c == -1: currentColor else: c
@@ -503,82 +537,113 @@ proc rectfill*(x1,y1,x2,y2: Pint) =
     for x in minx..maxx:
       pset(x,y)
 
-proc innerLine(x0,y0,x1,y1: Pint) =
-  var x = x0
-  var y = y0
-  var dx: int = abs(x1-x0)
-  var sx: int = if x0 < x1: 1 else: -1
-  var dy: int = abs(y1-y0)
-  var sy: int = if y0 < y1: 1 else: -1
-  var err: float32 = (if dx>dy: dx else: -dy).float32/2.0
-  var e2: float32 = 0
+proc rrectfill*(x1,y1,x2,y2: Pint) =
+  let minx = min(x1,x2)
+  let maxx = max(x1,x2)
+  let miny = min(y1,y2)
+  let maxy = max(y1,y2)
+  for y in miny..maxy:
+    for x in minx..maxx:
+      if not (y == miny or y == maxy or x == minx or x == maxx):
+        pset(x,y)
 
-  while true:
+proc innerLineLow(x0,y0,x1,y1: int) =
+  var dx = x1 - x0
+  var dy = y1 - y0
+  var yi = 1
+  if dy < 0:
+    yi = -1
+    dy = -dy
+  var D = 2*dy - dx
+  var y = y0
+
+  for x in x0..x1:
     pset(x,y)
-    if x == x1 and y == y1:
-      break
-    e2 = err
-    if e2 > -dx:
-      err -= dy.float32
-      x += sx
-    if e2 < dy:
-      err += dx.float32
-      y += sy
+    if D > 0:
+      y = y + yi
+      D = D - 2*dx
+    D = D + 2*dy
 
-proc lineDashed*(x0,y0,x1,y1: Pint, pattern: uint8 = 0b10101010) =
+proc innerLineHigh(x0,y0,x1,y1: int) =
+  var dx = x1 - x0
+  var dy = y1 - y0
+  var xi = 1
+  if dx < 0:
+    xi = -1
+    dx = -dx
+  var D = 2*dx - dy
   var x = x0
+
+  for y in y0..y1:
+    pset(x,y)
+    if D > 0:
+      x = x + xi
+      D = D - 2*dy
+    D = D + 2*dx
+
+proc innerLineDashedLow(x0,y0,x1,y1: int, pattern: uint8) =
+  var dx = x1 - x0
+  var dy = y1 - y0
+  var yi = 1
+  if dy < 0:
+    yi = -1
+    dy = -dy
+  var D = 2*dy - dx
   var y = y0
-  var dx: int = abs(x1-x0)
-  var sx: int = if x0 < x1: 1 else: -1
-  var dy: int = abs(y1-y0)
-  var sy: int = if y0 < y1: 1 else: -1
-  var err: float32 = (if dx>dy: dx else: -dy).float32/2.0
-  var e2: float32 = 0
 
   var i = 0
-
-  while true:
-    if pattern shl ((i mod 8) + 1).uint8 != 0:
+  for x in x0..x1:
+    if (pattern and (1 shl i).uint8) != 0:
       pset(x,y)
-    i += 1
-    if x == x1 and y == y1:
-      break
-    e2 = err
-    if e2 > -dx:
-      err -= dy.float32
-      x += sx
-    if e2 < dy:
-      err += dx.float32
-      y += sy
+    i = (i + 1) mod 8
+    if D > 0:
+      y = y + yi
+      D = D - 2*dx
+    D = D + 2*dy
 
-
-iterator lineIterator*(x0,y0,x1,y1: Pint): (Pint,Pint) =
+proc innerLineDashedHigh(x0,y0,x1,y1: int, pattern: uint8) =
+  var dx = x1 - x0
+  var dy = y1 - y0
+  var xi = 1
+  if dx < 0:
+    xi = -1
+    dx = -dx
+  var D = 2*dx - dy
   var x = x0
-  var y = y0
-  var dx: Pint = abs(x1-x0)
-  var sx: Pint = if x0 < x1: 1 else: -1
-  var dy: Pint = abs(y1-y0)
-  var sy: Pint = if y0 < y1: 1 else: -1
-  var err: float32 = (if dx>dy: dx else: -dy).float32/2.0
-  var e2: float32 = 0
 
-  while true:
-    yield (x,y)
-    if x == x1 and y == y1:
-      break
-    e2 = err
-    if e2 > -dx:
-      err -= dy.float32
-      x += sx
-    if e2 < dy:
-      err += dx.float32
-      y += sy
+  var i = 0
+  for y in y0..y1:
+    if (pattern and (1 shl i).uint8) != 0:
+      pset(x,y)
+    i = (i + 1) mod 8
+    if D > 0:
+      x = x + xi
+      D = D - 2*dy
+    D = D + 2*dx
 
-proc line*(x0,y0,x1,y1: Pint) =
-  if x0 == x1 and y0 == y1:
-    pset(x0,y0)
+proc innerLine(x0,y0,x1,y1: int) =
+  if abs(y1 - y0) < abs(x1 - x0):
+    if x0 > x1:
+      innerLineLow(x1,y1,x0,y0)
+    else:
+      innerLineLow(x0,y0,x1,y1)
   else:
-    innerLine(x0,y0,x1,y1)
+    if y0 > y1:
+      innerLineHigh(x1,y1,x0,y0)
+    else:
+      innerLineHigh(x0,y0,x1,y1)
+
+proc innerLineDashed(x0,y0,x1,y1: int, pattern: uint8) =
+  if abs(y1 - y0) < abs(x1 - x0):
+    if x0 > x1:
+      innerLineDashedLow(x1,y1,x0,y0,pattern)
+    else:
+      innerLineDashedLow(x0,y0,x1,y1,pattern)
+  else:
+    if y0 > y1:
+      innerLineDashedHigh(x1,y1,x0,y0,pattern)
+    else:
+      innerLineDashedHigh(x0,y0,x1,y1,pattern)
 
 proc hlineFast(x0,y,x1: Pint, c: ColorId) =
   for x in x0..x1:
@@ -600,6 +665,48 @@ proc vline*(x,y0,y1: Pint) =
   for y in y0..y1:
     pset(x,y)
 
+proc hlineDashed*(x0,y,x1: Pint, pattern: uint8 = 0b10101010) =
+  var x0 = x0
+  var x1 = x1
+  var i = 0
+  if x1<x0:
+    swap(x1,x0)
+  for x in x0..x1:
+    if (pattern and (1 shl i).uint8) != 0:
+      pset(x,y)
+    i = (i + 1) mod 8
+
+proc vlineDashed*(x,y0,y1: Pint, pattern: uint8 = 0b10101010) =
+  var y0 = y0
+  var y1 = y1
+  var i = 0
+  if y1<y0:
+    swap(y1,y0)
+  for y in y0..y1:
+    if (pattern and (1 shl i).uint8) != 0:
+      pset(x,y)
+    i = (i + 1) mod 8
+
+proc line*(x0,y0,x1,y1: Pint) =
+  if x0 == x1 and y0 == y1:
+    pset(x0,y0)
+  elif x0 == x1:
+    vline(x0, y0, y1)
+  elif y0 == y1:
+    hline(x0, y0, x1)
+  else:
+    innerLine(x0,y0,x1,y1)
+
+proc lineDashed*(x0,y0,x1,y1: Pint, pattern: uint8 = 0b10101010) =
+  if x0 == x1 and y0 == y1:
+    pset(x0,y0)
+  elif x0 == x1:
+    vlineDashed(x0, y0, y1, pattern)
+  elif y0 == y1:
+    hlineDashed(x0, y0, x1, pattern)
+  else:
+    innerLineDashed(x0,y0,x1,y1, pattern)
+
 proc rect*(x1,y1,x2,y2: Pint) =
   let w = x2-x1
   let h = y2-y1
@@ -614,13 +721,26 @@ proc rect*(x1,y1,x2,y2: Pint) =
   # left
   vline(x, y+1, y+h-1)
 
+proc rrect*(x1,y1,x2,y2: Pint) =
+  let w = x2-x1
+  let h = y2-y1
+  let x = x1
+  let y = y1
+  # top
+  hline(x+1, y, x+w-1)
+  # bottom
+  hline(x+1, y+h, x+w-1)
+  # right
+  vline(x+w, y+1, y+h-1)
+  # left
+  vline(x, y+1, y+h-1)
+
 proc flr*(x: Pfloat): Pfloat =
   return x.floor()
 
 proc lerp[T](a, b: T, t: Pfloat): T =
   return a + (b - a) * t
 
-{.push checks: off, optimization: speed.}
 type Bresenham = object
   x,y: int
   x1,y1: int
@@ -732,7 +852,6 @@ proc trifill*(x1,y1,x2,y2,x3,y3: Pint) =
         hlineFast(clamp(ax,clipMinX,clipMaxX),sy,clamp(bx,clipMinX,clipMaxX), c)
       if sy == y3 or sy >= clipMaxY:
         break
-{.pop.}
 
 proc plot4pointsfill(cx,cy,x,y: Pint) =
   hline(cx - x, cy + y, cx + x)
@@ -1133,16 +1252,17 @@ proc blitStretch(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = fals
     else:
       sy += 1.0 * (sh/dh)
       dy += 1.0
+{.pop.}
 
 proc mset*(tx,ty: Pint, t: uint8) =
   if tx < 0 or tx > currentTilemap.w - 1 or ty < 0 or ty > currentTilemap.h - 1:
     return
-  currentTilemap.data[ty * currentTilemap.w + tx] = t
+  currentTilemap[].data[ty * currentTilemap.w + tx] = t
 
 proc mget*(tx,ty: Pint): uint8 =
   if tx < 0 or tx > currentTilemap.w - 1 or ty < 0 or ty > currentTilemap.h - 1:
     return 0.uint8
-  return currentTilemap.data[ty * currentTilemap.w + tx]
+  return currentTilemap[].data[ty * currentTilemap.w + tx]
 
 proc contains[T](flags: T, bit: T): bool =
   return (flags.int and 1 shl bit.int) != 0
@@ -1187,6 +1307,7 @@ proc musicVol*(): int =
   return (musicVolume * 255.0).int
 
 proc createFontFromSurface(surface: Surface, chars: string): Font =
+  echo "createFontFromSurface: chars: ", chars.runeLen
   var font = new(Font)
 
   font.w = surface.w
@@ -1197,8 +1318,7 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
   let solidColor = 1.uint8
   let transparentColor = 0.uint8
 
-  echo surface.channels
-
+  echo "font surface channels: ", surface.channels
   if surface.channels == 4:
     let borderColorRGBA = (surface.data[0],surface.data[1],surface.data[2],surface.data[3])
     let transparentColorRGBA = (surface.data[4],surface.data[5],surface.data[6],surface.data[7])
@@ -1221,15 +1341,12 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
     for i in 0..<font.w*font.h:
       font.data[i] = surface.data[i]
 
-  var highestChar: char
-  for c in chars:
-    if c > highestChar:
-      highestChar = c
-  font.rects = newSeq[Rect](highestChar.int+1)
+  font.rects = initTable[Rune,Rect](128)
 
   var newChar = false
   var currentRect: Rect = (0,0,0,0)
   var i = 0
+  var charPos = 0
   # scan across the top of the font image
   for x in 0..<font.w:
     let color = font.data[x]
@@ -1238,17 +1355,22 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
       if currentRect.w != 0:
         # go down until we find border or h
         currentRect.h = font.h-1
-        for y in 0..font.h:
+        for y in 0..<font.h:
           let color = font.data[y*font.w+x]
           if color == borderColor:
-            currentRect.h = y-2
-        let charId = chars[i].int
+            currentRect.h = y
+        var charId: Rune
+        chars.fastRuneAt(charPos, charId, true)
+        if font.rects.hasKey(charId):
+          raise newException(Exception, "font already has character: " & $charId & " index: " & $i)
         font.rects[charId] = currentRect
         i += 1
       newChar = true
       currentRect.x = x + 1
 
-  echo "loaded ", font.rects.len, " characters"
+  echo "loaded ", font.rects.len, " characters of ", chars.runeLen
+  if font.rects.len != chars.runeLen:
+    raise newException(Exception, "didn't load all characters from font")
 
   return font
 
@@ -1258,13 +1380,13 @@ proc loadFont*(index: int, filename: string, chars: string) =
   backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
     fonts[index] = createFontFromSurface(surface, chars)
 
-proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint =
+proc glyph*(c: Rune, x,y: Pint, scale: Pint = 1): Pint =
   let font = fonts[currentFontId]
   if font == nil:
     return 0
-  if c.int > font.rects.high:
+  if not font.rects.hasKey(c):
     return
-  let src: Rect = font.rects[c.int]
+  let src: Rect = font.rects[c]
   let dst: Rect = (x.int, y.int, src.w * scale, src.h * scale)
   try:
     fontBlit(font, src, dst, currentColor)
@@ -1273,39 +1395,51 @@ proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint =
     raise
   return src.w * scale + scale
 
+proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint =
+  return glyph(c.Rune, x, y, scale)
+
+proc fontHeight*(): Pint =
+  let font = fonts[currentFontId]
+  if font == nil:
+    return 0
+  return font.rects[Rune(' ')].h
+
 proc print*(text: string, x,y: Pint, scale: Pint = 1) =
   var x = x - cameraX
   var y = y - cameraY
   let ix = x
-  for c in text:
-    if c == '\n':
-      y += fonts[currentFontId].h
-      x = ix
-      continue
-    x += glyph(c, x, y, scale)
+  for line in text.splitLines:
+    for c in line.runes:
+      x += glyph(c, x, y, scale)
+    x = ix
+    y += fonts[currentFontId].h
 
 proc print*(text: string) =
   var x = cursorX - cameraX
   let y = cursorY - cameraY
-  for c in text:
+  for c in text.runes:
     x += glyph(c, x, y, 1)
   cursorY += 6
 
-proc glyphWidth*(c: char, scale: Pint = 1): Pint =
+proc glyphWidth*(c: Rune, scale: Pint = 1): Pint =
   let font = fonts[currentFontId]
   if font == nil:
     return 0
-  if c.int > font.rects.high:
+  if not font.rects.hasKey(c):
     return 0
-  result = font.rects[c.int].w*scale + scale
+  result = font.rects[c].w*scale + scale
+
+proc glyphWidth*(c: char, scale: Pint = 1): Pint =
+  glyphWidth(c.Rune)
 
 proc textWidth*(text: string, scale: Pint = 1): Pint =
   let font = fonts[currentFontId]
   if font == nil:
     return 0
-  for c in text:
-    if c.int < font.rects.len:
-      result += font.rects[c.int].w*scale + scale
+  for c in text.runes:
+    if not font.rects.hasKey(c):
+      raise newException(Exception, "character not in font: '" & $c & "'")
+    result += font.rects[c].w*scale + scale
 
 proc printr*(text: string, x,y: Pint, scale: Pint = 1) =
   let width = textWidth(text, scale)
@@ -1341,6 +1475,9 @@ proc hasMouse*(): bool =
 
 proc mouse*(): (int,int) =
   return (mouseX,mouseY)
+
+proc mouserel*(): (int,int) =
+  return (mouseX-lastMouseX,mouseY-lastMouseY)
 
 proc mousebtn*(b: range[0..2]): bool =
   return mouseButtons[b] > 0
@@ -1381,6 +1518,9 @@ proc setResizeFunc*(newResizeFunc: ResizeFunc) =
   resizeFunc = newResizeFunc
 
 proc setTargetSize*(w,h: int) =
+  echo "setTargetSize: ", w, ", ", h
+  if targetScreenWidth == w and targetScreenHeight == h:
+    return
   targetScreenWidth = w
   targetScreenHeight = h
   resize()
@@ -1407,6 +1547,10 @@ proc loadSpriteSheet*(index: range[0..15], filename: string, w,h: Pint = 8) =
     spriteSheets[index] = surface
     spriteSheets[index].tw = w
     spriteSheets[index].th = h
+    spriteSheets[index].filename = filename
+
+proc spriteSize*(): (int,int) =
+  return (spriteSheet[].tw, spriteSheet[].th)
 
 proc getSprRect(spr: Pint, w,h: Pint = 1): Rect {.inline.} =
   let tilesX = spriteSheet.w div spriteSheet.tw
@@ -1522,10 +1666,10 @@ proc mapHeight*(): Pint =
 proc `%%/`[T](x,m: T): T =
   return (x mod m + m) mod m
 
-proc loadMapFromJson(filename: string) =
+proc loadMapFromJson(index: int, filename: string) =
   var tm: Tilemap
   # read tiled output format
-  var data = readJsonFile(joinPath(assetPath,"maps",filename))
+  var data = readJsonFile(joinPath(assetPath,filename))
   tm.w = data["width"].getBiggestInt.int
   tm.h = data["height"].getBiggestInt.int
   tm.hex = data["orientation"].getStr == "hexagonal"
@@ -1540,7 +1684,7 @@ proc loadMapFromJson(filename: string) =
     let t = data["layers"][0]["data"][i].getBiggestInt().uint8 - 1
     tm.data[i] = t.uint8
 
-  currentTilemap = tm
+  tilemaps[index] = tm
 
 proc pixelToMap*(px,py: Pint): (Pint,Pint) = # returns the tile coordinates at pixel position
   if currentTilemap.hex:
@@ -1560,35 +1704,46 @@ proc mapToPixel*(tx,ty: Pint): (Pint,Pint) = # returns the pixel coordinates at 
   else:
     return ((ty * currentTilemap.tw).Pint, (ty * currentTilemap.th).Pint)
 
-proc loadMap*(filename: string) =
+proc loadMap*(index: int, filename: string) =
   if filename.endsWith(".json"):
-    loadMapFromJson(filename)
+    loadMapFromJson(index, filename)
   else:
     when not defined(js):
-      loadMapBinary(filename)
+      loadMapBinary(index, filename)
 
-proc newMap*(w,h: Pint, tw,th: Pint) =
-  currentTilemap.w = w
-  currentTilemap.h = h
-  currentTilemap.tw = tw
-  currentTilemap.th = th
-  currentTilemap.data = newSeq[uint8](w*h)
+proc newMap*(index: int, w,h: Pint, tw,th: Pint) =
+  var tm = tilemaps[index].addr
+  tm[].w = w
+  tm[].h = h
+  tm[].tw = tw
+  tm[].th = th
+  tm[].data = newSeq[uint8](w*h)
+
+proc setMap*(index: int) =
+  currentTilemap = tilemaps[index].addr
 
 proc rnd*[T: Natural](x: T): T =
-  assert x >= 1
-  return rand(x.int).T
+  return rand(x.int-1).T
 
 proc rnd*(x: Pfloat): Pfloat =
   return rand(x)
 
-proc rndbi*(x: Pfloat): Pfloat =
+proc rndbi*[T](x: T): T =
   return rand(x) - rand(x)
+
+proc rnd*[T](min: T, max: T): T =
+  return rand(max - min) + min
 
 proc rnd*[T](a: openarray[T]): T =
   return rand(a)
 
 proc srand*(seed: int) =
-  randomize(seed+1)
+  if seed == 0:
+    raise newException(Exception, "Do not srand(0)")
+  randomize(seed)
+
+proc srand*() =
+  randomize()
 
 proc getControllers*(): seq[NicoController] =
   return controllers
@@ -1634,6 +1789,9 @@ proc setWindowTitle*(title: string) =
 proc cursor*(x,y: Pint) =
   cursorX = x
   cursorY = y
+
+proc wrap*(x,m: int): int =
+  return (x mod m + m) mod m
 
 proc noteToNoteStr(value: int): string =
   let oct = value div 12 - 1

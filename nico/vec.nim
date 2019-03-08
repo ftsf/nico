@@ -1,5 +1,6 @@
 import math
 import nico
+import hashes
 
 type
   Vec2[T] = tuple
@@ -114,6 +115,9 @@ proc length*[T](a: Vec2[T]): T =
 proc length2*[T](a: Vec2[T]): T =
   return a.x*a.x + a.y*a.y
 
+proc magnitude*(a: Vec2i): float32 =
+  return sqrt((a.x*a.x).float32 + (a.y*a.y).float32)
+
 proc magnitude*[T](a: Vec2[T]): T =
   return sqrt(a.x*a.x + a.y*a.y)
 
@@ -179,6 +183,10 @@ proc clamp*(a: Vec2f, maxLength: float32): Vec2f =
   else:
     result = a
 
+proc clampPerAxis*[T](a: Vec2[T], maxLength: T): Vec2[T] =
+  result.x = clamp(a.x, -maxLength, maxLength)
+  result.y = clamp(a.y, -maxLength, maxLength)
+
 proc insideRect*(p: Vec2f, a: Vec2f, b: Vec2f): bool =
   # returns if a is inside min and max (inclusive)
   let minx = min(a.x, b.x)
@@ -206,3 +214,9 @@ proc zero*(): Vec2f =
 
 proc approxZero*(v: Vec2f): bool =
   return abs(v.x) < 0.0001 and abs(v.y) < 0.0001
+
+proc hash*(x: Vec2i): Hash =
+  var h: Hash = 0
+  h = h !& x.x
+  h = h !& x.y
+  result = !$h

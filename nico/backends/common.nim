@@ -1,3 +1,8 @@
+import math
+import tables
+import unicode
+import nico/keycodes
+
 # Constants
 
 const maxPaletteSize* = 256
@@ -14,6 +19,10 @@ const musicBufferSize* = 4096
 import nico/controller
 import nico/ringbuffer
 
+var keysDown* = initTable[Keycode, uint32]() # keysDown[keycode] = numbersOfFramesHeldDown, 1 == first frame held down
+var aKeyWasPressed*: bool
+var aKeyWasReleased*: bool
+
 type KeyListener* = proc(sym: int, mods: uint16, scancode: int, down: bool): bool
 
 when defined(js):
@@ -28,11 +37,11 @@ type
     x,y,w,h: int
 
   Font* = ref object
-    rects*: seq[Rect]
+    rects*: Table[Rune,Rect]
     data*: seq[uint8]
     w*,h*: int
 
-  FontId* = range[0..3]
+  FontId* = range[0..15]
   MusicId* = range[-1..63]
   SfxId* = range[-1..63]
 
@@ -64,6 +73,7 @@ type
     channels*: int
     w*,h*: int
     tw*,th*: int
+    filename*: string
 
 type
   Tilemap* = object
@@ -86,10 +96,10 @@ converter toFloat32*(x: float): float32 {.inline.} =
   return x.float32
 
 converter toPint*(x: float): Pint {.inline.} =
-  return x.Pint
+  return floor(x).Pint
 
 converter toPint*(x: float32): Pint {.inline.} =
-  return x.Pint
+  return floor(x).Pint
 
 converter toPint*(x: int): Pint {.inline.} =
   return x.Pint
@@ -147,8 +157,6 @@ var focused* = true
 var recordSeconds* = 30
 var fullSpeedGif* = true
 
-var currentTilemap*: Tilemap
-
 var spriteFlags*: array[128, uint8]
 var mixerChannels* = 0
 
@@ -166,6 +174,9 @@ var writePath*: string # should be a writable dir
 var screenScale* = 4.0
 var spriteSheets*: array[16,Surface]
 var spriteSheet*: ptr Surface
+
+var tilemaps*: array[16,Tilemap]
+var currentTilemap*: ptr Tilemap
 
 var initFunc*: proc()
 var updateFunc*: proc(dt: Pfloat)
@@ -209,6 +220,7 @@ var clippingRect*: Rect
 
 var mouseDetected*: bool
 var mouseX*,mouseY*: int
+var lastMouseX*,lastMouseY*: int
 var mouseButtonsDown*: array[3,bool]
 var mouseButtons*: array[3,int]
 var mouseWheelState*: int
@@ -227,6 +239,7 @@ proc newSurface*(w,h: int): Surface =
   result.w = w
   result.h = h
 
+{.push checks:off.}
 proc convertToABGR*(src: Surface, rgbaPixels: pointer, dpitch, w,h: cint) =
   assert(src.w == w and src.h == h)
   var rgbaPixels = cast[ptr array[int.high, uint8]](rgbaPixels)
@@ -287,3 +300,4 @@ proc convertToIndexed*(surface: Surface): Surface =
 
 proc RGB*(r,g,b: Pint): NicoColor =
   return (r.uint8,g.uint8,b.uint8)
+{.pop.}

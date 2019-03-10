@@ -195,12 +195,9 @@ proc createRecordBuffer(forceClear: bool = false) =
 
 
 proc resize*(w,h: int) =
-  debug "resize", w, h
   if w == 0 or h == 0:
     return
   # calculate screenScale based on size
-
-  debug "target", targetScreenWidth, targetScreenHeight
 
   if render != nil:
     destroyRenderer(render)
@@ -223,12 +220,10 @@ proc resize*(w,h: int) =
   if fixedScreenSize:
     displayW = (targetScreenWidth.float32 * screenScale).int
     displayH = (targetScreenHeight.float32 * screenScale).int
-    debug "display", displayW, displayH
 
     # add padding
     screenPaddingX = ((w.int - displayW.int)) div 2
     screenPaddingY = ((h.int - displayH.int)) div 2
-    debug "add padding", w, h, screenPaddingX, screenPaddingY
 
     screenWidth = targetScreenWidth
     screenHeight = targetScreenHeight
@@ -242,21 +237,15 @@ proc resize*(w,h: int) =
     if integerScreenScale:
       screenWidth = displayW div screenScale
       screenHeight = displayH div screenScale
-      debug "screen", screenWidth, screenHeight
     else:
       screenWidth = (displayW.float32 / screenScale).int
       screenHeight = (displayH.float32 / screenScale).int
-      debug "screen", screenWidth, screenHeight
 
-  debug "resize event: scale: ", screenScale, ": ", displayW, " x ", displayH, " ( ", screenWidth, " x ", screenHeight, " )"
   # resize the buffers
   debug screenPaddingX, screenPaddingY
 
   srcRect = sdl.Rect(x:0,y:0,w:screenWidth,h:screenHeight)
   dstRect = sdl.Rect(x:screenPaddingX,y:screenPaddingY,w:displayW, h:displayH)
-
-  debug "srcRect: ", srcRect
-  debug "dstRect: ", dstRect
 
   clipMinX = 0
   clipMinY = 0
@@ -268,10 +257,9 @@ proc resize*(w,h: int) =
 
   swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
   if swCanvas32 == nil:
-    debug "error creating RGB surface"
-    quit(1)
-  discard render.setRenderTarget(hwCanvas)
+    raise newException(Exception, "error creating RGB surface")
 
+  discard render.setRenderTarget(hwCanvas)
   createRecordBuffer(true)
 
   if resizeFunc != nil:
@@ -280,13 +268,11 @@ proc resize*(w,h: int) =
 proc resize*() =
   if window == nil:
     return
-  debug "resize() called"
   var windowW, windowH: cint
   window.getWindowSize(windowW.addr, windowH.addr)
   resize(windowW,windowH)
 
 proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = false) =
-  debug "Creating window"
   when defined(android):
     window = createWindow(title.cstring, WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, (w * scale).cint, (h * scale).cint, WINDOW_FULLSCREEN)
   else:
@@ -294,7 +280,7 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
       (WINDOW_RESIZABLE or (if fullscreen: WINDOW_FULLSCREEN_DESKTOP else: 0)).uint32)
 
   if window == nil:
-    debug "error creating window"
+    raise newException(Exception, "Could not create window")
 
   targetScreenWidth = w
   targetScreenHeight = h
@@ -304,7 +290,7 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
 
   var displayW, displayH: cint
   window.getWindowSize(displayW.addr, displayH.addr)
-  debug "initial resize: ", displayW, displayH
+
   resize(displayW,displayH)
 
   discard showCursor(0)
@@ -336,7 +322,6 @@ proc loadSurfaceIndexed*(filename: string, callback: proc(surface: common.Surfac
   var buffer = readFile(filename)
   let ss = newStringStream(buffer)
   let png = decodePNG(ss, LCT_PALETTE, 8)
-  debug("read image", filename, png.width, png.height)
 
   var surface: common.Surface
   surface.w = png.width
@@ -349,7 +334,6 @@ proc loadSurfaceRGBA*(filename: string, callback: proc(surface: common.Surface))
   var buffer = readFile(filename)
   let ss = newStringStream(buffer)
   let png = decodePNG(ss, LCT_RGBA, 8)
-  debug("read image", filename, png.width, png.height)
 
   var surface: common.Surface
   surface.w = png.width
@@ -408,13 +392,12 @@ proc saveScreenshot*() =
   var abgr = newSeq[uint8](screenWidth*screenHeight*4)
   # convert RGBA to BGRA
   convertToRGBA(frame, abgr[0].addr, screenWidth*4, screenWidth, screenHeight)
-  let filename = writePath & "/screenshots/screenshot-$1T$2.png".format(getDateStr(), getClockStr())
+  let filename = joinPath(writePath, joinPath("screenshots", "screenshot-$1T$2.png".format(getDateStr(), getClockStr())))
   debug "saved screenshot to: ", filename
 
 proc saveRecording*() =
   # TODO: do this in another thread?
   when defined(gif):
-    debug "saveRecording"
     try:
       createDir(writePath & "/video")
     except OSError:
@@ -425,7 +408,7 @@ proc saveRecording*() =
     for i in 0..<maxPaletteSize:
       palette[i] = [colors[i].r, colors[i].g, colors[i].b]
 
-    let filename = writePath & "/video/video-$1T$2.gif".format(getDateStr(), getClockStr().replace(":","-"))
+    let filename = joinPath(writePath, joinPath("video", "video-$1T$2.gif".format(getDateStr(), getClockStr().replace(":","-"))))
 
     var gif = newGIF(
       filename.cstring,
@@ -1267,7 +1250,7 @@ proc sfx*(index: range[-1..63], channel: AudioChannelId = -1, loop: int = 1, gai
   audioChannels[channel].gain = gain
   audioChannels[channel].loop = loop
 
-proc music*(index: int, channel: AudioChannelId = -1, loop: int = 1) =
+proc music*(index: int, channel: AudioChannelId = -1, loop: int = -1) =
   var info: Tinfo
   var snd = sndfile.open(musicFileLibrary[index], READ, info.addr)
   if snd == nil:

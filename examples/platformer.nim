@@ -167,9 +167,6 @@ proc newGem(x,y: int,xv,yv: float, size: int): Gem =
 var cx,cy = 0.0
 var objects: seq[Obj]
 
-
-{.this:self.}
-
 proc overlaps(a,b: Obj): bool =
   let ax0 = a.pos.x + a.hitbox.x
   let ax1 = a.pos.x + a.hitbox.x + a.hitbox.w - 1
@@ -232,10 +229,10 @@ proc getNearObj(self: Obj, t: typedesc, x,y: int): Obj =
   return nil
 
 method isSolid(self: Obj, ox,oy: int): bool {.base.} =
-  return isTouchingType(pos.x+hitbox.x+ox, pos.y+hitbox.y+oy, hitbox.w, hitbox.h, isSolid)
+  return isTouchingType(self.pos.x+self.hitbox.x+ox, self.pos.y+self.hitbox.y+oy, self.hitbox.w, self.hitbox.h, isSolid)
 
 proc isTouchingType(self: Obj, ox,oy: int, check: proc(t: uint8): bool): bool =
-  return isTouchingType(pos.x+hitbox.x+ox, pos.y+hitbox.y+oy, hitbox.w, hitbox.h, check)
+  return isTouchingType(self.pos.x+self.hitbox.x+ox, self.pos.y+self.hitbox.y+oy, self.hitbox.w, self.hitbox.h, check)
 
 method collide(a,b: Obj) {.base.} =
   discard
@@ -248,8 +245,9 @@ method collide(a,b: Gem) =
 
 method collide(a: Player, b: Gem) =
   b.shouldKill = true
-  a.score += 10
-  synth(2, synSqr, 100.0, 0, 7, 12)
+  a.combo += 1
+  a.score += 10 * a.combo
+  synth(2, synSqr, 100.0 + (a.combo.float32 * 10.0), 0, 7, 12)
   pitchbend(2, 20)
 
 method collide(a: Player, b: Floater) =
@@ -258,6 +256,8 @@ method collide(a: Player, b: Floater) =
     b.shouldKill = true
     a.wasOnGround = true
     a.ammo = 8
+    synth(3, synP12, 100.0, 4, -2, 20)
+    pitchbend(3, -10)
     for i in 0..rnd(4):
       objects.add(newGem(b.pos.x, b.pos.y, rnd(2.0)-1.0, rnd(1.0)-0.5, if rnd(10) == 0: 1 else: 0))
   else:
@@ -301,159 +301,159 @@ method collide(a: Bullet, b: Crate) =
 proc moveX(self: Obj, amount, start: float) =
   var step = amount.int.sgn
   for i in start..<abs(amount.int):
-    if ethereal or not isSolid(step,0) and not check(Block,step,0):
-      pos.x += step
+    if self.ethereal or not self.isSolid(step,0) and not self.check(Block,step,0):
+      self.pos.x += step
       for obj in objects:
         if obj.riding == self:
           obj.moveX(step.float, 0.0)
     else:
-      vel.x = -vel.x * bounciness
-      rem.x = 0
+      self.vel.x = -self.vel.x * self.bounciness
+      self.rem.x = 0
       break
 
 proc moveY(self: Obj, amount: float) =
   var step = amount.int.sgn
   for i in 0..<abs(amount.int):
-    if ethereal or not isSolid(0,step) and not self.check(Block,0,step):
-      pos.y += step
+    if self.ethereal or not self.isSolid(0,step) and not self.check(Block,0,step):
+      self.pos.y += step
     else:
-      vel.y = -vel.y * bounciness
-      rem.y = 0
+      self.vel.y = -self.vel.y * self.bounciness
+      self.rem.y = 0
       break
 
 proc move(self: Obj, ox,oy: float) =
-  rem.x += ox
-  var amount = flr(rem.x + 0.5)
-  rem.x -= amount
-  moveX(amount,0)
+  self.rem.x += ox
+  var amount = flr(self.rem.x + 0.5)
+  self.rem.x -= amount
+  self.moveX(amount,0)
 
-  rem.y += oy
-  amount = flr(rem.y + 0.5)
-  rem.y -= amount
-  moveY(amount)
+  self.rem.y += oy
+  amount = flr(self.rem.y + 0.5)
+  self.rem.y -= amount
+  self.moveY(amount)
 
 method update(self: Obj) {.base.} =
   discard
 
 method update(self: Crate) =
-  if hitflash > 0:
-    hitflash -= 1
+  if self.hitflash > 0:
+    self.hitflash -= 1
 
 method update(self: Platform) =
-  if direction == 0:
-    direction = if rnd(2) == 0: -1 else: 1
-  if vel.x == 0 or (vel.x < 0 and pos.x < 16) or (vel.x > 0 and pos.x > 127-16-7):
-    direction = -direction
-  if direction == -1:
-    vel.x = -0.1
-  elif direction == 1:
-    vel.x = 0.1
+  if self.direction == 0:
+    self.direction = if rnd(2) == 0: -1 else: 1
+  if self.vel.x == 0 or (self.vel.x < 0 and self.pos.x < 16) or (self.vel.x > 0 and self.pos.x > 127-16-7):
+    self.direction = -self.direction
+  if self.direction == -1:
+    self.vel.x = -0.1
+  elif self.direction == 1:
+    self.vel.x = 0.1
 
 method collide(self: Player, other: Platform) =
   other.collide(self)
 
 method update(self: Floater) =
-  if target == nil:
-    let d = length(pos.vec2f - player.pos.vec2f)
+  if self.target == nil:
+    let d = length(self.pos.vec2f - player.pos.vec2f)
     if d < 32.0:
-      target = player
+      self.target = player
 
-  if target == nil or rnd(5) == 0:
-    vel.x += rnd(0.1) - 0.05
-    vel.y += rnd(0.1) - 0.05
+  if self.target == nil or rnd(5) == 0:
+    self.vel.x += rnd(0.1) - 0.05
+    self.vel.y += rnd(0.1) - 0.05
   else:
-    vel += (player.pos.vec2f - pos.vec2f) * 0.005 + rnd(0.01)
-    let d = length(pos.vec2f - player.pos.vec2f)
+    self.vel += (player.pos.vec2f - self.pos.vec2f) * 0.005 + rnd(0.01)
+    let d = length(self.pos.vec2f - player.pos.vec2f)
     if d > 64.0:
-      target = nil
+      self.target = nil
 
-  if abs(vel.x) > 0.25:
-    vel.x *= 0.25
-  if abs(vel.y) > 0.5:
-    vel.y *= 0.5
-  if hitflash > 0:
-    hitflash -= 1
+  if abs(self.vel.x) > 0.25:
+    self.vel.x *= 0.25
+  if abs(self.vel.y) > 0.5:
+    self.vel.y *= 0.5
+  if self.hitflash > 0:
+    self.hitflash -= 1
 
 
 
 
 method update(self: Bullet) =
-  if destructive:
-    let x = pos.x div 8
-    let y = (pos.y - 1) div 8
+  if self.destructive:
+    let x = self.pos.x div 8
+    let y = (self.pos.y - 1) div 8
     let t = mget(x,y)
     if t >= 16.uint8:
       mset(x,y,0)
-  ttl -= 1
-  if vel.y == 0 and ttl > 4:
-    ttl = 4
-  if ttl < 0:
-    shouldKill = true
-  if not destructive:
-    vel.y *= 0.95
+  self.ttl -= 1
+  if self.vel.y == 0 and self.ttl > 4:
+    self.ttl = 4
+  if self.ttl < 0:
+    self.shouldKill = true
+  if not self.destructive:
+    self.vel.y *= 0.95
 
 method update(self: Fart) =
-  ttl -= 1
-  if ttl < 0 or vel.y == 0:
-    shouldKill = true
+  self.ttl -= 1
+  if self.ttl < 0 or self.vel.y == 0:
+    self.shouldKill = true
 
 method update(self: Gem) =
-  ttl -= 1
-  if ttl < 0:
-    shouldKill = true
-  vel.y = appr(vel.y, 0.5, 0.105)
-  vel.x = appr(vel.x, 0.0, 0.001)
+  self.ttl -= 1
+  if self.ttl < 0:
+    self.shouldKill = true
+  self.vel.y = appr(self.vel.y, 0.5, 0.105)
+  self.vel.x = appr(self.vel.x, 0.0, 0.001)
 
-  let d = pos.vec2f - player.pos.vec2f
+  let d = self.pos.vec2f - player.pos.vec2f
   if length(d) < 16.0:
-    vel.x -= d.x * 0.01 + 0.1 * vel.x
-    vel.y -= d.y * 0.01 + 0.1 * vel.x
+    self.vel.x -= d.x * 0.01 + 0.1 * self.vel.x
+    self.vel.y -= d.y * 0.01 + 0.1 * self.vel.x
 
 proc transform(self: Player) =
-  mode = Plane
-  hitbox.x = 2
-  hitbox.w = 12
-  hitbox.y = 6
-  hitbox.h = 8
+  self.mode = Plane
+  self.hitbox.x = 2
+  self.hitbox.w = 12
+  self.hitbox.y = 6
+  self.hitbox.h = 8
 
 method update(self: Player) =
-  case mode:
+  case self.mode:
   of Human:
     let input = if btn(pcRight): 1 elif btn(pcLeft): -1 else: 0
     if input < 0:
-      dir = 0
+      self.dir = 0
     elif input > 0:
-      dir = 1
-    let onGround = isSolid(0,1) or check(Block,0,1)
+      self.dir = 1
+    let onGround = self.isSolid(0,1) or self.check(Block,0,1)
 
     # check if we're on spikes
-    if isTouchingType(0,0,isSpikes):
-      if hitflash == 0:
-        hp -= 1
-        hitflash = 30
-        vel.y = -2.0
+    if self.isTouchingType(0,0,isSpikes):
+      if self.hitflash == 0:
+        self.hp -= 1
+        self.hitflash = 30
+        self.vel.y = -2.0
 
-    var o = getNearObj(Platform,0,1)
+    var o = self.getNearObj(Platform,0,1)
     if o == nil:
-      o = getNearObj(Platform,1,0)
+      o = self.getNearObj(Platform,1,0)
     if o == nil:
-      o = getNearObj(Platform,-1,0)
+      o = self.getNearObj(Platform,-1,0)
     if o != nil:
-      riding = o
+      self.riding = o
     else:
-      riding = nil
+      self.riding = nil
 
     let jump = btn(pcA) and not self.jump
     self.jump = btn(pcA)
     if jump:
       synth(0, synSqr, 400.0, 1, -7)
       pitchbend(0, 1)
-      jbuffer = 8
-    elif jbuffer > 0:
-      jbuffer -= 1
+      self.jbuffer = 8
+    elif self.jbuffer > 0:
+      self.jbuffer -= 1
 
-    if hitflash > 0:
-      hitflash -= 1
+    if self.hitflash > 0:
+      self.hitflash -= 1
 
     var maxrun = 1.0
     var accel = 0.6
@@ -463,161 +463,162 @@ method update(self: Player) =
       accel = 0.4
 
     if onGround:
-      grace = 12
+      self.grace = 12
 
-    if grace > 0:
-      grace -= 1
+    if self.grace > 0:
+      self.grace -= 1
 
-    if abs(vel.x) > maxrun:
-      vel.x = appr(vel.x, input.float * maxrun, deccel)
+    if abs(self.vel.x) > maxrun:
+      self.vel.x = appr(self.vel.x, input.float * maxrun, deccel)
     else:
-      vel.x = appr(vel.x, input.float * maxrun, accel)
+      self.vel.x = appr(self.vel.x, input.float * maxrun, accel)
 
     var maxfall = if btn(pcDown): 2.0 else: 1.5
     var gravity = if btn(pcDown): 0.21 else: 0.105
 
-    if abs(vel.y) <= 0.15:
+    if abs(self.vel.y) <= 0.15:
       gravity *= 0.5
 
     # wall slide
-    if input != 0 and (isSolid(input,0) or check(Block,input,0)):
+    if input != 0 and (self.isSolid(input,0) or self.check(Block,input,0)):
       maxfall = 0.4
-      wasOnWall = true
+      self.wasOnWall = true
     else:
-      wasOnWall = false
+      self.wasOnWall = false
 
     if not onGround:
-      vel.y = appr(vel.y, maxfall, gravity)
+      self.vel.y = appr(self.vel.y, maxfall, gravity)
 
-    if jbuffer > 0:
-      if grace > 0:
+    if self.jbuffer > 0:
+      if self.grace > 0:
         # normal jump
-        jbuffer = 0
-        vel.y -= 2.0
+        self.jbuffer = 0
+        self.vel.y -= 2.0
       else:
         # wall jump
-        if wasOnWall and input != 0:
-          jbuffer = 0
-          vel.y = -2.0
-          vel.x = -input.float * (maxrun + 0.1)
+        if self.wasOnWall and input != 0:
+          self.jbuffer = 0
+          self.vel.y = -2.0
+          self.vel.x = -input.float * (maxrun + 0.1)
 
-    wasOnGround = onGround
-    if wasOnGround:
-      ammo = 8
+    self.wasOnGround = onGround
+    if self.wasOnGround:
+      self.ammo = 8
+      self.combo = 0
 
-    let tx = (pos.x + 4) div 8
-    let ty = (pos.y + 4) div 8
+    let tx = (self.pos.x + 4) div 8
+    let ty = (self.pos.y + 4) div 8
     if mget(tx,ty) == 33:
       mset(tx,ty,0)
 
-    if btnp(pcA) and not wasOnGround and not wasOnWall:
-      firing = true
+    if btnp(pcA) and not self.wasOnGround and not self.wasOnWall:
+      self.firing = true
 
-    if btn(pcA) and firing and bulletTimer <= 0:
+    if btn(pcA) and self.firing and self.bulletTimer <= 0:
 
-      if ammo <= 0:
-        var fart = newFart(pos.x, pos.y + 8.0, 0, 2.0)
+      if self.ammo <= 0:
+        var fart = newFart(self.pos.x, self.pos.y + 8.0, 0, 2.0)
         objects.add(fart)
-        bulletTimer = 16
+        self.bulletTimer = 16
       else:
-        case weapon:
+        case self.weapon:
         of Machinegun:
-          var bullet = newBullet(pos.x, pos.y + 4.0, 0, 4.0)
+          var bullet = newBullet(self.pos.x, self.pos.y + 4.0, 0, 4.0)
           objects.add(bullet)
-          bulletTimer = 8
-          ammo -= 1
-          vel.y -= 0.1
+          self.bulletTimer = 8
+          self.ammo -= 1
+          self.vel.y -= 0.1
           synth(1, synSqr, 1000.0, 3, -3)
           pitchbend(1, -40)
         of Shotgun:
           for i in 0..5:
-            var bullet = newBullet(pos.x, pos.y + 4.0, rnd(2.0)-1.0, 4.0)
+            var bullet = newBullet(self.pos.x, self.pos.y + 4.0, rnd(2.0)-1.0, 4.0)
             objects.add(bullet)
-            vel.y -= 0.2
-          ammo -= 2
-          bulletTimer = 16
+            self.vel.y -= 0.2
+          self.ammo -= 2
+          self.bulletTimer = 16
         else:
           discard
 
     if not btn(pcA):
-      firing = false
+      self.firing = false
 
-    elif bulletTimer > 0:
-      bulletTimer -= 1
+    elif self.bulletTimer > 0:
+      self.bulletTimer -= 1
 
-    if pos.y > 256 * 8 + 16 * 8:
-      transform()
+    if self.pos.y > 256 * 8 + 16 * 8:
+      self.transform()
 
   of Plane:
-    vel.y = appr(vel.y, -2.0, 0.01)
+    self.vel.y = appr(self.vel.y, -2.0, 0.01)
     let input = if btn(pcRight): 1.0 elif btn(pcLeft): -1.0 else: 0.0
-    vel.x += input * 0.1
-    vel.x *= 0.98
+    self.vel.x += input * 0.1
+    self.vel.x *= 0.98
 
-    if btn(pcA) and bulletTimer == 0:
-      var bullet = newBullet(pos.x + 4, pos.y, rnd(1.0)-0.5, -4.0)
+    if btn(pcA) and self.bulletTimer == 0:
+      var bullet = newBullet(self.pos.x + 4, self.pos.y, rnd(1.0)-0.5, -4.0)
       bullet.destructive = true
       bullet.ttl = 60
       objects.add(bullet)
-      bulletTimer = 4
-    elif bulletTimer > 0:
-      bulletTimer -= 1
+      self.bulletTimer = 4
+    elif self.bulletTimer > 0:
+      self.bulletTimer -= 1
 
 method draw(self: Obj) {.base.} =
   setColor(2)
-  rect(pos.x + hitbox.x, pos.y + hitbox.y, pos.x + hitbox.x + hitbox.w - 1, pos.y + hitbox.y + hitbox.h - 1)
+  rect(self.pos.x + self.hitbox.x, self.pos.y + self.hitbox.y, self.pos.x + self.hitbox.x + self.hitbox.w - 1, self.pos.y + self.hitbox.y + self.hitbox.h - 1)
 
 method draw(self: Player) =
-  case mode:
+  case self.mode:
   of Human:
-    let s = if abs(vel.x) > 1.0 and frame mod 10 < 5: 4 elif (dir == 0 and isSolid(-3, 0)) or (dir > 0 and isSolid(3,0)): (if wasOnGround: 1 else: 2) else: 0
-    if hitflash > 0 and frame mod 10 < 5:
+    let s = if abs(self.vel.x) > 1.0 and frame mod 10 < 5: 4 elif (self.dir == 0 and self.isSolid(-3, 0)) or (self.dir > 0 and self.isSolid(3,0)): (if self.wasOnGround: 1 else: 2) else: 0
+    if self.hitflash > 0 and frame mod 10 < 5:
       return
-    spr(s, pos.x, pos.y, 1, 1, dir == 1)
+    spr(s, self.pos.x, self.pos.y, 1, 1, self.dir == 1)
   of Plane:
-    spr(64, pos.x, pos.y, 2, 2)
+    spr(64, self.pos.x, self.pos.y, 2, 2)
 
 method draw(self: Bullet) =
-  if ttl == 0 or isSolid(0,1):
-    spr(36, pos.x, pos.y)
+  if self.ttl == 0 or self.isSolid(0,1):
+    spr(36, self.pos.x, self.pos.y)
   else:
-    spr(35, pos.x, pos.y)
+    spr(35, self.pos.x, self.pos.y)
 
 method draw(self: Fart) =
-  spr(37, pos.x, pos.y)
+  spr(37, self.pos.x, self.pos.y)
 
 method draw(self: Gem) =
-  if ttl < 60 and frame mod 10 < 5:
+  if self.ttl < 60 and frame mod 10 < 5:
     return
   if frame mod 10 < 5:
     pal(1,3)
-  if size == 0:
+  if self.size == 0:
     if frame mod 30 < 15:
-      spr(33, pos.x, pos.y)
+      spr(33, self.pos.x, self.pos.y)
     else:
-      spr(34, pos.x, pos.y)
+      spr(34, self.pos.x, self.pos.y)
   else:
     let t = frame mod 60
     if t < 30:
-      spr(39, pos.x, pos.y)
+      spr(39, self.pos.x, self.pos.y)
     else:
-      spr(40, pos.x, pos.y)
+      spr(40, self.pos.x, self.pos.y)
   pal()
 
 method draw(self: Floater) =
-  if hitflash > 0 and frame mod 10 < 5:
+  if self.hitflash > 0 and frame mod 10 < 5:
     pal(2,3)
-  spr(48 + ((frame.float / 30.0).int mod 4), pos.x, pos.y)
+  spr(48 + ((frame.float / 30.0).int mod 4), self.pos.x, self.pos.y)
   pal(2,2)
 
 method draw(self: Crate) =
-  if hitflash > 0 and frame mod 10 < 5:
+  if self.hitflash > 0 and frame mod 10 < 5:
     pal(1,3)
-  spr(28, pos.x, pos.y)
+  spr(28, self.pos.x, self.pos.y)
   pal(1,1)
 
 method draw(self: Platform) =
-  spr(30, pos.x, pos.y)
+  spr(30, self.pos.x, self.pos.y)
 
 proc gameInit() =
   loadPaletteCGA()
@@ -628,7 +629,8 @@ proc gameInit() =
   objects.add(player)
   gameOver = false
 
-  newMap(16,256,8,8)
+  newMap(0,16,256,8,8)
+  setMap(0)
   for y in 0..<256:
     for x in 0..<16:
       if x <= 1 or x >= 14:
@@ -724,6 +726,9 @@ proc gameDraw() =
 
 nico.init("nico","platformer")
 nico.createWindow("platformer", 128, 128, 4)
+
+loadFont(0, "font.png")
+setFont(0)
 
 fixedSize(true)
 integerScale(true)

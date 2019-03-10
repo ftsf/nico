@@ -1,6 +1,8 @@
 import math
 import tables
 import unicode
+import hashes
+
 import nico/keycodes
 
 # Constants
@@ -15,6 +17,11 @@ const recordingEnabled* = true
 const musicBufferSize* = 4096
 
 # TYPES
+
+proc hash*(a: Keycode): Hash =
+  var h: Hash = 0
+  h = h !& a.cint
+  result = !$h
 
 import nico/controller
 import nico/ringbuffer
@@ -185,6 +192,7 @@ var textFunc*: proc(text: string): bool
 var resizeFunc*: ResizeFunc
 
 var fonts*: array[FontId, Font]
+var currentFont*: Font
 var currentFontId*: FontId
 
 var frame* = 0

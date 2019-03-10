@@ -134,6 +134,9 @@ nico.init("nico", "test")
 # create the window
 nico.createWindow("nico",128,128,4)
 
+loadFont(0, "font.png")
+setFont(0)
+
 fixedSize(true)
 integerScale(true)
 

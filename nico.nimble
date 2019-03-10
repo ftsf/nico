@@ -48,10 +48,15 @@ task audio, "compile audio example":
   exec "nim c -p:. --threads:on -d:debug -o:examples/audio examples/audio.nim"
   exec "nim js -p:. -d:release -o:examples/audio.js examples/audio.nim"
 
+task vertex, "compile vertex example":
+  exec "nim c -p:. -d:debug -o:examples/vertex examples/vertex.nim"
+  exec "nim js -p:. -d:release -o:examples/vertex.js examples/vertex.nim"
+
 task examples, "compile all examples":
   exec "nimble paintout"
   exec "nimble platformer"
   exec "nimble audio"
+  exec "nimble vertex"
 
 task runplatformer, "runs platformer":
   exec "nim c -r -p:. -d:release -o:examples/platformer examples/platformer.nim"

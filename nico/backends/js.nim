@@ -1,5 +1,3 @@
-{.this:self.}
-
 import dom
 import jsconsole
 import ajax
@@ -248,41 +246,41 @@ proc stop(self: var Channel) =
   self.kind = channelNone
 
 proc process(self: var Channel) =
-  case kind:
+  case self.kind:
   of channelNone:
     discard
   of channelSynth:
-    if length > 0:
-      length -= 1
-      if length == 0:
-        stop()
+    if self.length > 0:
+      self.length -= 1
+      if self.length == 0:
+        self.stop()
         return
 
-    if glide == 0:
-      freq = targetFreq
+    if self.glide == 0:
+      self.freq = self.targetFreq
     else:
-      freq = lerp(freq, targetFreq, 1.0 - (glide.float32 / 16.0))
+      self.freq = lerp(self.freq, self.targetFreq, 1.0 - (self.glide.float32 / 16.0))
 
-    envPhase += 1
+    self.envPhase += 1
 
-    if pchange != 0:
-      targetFreq = targetFreq + targetFreq * pchange.float / 128.0
+    if self.pchange != 0:
+      self.targetFreq = self.targetFreq + self.targetFreq * self.pchange.float / 128.0
 
-      if targetFreq > sampleRate / 2.0:
-        targetFreq = sampleRate / 2.0
+      if self.targetFreq > sampleRate / 2.0:
+        self.targetFreq = sampleRate / 2.0
 
-      basefreq = targetFreq
-      freq = targetFreq
+      self.basefreq = self.targetFreq
+      self.freq = self.targetFreq
 
 
-    if vibamount > 0:
-      targetFreq = basefreq + sin(envPhase.float / vibspeed.float) * basefreq * 0.03 * vibamount.float
+    if self.vibamount > 0:
+      self.targetFreq = self.basefreq + sin(self.envPhase.float / self.vibspeed.float) * self.basefreq * 0.03 * self.vibamount.float
 
-    if arp != 0:
-      let a0 = (arp and 0x000f)
-      let a1 = (arp and 0x00f0) shr 4
-      let a2 = (arp and 0x0f00) shr 8
-      let a3 = (arp and 0xf000) shr 12
+    if self.arp != 0:
+      let a0 = (self.arp and 0x000f)
+      let a1 = (self.arp and 0x00f0) shr 4
+      let a2 = (self.arp and 0x0f00) shr 8
+      let a3 = (self.arp and 0xf000) shr 12
       var arpSteps = 0
       if a3 != 0:
         arpSteps = 5
@@ -296,37 +294,37 @@ proc process(self: var Channel) =
         arpSteps = 1
 
       if arpSteps > 0:
-        if (envPhase / arpSpeed.int) mod arpSteps == 1:
-          targetFreq = basefreq + basefreq * 0.06 * a0.float
-        elif (envPhase / arpSpeed.int) mod arpSteps == 2:
-          targetFreq = basefreq + basefreq * 0.06 * a1.float
-        elif (envPhase / arpSpeed.int) mod arpSteps == 3:
-          targetFreq = basefreq + basefreq * 0.06 * a2.float
-        elif (envPhase / arpSpeed.int) mod arpSteps == 4:
-          targetFreq = basefreq + basefreq * 0.06 * a3.float
+        if (self.envPhase / self.arpSpeed.int) mod arpSteps == 1:
+          self.targetFreq = self.basefreq + self.basefreq * 0.06 * a0.float
+        elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 2:
+          self.targetFreq = self.basefreq + self.basefreq * 0.06 * a1.float
+        elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 3:
+          self.targetFreq = self.basefreq + self.basefreq * 0.06 * a2.float
+        elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 4:
+          self.targetFreq = self.basefreq + self.basefreq * 0.06 * a3.float
         else:
-          targetFreq = basefreq
+          self.targetFreq = self.basefreq
 
-    if source != nil:
+    if self.source != nil:
       try:
-        OscillatorNode(source).frequency.value = freq
+        OscillatorNode(self.source).frequency.value = self.freq
       except:
         try:
-          AudioBufferSourceNode(source).playbackRate.value = freq / 1000.0
+          AudioBufferSourceNode(self.source).playbackRate.value = self.freq / 1000.0
         except:
           discard
-    if env < 0:
-      envValue = clamp(lerp(init.float / 15.0, 0, envPhase / (-env * 4)), 0.0, 1.0)
-      if envValue <= 0:
-        stop()
+    if self.env < 0:
+      self.envValue = clamp(lerp(self.init.float / 15.0, 0, self.envPhase / (-self.env * 4)), 0.0, 1.0)
+      if self.envValue <= 0:
+        self.stop()
         return
-    elif env > 0:
+    elif self.env > 0:
       # attack
-      envValue = clamp(lerp(init.float / 15.0, 1.0, envPhase / (env * 4)), 0.0, 1.0)
-    elif env == 0:
-      envValue = init.float / 15.0
+      self.envValue = clamp(lerp(self.init.float / 15.0, 1.0, self.envPhase / (self.env * 4)), 0.0, 1.0)
+    elif self.env == 0:
+      self.envValue = self.init.float / 15.0
 
-    gain.gain.value = clamp(lerp(gain.gain.value, envValue, 0.9), 0.0, 1.0)
+    self.gain.gain.value = clamp(lerp(self.gain.gain.value, self.envValue, 0.9), 0.0, 1.0)
   else:
     discard
 

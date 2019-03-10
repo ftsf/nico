@@ -40,9 +40,6 @@ export wavData
 export pitchbend
 export pitch
 
-export addKeyListener
-export removeKeyListener
-
 export debug
 import nico/controller
 export NicoController
@@ -294,7 +291,6 @@ proc loadPaletteFromGPL*(filename: string) =
       continue
     var r,g,b: int
     if scanf(line, "$s$i $s$i $s$i", r,g,b):
-      #debug "matched ", i-1, ":", r,",",g,",",b
       colors[i-1] = RGB(r,g,b)
       if i > maxPaletteSize:
         break
@@ -305,7 +301,6 @@ proc loadPaletteFromGPL*(filename: string) =
   pal()
   pald()
   palt()
-  debug "loaded palette", filename, paletteSize
 
 proc loadPaletteCGA*() =
   colors[0]  = RGB(0,0,0)
@@ -1255,11 +1250,15 @@ proc blitStretch(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = fals
 {.pop.}
 
 proc mset*(tx,ty: Pint, t: uint8) =
+  if currentTilemap == nil:
+    raise newException(Exception, "No map set")
   if tx < 0 or tx > currentTilemap.w - 1 or ty < 0 or ty > currentTilemap.h - 1:
     return
   currentTilemap[].data[ty * currentTilemap.w + tx] = t
 
 proc mget*(tx,ty: Pint): uint8 =
+  if currentTilemap == nil:
+    raise newException(Exception, "No map set")
   if tx < 0 or tx > currentTilemap.w - 1 or ty < 0 or ty > currentTilemap.h - 1:
     return 0.uint8
   return currentTilemap[].data[ty * currentTilemap.w + tx]
@@ -1307,7 +1306,6 @@ proc musicVol*(): int =
   return (musicVolume * 255.0).int
 
 proc createFontFromSurface(surface: Surface, chars: string): Font =
-  echo "createFontFromSurface: chars: ", chars.runeLen
   var font = new(Font)
 
   font.w = surface.w
@@ -1318,7 +1316,6 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
   let solidColor = 1.uint8
   let transparentColor = 0.uint8
 
-  echo "font surface channels: ", surface.channels
   if surface.channels == 4:
     let borderColorRGBA = (surface.data[0],surface.data[1],surface.data[2],surface.data[3])
     let transparentColorRGBA = (surface.data[4],surface.data[5],surface.data[6],surface.data[7])
@@ -1368,28 +1365,29 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
       newChar = true
       currentRect.x = x + 1
 
-  echo "loaded ", font.rects.len, " characters of ", chars.runeLen
   if font.rects.len != chars.runeLen:
     raise newException(Exception, "didn't load all characters from font")
 
   return font
 
-
+proc loadFont*(index: int, filename: string) =
+  var chars = backend.readFile(joinPath(assetPath, filename & ".dat"))
+  backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
+    fonts[index] = createFontFromSurface(surface, chars)
 
 proc loadFont*(index: int, filename: string, chars: string) =
   backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
     fonts[index] = createFontFromSurface(surface, chars)
 
 proc glyph*(c: Rune, x,y: Pint, scale: Pint = 1): Pint =
-  let font = fonts[currentFontId]
-  if font == nil:
-    return 0
-  if not font.rects.hasKey(c):
+  if currentFont == nil:
+    raise newException(Exception, "No font selected")
+  if not currentFont.rects.hasKey(c):
     return
-  let src: Rect = font.rects[c]
+  let src: Rect = currentFont.rects[c]
   let dst: Rect = (x.int, y.int, src.w * scale, src.h * scale)
   try:
-    fontBlit(font, src, dst, currentColor)
+    fontBlit(currentFont, src, dst, currentColor)
   except IndexError:
     debug "index error glyph: ", c, " @ ", x, ",", y
     raise
@@ -1399,12 +1397,13 @@ proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint =
   return glyph(c.Rune, x, y, scale)
 
 proc fontHeight*(): Pint =
-  let font = fonts[currentFontId]
-  if font == nil:
+  if currentFont == nil:
     return 0
-  return font.rects[Rune(' ')].h
+  return currentFont.rects[Rune(' ')].h
 
 proc print*(text: string, x,y: Pint, scale: Pint = 1) =
+  if currentFont == nil:
+    raise newException(Exception, "No font selected")
   var x = x - cameraX
   var y = y - cameraY
   let ix = x
@@ -1412,9 +1411,11 @@ proc print*(text: string, x,y: Pint, scale: Pint = 1) =
     for c in line.runes:
       x += glyph(c, x, y, scale)
     x = ix
-    y += fonts[currentFontId].h
+    y += currentFont.h
 
 proc print*(text: string) =
+  if currentFont == nil:
+    raise newException(Exception, "No font selected")
   var x = cursorX - cameraX
   let y = cursorY - cameraY
   for c in text.runes:
@@ -1422,24 +1423,22 @@ proc print*(text: string) =
   cursorY += 6
 
 proc glyphWidth*(c: Rune, scale: Pint = 1): Pint =
-  let font = fonts[currentFontId]
-  if font == nil:
+  if currentFont == nil:
+    raise newException(Exception, "No font selected")
+  if not currentFont.rects.hasKey(c):
     return 0
-  if not font.rects.hasKey(c):
-    return 0
-  result = font.rects[c].w*scale + scale
+  result = currentFont.rects[c].w*scale + scale
 
 proc glyphWidth*(c: char, scale: Pint = 1): Pint =
   glyphWidth(c.Rune)
 
 proc textWidth*(text: string, scale: Pint = 1): Pint =
-  let font = fonts[currentFontId]
-  if font == nil:
-    return 0
+  if currentFont == nil:
+    raise newException(Exception, "No font selected")
   for c in text.runes:
-    if not font.rects.hasKey(c):
+    if not currentFont.rects.hasKey(c):
       raise newException(Exception, "character not in font: '" & $c & "'")
-    result += font.rects[c].w*scale + scale
+    result += currentFont.rects[c].w*scale + scale
 
 proc printr*(text: string, x,y: Pint, scale: Pint = 1) =
   let width = textWidth(text, scale)
@@ -1502,12 +1501,6 @@ proc addKeyForBtn*(btn: NicoButton, scancode: int) =
 proc shutdown*() =
   keepRunning = false
 
-proc resize(w,h: int) =
-  backend.resize(w,h)
-  clip()
-  cls()
-  present()
-
 proc resize() =
   backend.resize()
   clip()
@@ -1518,7 +1511,6 @@ proc setResizeFunc*(newResizeFunc: ResizeFunc) =
   resizeFunc = newResizeFunc
 
 proc setTargetSize*(w,h: int) =
-  echo "setTargetSize: ", w, ", ", h
   if targetScreenWidth == w and targetScreenHeight == h:
     return
   targetScreenWidth = w
@@ -1530,14 +1522,12 @@ proc fixedSize*(): bool =
 
 proc fixedSize*(enabled: bool) =
   fixedScreenSize = enabled
-  resize()
 
 proc integerScale*(): bool =
   return integerScreenScale
 
 proc integerScale*(enabled: bool) =
   integerScreenScale = enabled
-  resize()
 
 proc setSpritesheet*(bank: range[0..15] = 0) =
   spriteSheet = spriteSheets[bank].addr
@@ -1634,6 +1624,9 @@ proc remainder*(a: int, n: int): int =
     a mod n
 
 proc mapDraw*(tx,ty, tw,th, dx,dy: Pint) =
+  if currentTilemap == nil:
+    raise newException(Exception, "No map set")
+
   # draw map tiles to the screen
   let yincrement = if currentTilemap.hex: currentTilemap.hexOffset else: currentTilemap.th
   let xincrement = currentTilemap.tw
@@ -1662,9 +1655,6 @@ proc mapWidth*(): Pint =
 
 proc mapHeight*(): Pint =
   return currentTilemap.h
-
-proc `%%/`[T](x,m: T): T =
-  return (x mod m + m) mod m
 
 proc loadMapFromJson(index: int, filename: string) =
   var tm: Tilemap
@@ -1753,6 +1743,7 @@ proc setFont*(fontId: FontId) =
   if fontId > fonts.len:
     return
   currentFontId = fontId
+  currentFont = fonts[currentFontId]
 
 proc getFont*(): FontId =
   return currentFontId
@@ -1790,10 +1781,10 @@ proc cursor*(x,y: Pint) =
   cursorX = x
   cursorY = y
 
-proc wrap*(x,m: int): int =
+proc wrap*[T](x,m: T): T =
   return (x mod m + m) mod m
 
-proc noteToNoteStr(value: int): string =
+proc noteToNoteStr*(value: int): string =
   let oct = value div 12 - 1
   case value mod 12:
   of 0:
@@ -1823,7 +1814,7 @@ proc noteToNoteStr(value: int): string =
   else:
     return "???"
 
-proc noteStrToNote(s: string): int =
+proc noteStrToNote*(s: string): int =
   let noteChar = s[0]
   let note = case noteChar
     of 'C': 0
@@ -1880,7 +1871,6 @@ proc setControllerRemoved*(cremoved: proc(controller: NicoController)) =
   controllerRemovedFunc = cremoved
 
 proc run*(init: (proc()), update: (proc(dt:float32)), draw: (proc())) =
-  debug "run"
   assert(update != nil)
   assert(draw != nil)
 

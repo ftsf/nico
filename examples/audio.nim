@@ -341,7 +341,9 @@ proc gameDraw() =
     discard
 
 nico.init("nico", "audio")
+nico.createWindow("audio", 128, 128, 4)
 integerScale(true)
 fixedSize(true)
-nico.createWindow("audio", 128, 128, 4)
+loadFont(0, "font.png")
+setFont(0)
 nico.run(gameInit, gameUpdate, gameDraw)

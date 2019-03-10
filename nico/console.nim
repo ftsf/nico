@@ -1,10 +1,7 @@
 import nico
 import strutils
 import tables
-
-when not defined(js):
-  include sdl2.private.scancode
-  include sdl2.private.keycode
+import unicode
 
 var consoleBG: ColorId = 9
 var consoleFG: ColorId = 1
@@ -34,7 +31,7 @@ consoleBuffer.add("")
 
 proc consoleKeyListener(sym: int, mods: uint16, scancode:int, down: bool): bool
 
-addKeyListener(consoleKeyListener)
+nico.addKeyListener(consoleKeyListener)
 
 proc consoleKeyListener(sym: int, mods: uint16, scancode:int, down: bool): bool =
   when defined(js):
@@ -111,7 +108,7 @@ proc consoleKeyListener(sym: int, mods: uint16, scancode:int, down: bool): bool 
           if (mods and KMOD_CTRL.uint16) != 0:
             return false
           # enter the character, apply shifting
-          let c = if ((mods and 1.uint16) != 0) or ((mods and 2.uint16) != 0): chr(sym).toUpper else: chr(sym)
+          let c = if ((mods and 1.uint16) != 0) or ((mods and 2.uint16) != 0): chr(sym).toUpperAscii else: chr(sym)
           if c.isAlphaNumeric:
             inputBuffer.add(c)
           return true

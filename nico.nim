@@ -422,7 +422,7 @@ proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool =
   return controllers[player].btnpr(b, repeat)
 
 proc key*(k: Keycode): bool =
-  keysDown.hasKey(k)
+  keysDown.hasKey(k) and keysDown[k] != 0
 
 proc keyp*(k: Keycode): bool =
   keysDown.hasKey(k) and keysDown[k] == 1
@@ -1595,8 +1595,6 @@ proc sprss*(spr: Pint, x,y: Pint, w,h: Pint = 1, dw,dh: Pint, hflip, vflip: bool
 
 proc drawTile(spr: uint8, x,y: Pint) =
   var src = getSprRect(spr.Pint)
-  let x = x-cameraX
-  let y = y-cameraY
   if overlap(clippingRect,(x.int,y.int, spriteSheet.tw, spriteSheet.th)):
     blitFast(spriteSheet[], src.x, src.y, x, y, spriteSheet.tw, spriteSheet.th)
 
@@ -1623,32 +1621,75 @@ proc remainder*(a: int, n: int): int =
   else:
     a mod n
 
-proc mapDraw*(tx,ty, tw,th, dx,dy: Pint) =
-  if currentTilemap == nil:
-    raise newException(Exception, "No map set")
+proc mapDrawHex(tx,ty, tw,th, dx,dy: Pint) =
+  ## tx,ty = top left tilemap coordinates to draw from
+  ## tw,th = how many tiles to draw across and down
+  ## dx,dy = position on virtual screen to draw at
 
   # draw map tiles to the screen
-  let yincrement = if currentTilemap.hex: currentTilemap.hexOffset else: currentTilemap.th
+  let yincrement = currentTilemap.hexOffset
   let xincrement = currentTilemap.tw
 
   let drawWidth = clipMaxX - clipMinX
   let drawHeight = clipMaxY - clipMinY
 
-  let hex = currentTilemap.hex
-  let startCol = max(max((cameraX + clipMinX) div xincrement - (if hex: 1 else: 0) + tx, 0), tx)
-  let startRow = max(max((cameraY + clipMinY) div yincrement - (if hex: 2 else: 0) + ty, 0), ty)
-  let endCol = min(min(startCol + ((drawWidth + xincrement - 1) div xincrement) + (if hex: 2 else: 0), currentTilemap.w - 1), tx + tw - 1)
-  let endRow = min(min(startRow + ((drawHeight + yincrement - 1) div yincrement) + (if hex: 2 else: 0), currentTilemap.h - 1), ty + th - 1)
-  let offsetX = -(cameraX) + startCol * xincrement + dx
-  let offsetY = -(cameraY) + startRow * yincrement + dy
+  let startCol = max(tx, (cameraX + clipMinX) div xincrement)
+  let startRow = max(ty, (cameraY + clipMinY) div yincrement)
+  let endCol = min(startCol + ((drawWidth + xincrement - 1) div xincrement), tx + tw - 1)
+  let endRow = min(startRow + ((drawHeight + yincrement - 1) div yincrement), ty + th - 1)
+  let offsetX = dx
+  let offsetY = dy
 
   for y in startRow..endRow:
+    if y < 0 or y >= currentTilemap.h:
+      continue
     for x in startCol..endCol:
+      if x < 0 or x >= currentTilemap.w:
+        continue
       let t = currentTilemap.data[y * currentTilemap.w + x]
-      let px = (x - startCol) * xincrement - (if currentTilemap.hex and y mod 2 == 0: xincrement div 2 else: 0) + offsetX
-      let py = (y - startRow) * yincrement + offsetY
+      let px = x * xincrement - (if y mod 2 == 0: xincrement div 2 else : 0)
+      let py = y * yincrement
       if t != 0:
-        drawTile(t, px + cameraX, py + cameraY)
+        drawTile(t, px - cameraX, py - cameraY)
+
+
+proc mapDraw*(tx,ty, tw,th, dx,dy: Pint) =
+  ## tx,ty = top left tilemap coordinates to draw from
+  ## tw,th = how many tiles to draw across and down
+  ## dx,dy = position on virtual screen to draw at
+
+  if currentTilemap == nil:
+    raise newException(Exception, "No map set")
+
+  if currentTilemap.hex:
+    mapDrawHex(tx,ty,tw,th,dx,dy)
+    return
+
+  # draw map tiles to the screen
+  let yincrement = currentTilemap.th
+  let xincrement = currentTilemap.tw
+
+  let drawWidth = clipMaxX - clipMinX
+  let drawHeight = clipMaxY - clipMinY
+
+  let startCol = max(tx, (cameraX + clipMinX) div xincrement)
+  let startRow = max(ty, (cameraY + clipMinY) div yincrement)
+  let endCol = min(startCol + ((drawWidth + xincrement - 1) div xincrement), tx + tw - 1)
+  let endRow = min(startRow + ((drawHeight + yincrement - 1) div yincrement), ty + th - 1)
+  let offsetX = dx
+  let offsetY = dy
+
+  for y in startRow..endRow:
+    if y < 0 or y >= currentTilemap.h:
+      continue
+    for x in startCol..endCol:
+      if x < 0 or x >= currentTilemap.w:
+        continue
+      let t = currentTilemap.data[y * currentTilemap.w + x]
+      let px = x * xincrement
+      let py = y * yincrement
+      if t != 0:
+        drawTile(t, px - cameraX, py - cameraY)
 
 proc mapWidth*(): Pint =
   return currentTilemap.w
@@ -1937,6 +1978,14 @@ proc deg2rad*[T](x: T): T =
 
 proc rad2deg*[T](x: T): T =
   x * RAD2DEG
+
+proc invLerp*(a,b,v: Pfloat): Pfloat =
+  (v - a) / (b - a)
+
+proc angleDiff*(a,b: Pfloat): Pfloat =
+  let a = wrap(a,TAU)
+  let b = wrap(b,TAU)
+  return wrap((a - b) + PI, TAU) - PI
 
 converter toPint*(x: uint8): Pint =
   x.Pint

@@ -1,7 +1,6 @@
 import nico
 import nico/vec
 import nico/console
-import nico/util
 import nico/tweaks
 import sets
 import hashes

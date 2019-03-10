@@ -57,6 +57,8 @@ type
     musicFile: ptr TSNDFILE
     musicIndex: int
     musicBuffer: int
+    musicStereo: bool
+    musicSampleRate: float32
     musicBuffers: array[2,array[musicBufferSize,float32]]
 
     arp: uint16
@@ -938,9 +940,11 @@ proc process(self: var Channel): float32 =
             self.kind = channelNone
     return o * sfxVolume
   of channelMusic:
+    if audioSampleId mod 2 == 0 and not self.musicStereo:
+      return self.outvalue
     var o: float32
     o = self.musicBuffers[self.musicBuffer].interpolatedLookup(self.phase) * self.gain
-    self.phase += self.freq
+    self.phase += (self.musicSampleRate / sampleRate)
     if self.phase >= musicBufferSize:
       # end of buffer, switch buffers and fill
       self.phase = 0.0
@@ -1209,17 +1213,17 @@ proc loadMusic*(index: int, filename: string) =
     return
   musicFileLibrary[index] = joinPath(assetPath, filename)
 
-proc getMusic*(index: AudioChannelId): int =
-  if audioChannels[index].kind != channelMusic:
+proc getMusic*(channel: int): int =
+  if audioChannels[channel].kind != channelMusic:
     return -1
-  return audioChannels[index].musicIndex
+  return audioChannels[channel].musicIndex
 
 proc findFreeChannel(priority: float32): int =
   for i,c in audioChannels:
     if c.kind == channelNone:
       return i
   var lowestPriority: float32 = Inf
-  var bestChannel: AudioChannelId = -2
+  var bestChannel: int = -2
   for i,c in audioChannels:
     if c.priority < lowestPriority:
       lowestPriority = c.priority
@@ -1228,7 +1232,7 @@ proc findFreeChannel(priority: float32): int =
     return -2
   return bestChannel
 
-proc sfx*(index: range[-1..63], channel: AudioChannelId = -1, loop: int = 1, gain: Pfloat = 1.0, pitch: Pfloat = 1.0, priority: Pfloat = Inf) =
+proc sfx*(index: range[-1..63], channel: int = -1, loop: int = 1, gain: Pfloat = 1.0, pitch: Pfloat = 1.0, priority: Pfloat = Inf) =
   let channel = if channel == -1: findFreeChannel(priority) else: channel
   if channel == -2:
     return
@@ -1250,8 +1254,25 @@ proc sfx*(index: range[-1..63], channel: AudioChannelId = -1, loop: int = 1, gai
   audioChannels[channel].gain = gain
   audioChannels[channel].loop = loop
 
-proc music*(index: int, channel: AudioChannelId = -1, loop: int = -1) =
+proc reset*(channel: int)
+
+proc music*(index: int, channel: int, loop: int = -1) =
+
+  if index == -1:
+    # stop music
+    reset(channel)
+    return
+
+  if index < 0 or index >= 64:
+    raise newException(Exception, "invalid music index: " & $index)
+
+  if musicFileLibrary[index] == "":
+    raise newException(Exception, "no music loaded into index: " & $index)
+
   var info: Tinfo
+  info.channels = 2
+  info.samplerate = sampleRate.int
+
   var snd = sndfile.open(musicFileLibrary[index], READ, info.addr)
   if snd == nil:
     raise newException(IOError, "unable to open file for reading: " & musicFileLibrary[index])
@@ -1264,9 +1285,11 @@ proc music*(index: int, channel: AudioChannelId = -1, loop: int = -1) =
   audioChannels[channel].gain = 1.0
   audioChannels[channel].loop = loop
   audioChannels[channel].musicBuffer = 0
+  audioChannels[channel].musicStereo = info.channels == 2
+  audioChannels[channel].musicSampleRate = info.samplerate.float32
 
-  discard snd.read_float(audioChannels[channel].musicBuffers[0][0].addr, musicBufferSize)
-  discard snd.read_float(audioChannels[channel].musicBuffers[1][0].addr, musicBufferSize)
+  #discard snd.read_float(audioChannels[channel].musicBuffers[0][0].addr, musicBufferSize)
+  #discard snd.read_float(audioChannels[channel].musicBuffers[1][0].addr, musicBufferSize)
 
 proc volume*(channel: int, volume: int) =
   audioChannels[channel].gain = (volume.float32 / 255.0)

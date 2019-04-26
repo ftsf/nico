@@ -30,6 +30,7 @@ export sfx
 export music
 export getMusic
 export synth
+export audioCallback
 export synthUpdate
 export synthShape
 export SynthShape
@@ -47,6 +48,10 @@ export NicoControllerKind
 export NicoAxis
 export NicoButton
 export ColorId
+
+export startTextInput
+export stopTextInput
+export isTextInput
 
 export btn
 export btnp
@@ -74,6 +79,9 @@ import strscans
 import strutils
 
 ## Public API
+
+export Event
+export EventKind
 
 export timeStep
 
@@ -160,7 +168,7 @@ proc btnp*(b: NicoButton, player: range[0..maxPlayers]): bool
 proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool
 proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): Pfloat
 proc mouse*(): (int,int)
-proc mouserel*(): (int,int)
+proc mouserel*(): (float32,float32)
 proc mousebtn*(b: range[0..2]): bool
 proc mousebtnp*(b: range[0..2]): bool
 proc mousebtnpr*(b: range[0..2], r: Pint): bool
@@ -221,7 +229,6 @@ proc shutdown*()
 proc init*(org: string, app: string)
 
 when not defined(js):
-  export setEventFunc
   export getKeyNamesForBtn
   export getUnmappedJoysticks
   export getFullSpeedGif
@@ -1475,8 +1482,8 @@ proc hasMouse*(): bool =
 proc mouse*(): (int,int) =
   return (mouseX,mouseY)
 
-proc mouserel*(): (int,int) =
-  return (mouseX-lastMouseX,mouseY-lastMouseY)
+proc mouserel*(): (float32,float32) =
+  return (mouseRelX,mouseRelY)
 
 proc mousebtn*(b: range[0..2]): bool =
   return mouseButtons[b] > 0
@@ -1961,6 +1968,13 @@ proc removeKeyListener*(p: KeyListener) =
     if v == p:
       keyListeners.del(i)
       break
+
+proc addEventListener*(f: EventListener) =
+  eventListeners.add(f)
+
+proc removeEventListener*(f: EventListener) =
+  let i = eventListeners.find(f)
+  eventListeners.del(i)
 
 proc sgn*(x: Pint): Pint =
   if x < 0:

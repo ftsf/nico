@@ -4,6 +4,8 @@ import unicode
 import hashes
 
 import nico/keycodes
+export Keycode
+export Scancode
 
 # Constants
 
@@ -31,9 +33,6 @@ var aKeyWasPressed*: bool
 var aKeyWasReleased*: bool
 
 type KeyListener* = proc(sym: int, mods: uint16, scancode: int, down: bool): bool
-
-when defined(js):
-  type Scancode = int
 
 type
   Pint* = int32
@@ -73,6 +72,32 @@ type
     synNoise = "noi"
     synNoise2 = "met"
     synWav = "wav" # use custom waveform
+
+# low level events
+type
+  EventKind* = enum
+    ekMouseButtonDown
+    ekMouseButtonUp
+    ekMouseMotion
+    ekKeyDown
+    ekKeyUp
+    ekMouseWheel
+    ekTextInput
+    ekTextEditing
+
+  Event* = object
+    kind*: EventKind
+    button*: uint8
+    x*,y*: int
+    xrel*,yrel*: float32
+    keycode*: Keycode
+    scancode*: Scancode
+    mods*: uint16
+    clicks*: uint8
+    ywheel*: int
+    text*: string
+
+  EventListener* = proc(e: Event): bool # takes a single event and returns true if it's handled or false if not
 
 type
   Surface* = object
@@ -133,6 +158,7 @@ var initialized*: bool
 var running*: bool
 
 var keyListeners*: seq[KeyListener] = @[]
+var eventListeners*: seq[EventListener] = @[]
 
 var loading*: int # number of resources loading
 
@@ -228,6 +254,7 @@ var clippingRect*: Rect
 
 var mouseDetected*: bool
 var mouseX*,mouseY*: int
+var mouseRelX*,mouseRelY*: float32
 var lastMouseX*,lastMouseY*: int
 var mouseButtonsDown*: array[3,bool]
 var mouseButtons*: array[3,int]

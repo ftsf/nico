@@ -10,13 +10,16 @@ import nico/ringbuffer
 
 import math
 
-import sdl2/sdl
-from nico/keycodes as nkey import nil
+import sdl2/sdl except Keycode, Scancode
+from sdl2/sdl import nil
 
-proc toNicoKeycode(x: sdl.Keycode): nkey.Keycode =
-  return (nkey.Keycode)(x)
+proc toNicoKeycode(x: sdl.Keycode): Keycode =
+  return (Keycode)(x)
 
-proc hash(x: nkey.Keycode): Hash =
+proc toNicoScancode(x: sdl.Scancode): Scancode =
+  return (Scancode)(x)
+
+proc hash(x: Keycode): Hash =
   var h: Hash = 0
   h = h !& hash(x.int)
   result = !$h
@@ -53,7 +56,8 @@ type
   Channel = object
     kind: ChannelKind
     buffer: SfxBuffer
-    callback: proc(samples: seq[float32])
+    callback: proc(): float32
+    callbackStereo: bool
     musicFile: ptr TSNDFILE
     musicIndex: int
     musicBuffer: int
@@ -132,7 +136,6 @@ var nextTick = 0
 var clock: bool
 var nextClock = 0
 
-var eventFunc: proc(event: Event): bool
 var render: Renderer
 var hwCanvas: Texture
 var swCanvas32: sdl.Surface
@@ -159,10 +162,10 @@ import nico/controller
 
 # map of scancodes to NicoButton
 
-converter toScancode(x: int): Scancode =
-  x.Scancode
+converter toScancode(x: int): sdl.Scancode =
+  (sdl.Scancode)(x)
 
-converter toInt(x: Scancode): int =
+converter toInt(x: sdl.Scancode): int =
   x.int
 
 keymap = [
@@ -454,14 +457,14 @@ proc saveRecording*() =
 proc getKeyNamesForBtn*(btn: NicoButton): seq[string] =
   result = newSeq[string]()
   for scancode in keymap[btn]:
-    result.add($(getKeyFromScancode(scancode).getKeyName()))
+    result.add($(getKeyFromScancode((sdl.Scancode)scancode).getKeyName()))
 
 proc getKeyMap*(): string =
   result = ""
   for btn,scancodes in keymap:
     result.add($btn & ":")
     for i,scancode in scancodes:
-      result.add(getKeyFromScancode(scancode).getKeyName())
+      result.add(getKeyFromScancode((sdl.Scancode)scancode).getKeyName())
       if i < scancodes.high:
         result.add(",")
     if btn != NicoButton.high:
@@ -485,7 +488,7 @@ proc setKeyMap*(mapstr: string) =
     keymap[btn] = @[]
     for keystr in keysstr.split(","):
       let scancode = getKeyFromName(keystr).getScancodeFromKey()
-      keymap[btn].add(scancode)
+      keymap[btn].add(scancode.int)
 
 proc setFullscreen*(fullscreen: bool) =
   if fullscreen:
@@ -498,7 +501,7 @@ proc setFullscreen*(fullscreen: bool) =
 proc getFullscreen*(): bool =
   return (window.getWindowFlags() and WINDOW_FULLSCREEN_DESKTOP) != 0
 
-proc appHandleEvent(evt: Event) =
+proc appHandleEvent(evt: sdl.Event) =
   if evt.kind == Quit:
     keepRunning = false
 
@@ -533,6 +536,8 @@ proc appHandleEvent(evt: Event) =
       mouseDetected = true
     mouseX = ((evt.motion.x - screenPaddingX).float32 / screenScale.float32).int
     mouseY = ((evt.motion.y - screenPaddingY).float32 / screenScale.float32).int
+    mouseRelX = ((evt.motion.xrel - screenPaddingX).float32 / screenScale.float32)
+    mouseRelY = ((evt.motion.yrel - screenPaddingY).float32 / screenScale.float32)
 
   elif evt.kind == ControllerDeviceAdded:
     for v in controllers:
@@ -646,38 +651,38 @@ proc appHandleEvent(evt: Event) =
       if listener(sym.int, mods.uint16, scancode.int, down.bool):
         return
 
-    if sym == K_AC_BACK:
+    if sym == (sdl.Keycode)K_AC_BACK:
       controllers[0].setButtonState(pcBack, down)
 
-    elif sym == K_q and down and (mods and uint16(KMOD_CTRL)) != 0:
+    elif sym == ((sdl.Keycode)K_q) and down and (mods and uint16(KMOD_CTRL)) != 0:
       # ctrl+q to quit
       keepRunning = false
 
-    elif sym == K_f and not down and (mods and uint16(KMOD_CTRL)) != 0:
+    elif sym == ((sdl.Keycode)K_f) and not down and (mods and uint16(KMOD_CTRL)) != 0:
       if getFullscreen():
         setFullscreen(false)
       else:
         setFullscreen(true)
       return
 
-    elif sym == K_return and not down and (mods and uint16(KMOD_ALT)) != 0:
+    elif sym == ((sdl.Keycode)K_return) and not down and (mods and uint16(KMOD_ALT)) != 0:
       if getFullscreen():
         setFullscreen(false)
       else:
         setFullscreen(true)
       return
 
-    elif sym == K_F8 and down:
+    elif sym == ((sdl.Keycode)K_F8) and down:
       # restart recording from here
       createRecordBuffer(true)
 
-    elif sym == K_F9 and down:
+    elif sym == ((sdl.Keycode)K_F9) and down:
       saveRecording()
 
-    elif sym == K_F10 and down:
+    elif sym == ((sdl.Keycode)K_F10) and down:
       saveScreenshot()
 
-    elif sym == K_F11 and down:
+    elif sym == ((sdl.Keycode)K_F11) and down:
       when system.hostOS == "windows":
         discard startProcess("explorer", writePath, [writePath], nil, {poUsePath})
       elif system.hostOS == "macosx":
@@ -692,13 +697,61 @@ proc appHandleEvent(evt: Event) =
             controllers[0].setButtonState(btn, down)
 
 proc checkInput() =
-  var evt: Event
+  var evt: sdl.Event
   while pollEvent(evt.addr) == 1:
-    if eventFunc != nil:
-      let handled = eventFunc(evt)
-      if handled:
-        continue
-    appHandleEvent(evt)
+    var handled = false
+    if evt.kind in [MouseButtonDown, MouseButtonUp, MouseMotion, KeyDown, KeyUp, MouseWheel, TextInput]:
+      # convert to NicoEvent
+      var e: common.Event
+      e.kind = case evt.kind:
+      of MouseButtonDown:
+        ekMouseButtonDown
+      of MouseButtonUp:
+        ekMouseButtonUp
+      of MouseMotion:
+        ekMouseMotion
+      of KeyDown:
+        ekKeyDown
+      of KeyUp:
+        ekKeyUp
+      of MouseWheel:
+        ekMouseWheel
+      of TextInput:
+        ekTextInput
+      else:
+        ekMouseButtonDown
+
+      case evt.kind:
+      of MouseButtonUp,MouseButtonDown:
+        e.button = evt.button.button
+        e.x = evt.button.x.int div screenScale
+        e.y = evt.button.y.int div screenScale
+        e.clicks = evt.button.clicks
+      of MouseWheel:
+        e.ywheel = evt.wheel.y
+        e.x = evt.button.x.int div screenScale
+        e.y = evt.button.y.int div screenScale
+      of MouseMotion:
+        e.x = evt.motion.x.int div screenScale
+        e.y = evt.motion.y.int div screenScale
+        e.xrel = evt.motion.xrel.float32 / screenScale.float32
+        e.yrel = evt.motion.yrel.float32 / screenScale.float32
+      of KeyDown, KeyUp:
+        e.keycode = toNicoKeycode(evt.key.keysym.sym)
+        e.scancode = toNicoScancode(evt.key.keysym.scancode)
+        e.mods = evt.key.keysym.mods
+      of TextInput:
+        e.text = $evt.text.text
+      else:
+        discard
+
+      for el in eventListeners:
+        let ret = el(e)
+        if ret:
+          handled = true
+          break
+    if not handled:
+      appHandleEvent(evt)
 
 proc setScreenSize*(w,h: int) =
   window.setWindowSize(w,h)
@@ -751,9 +804,8 @@ proc step*() {.cdecl.} =
 
     acc -= timeStep
 
-    when not compileOption("threads"):
-      if queuedAudioSize() < 8192:
-        queueMixerAudio(4096)
+    if queuedAudioSize() < 8192:
+      queueMixerAudio(4096)
 
 proc getPerformanceCounter*(): uint64 {.inline.} =
   return sdl.getPerformanceCounter()
@@ -959,37 +1011,10 @@ proc process(self: var Channel): float32 =
           self.reset()
 
     return o * musicVolume
-  else:
-    return 0.0
-
-
-when compileOption("threads"):
-  proc audioCallback(userdata: pointer, stream: ptr uint8, bytes: cint) {.cdecl.} =
-    when compileOption("threads"):
-      setupForeignThreadGc()
-
-    var samples = cast[ptr array[int32.high,float32]](stream)
-    let nSamples = bytes div sizeof(float32)
-
-    for i in 0..<nSamples:
-
-      if i mod 2 == 0:
-        nextClock -= 1
-        if nextClock <= 0:
-          clock = true
-          nextClock = (sampleRate div 60)
-        else:
-          clock = false
-
-        nextTick -= 1
-        if nextTick <= 0 and tickFunc != nil:
-          tickFunc()
-          nextTick = (sampleRate / (currentBpm.float32 / 60.0 * currentTpb.float32)).int
-
-      samples[i] = 0
-      for j in 0..<audioChannels.len:
-        samples[i] += audioChannels[j].process() * masterVolume
-      audioSampleId += 1
+  of channelCallback:
+    if self.callbackStereo or audioSampleId mod 2 == 0:
+      self.outvalue = self.callback() * self.gain
+    return self.outvalue * self.gain
 
 proc queueMixerAudio*(nSamples: int) =
   var samples = newSeq[float32](nSamples)
@@ -1031,10 +1056,7 @@ proc initMixer*() =
     audioSpec.channels = 2
     audioSpec.samples = musicBufferSize
     audioSpec.padding = 0
-    when compileOption("threads"):
-      audioSpec.callback = audioCallback
-    else:
-      audioSpec.callback = nil
+    audioSpec.callback = nil
     audioSpec.userdata = nil
 
     var obtained: AudioSpec
@@ -1053,15 +1075,9 @@ proc initMixer*() =
         c.wavData[j] = rand(16).uint8
 
     # start the audio thread
-    when compileOption("threads"):
-      pauseAudioDevice(audioDeviceId, 0)
-      if obtained.callback != audioCallback:
-        debug "wtf no callback"
-      debug "audio initialised using audio thread"
-    else:
-      queueMixerAudio(4096)
-      pauseAudioDevice(audioDeviceId, 0)
-      debug "audio initialised using main thread"
+    queueMixerAudio(4096)
+    pauseAudioDevice(audioDeviceId, 0)
+    debug "audio initialised using main thread"
 
 proc init*(org: string, app: string) =
   discard setHint("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")
@@ -1102,26 +1118,6 @@ proc init*(org: string, app: string) =
 
   initMixer()
 
-proc setEventFunc*(ef: proc(event: Event): bool) =
-  eventFunc = ef
-
-proc addKeyListener*(f: KeyListener) =
-  keyListeners.add(f)
-
-proc removeKeyListener*(f: KeyListener) =
-  let i = keyListeners.find(f)
-  keyListeners.del(i)
-
-proc setTextFunc*(text: (proc(text: string): bool)) =
-  if text == nil:
-    stopTextInput()
-  else:
-    startTextInput()
-  textFunc = text
-
-proc hasTextFunc*(): bool =
-  return textFunc != nil
-
 proc setFullSpeedGif*(enabled: bool) =
   when defined(gif):
     fullSpeedGif = enabled
@@ -1147,6 +1143,7 @@ proc getRecordSeconds*(): int =
 proc run*() =
   while keepRunning:
     step()
+  sdl.quit()
 
 proc saveMap*(filename: string) =
   createDir(joinPath(assetPath,"maps"))
@@ -1357,3 +1354,20 @@ proc synthUpdate*(channel: int, shape: SynthShape, freq: Pfloat) =
   if shape != synSame:
     audioChannels[channel].shape = shape
   audioChannels[channel].freq = freq
+
+proc startTextInput*() =
+  sdl.startTextInput()
+
+proc stopTextInput*() =
+  sdl.stopTextInput()
+
+proc isTextInput*(): bool =
+  return sdl.isTextInputActive()
+
+proc audioCallback*(channel: int, callback: proc(): float32, stereo: bool) =
+  if channel > audioChannels.high:
+    raise newException(KeyError, "invalid channel: " & $channel)
+  audioChannels[channel].kind = channelCallback
+  audioChannels[channel].callback = callback
+  audioChannels[channel].callbackStereo = stereo
+  audioChannels[channel].gain = 1.0

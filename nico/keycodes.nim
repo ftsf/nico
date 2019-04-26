@@ -460,29 +460,20 @@ type
     K_AUDIOREWIND = scancodeToKeycode(SCANCODE_AUDIOREWIND)
     K_AUDIOFASTFORWARD = scancodeToKeycode(SCANCODE_AUDIOFASTFORWARD)
 
-type
-  Keymod* {.size: sizeof(cint).} = enum ##  \
-    ##  Enumeration of valid key mods (possibly OR'd together).
-    KMOD_NONE = 0x00000000,
-    KMOD_LSHIFT = 0x00000001,
-    KMOD_RSHIFT = 0x00000002,
-    KMOD_SHIFT = KMOD_LSHIFT.cint or KMOD_RSHIFT.cint,
-    KMOD_LCTRL = 0x00000040,
-    KMOD_RCTRL = 0x00000080,
-    KMOD_CTRL  = KMOD_LCTRL.cint or KMOD_RCTRL.cint,
-    KMOD_LALT = 0x00000100,
-    KMOD_RALT = 0x00000200,
-    KMOD_ALT   = KMOD_LALT.cint or KMOD_RALT.cint,
-    KMOD_LGUI = 0x00000400,
-    KMOD_RGUI = 0x00000800,
-    KMOD_GUI   = KMOD_LGUI.cint or KMOD_RGUI.cint,
-    KMOD_NUM = 0x00001000,
-    KMOD_CAPS = 0x00002000,
-    KMOD_MODE = 0x00004000,
-    KMOD_RESERVED = 0x00008000
-
-template `or`*(a, b: Keymod): Keymod =
-  a.cint or b.cint
-
-template `and`*(a, b: Keymod): bool =
-  (a.cint and b.cint) > 0
+const KMOD_NONE* = 0x00000000.uint16
+const KMOD_LSHIFT* = 0x00000001.uint16
+const KMOD_RSHIFT* = 0x00000002.uint16
+const KMOD_SHIFT* = KMOD_LSHIFT.uint16 or KMOD_RSHIFT.uint16
+const KMOD_LCTRL* = 0x00000040.uint16
+const KMOD_RCTRL* = 0x00000080.uint16
+const KMOD_CTRL*  = KMOD_LCTRL.uint16 or KMOD_RCTRL.uint16
+const KMOD_LALT* = 0x00000100.uint16
+const KMOD_RALT* = 0x00000200.uint16
+const KMOD_ALT*   = KMOD_LALT.uint16 or KMOD_RALT.uint16
+const KMOD_LGUI* = 0x00000400.uint16
+const KMOD_RGUI* = 0x00000800.uint16
+const KMOD_GUI*   = KMOD_LGUI.uint16 or KMOD_RGUI.uint16
+const KMOD_NUM* = 0x00001000.uint16
+const KMOD_CAPS* = 0x00002000.uint16
+const KMOD_MODE* = 0x00004000.uint16
+const KMOD_RESERVED* = 0x00008000.uint16

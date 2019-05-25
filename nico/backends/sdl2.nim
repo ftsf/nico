@@ -828,23 +828,26 @@ proc getUnmappedJoysticks*(): seq[Joystick] =
       result.add(j)
 
 proc loadConfig*() =
+  let defaultPath = joinPath(basePath, "config.ini")
+  let path = joinPath(writePath, "config.ini")
   try:
-    config = loadConfig(joinPath(writePath, "config.ini"))
-    debug "loaded config from " & writePath & "/config.ini"
+    config = loadConfig(path)
+    debug "loaded config from " & path
   except IOError:
     try:
-      config = loadConfig(joinPath(basePath, "config.ini"))
-      debug "loaded config from " & basePath & "/config.ini"
+      config = loadConfig(defaultPath)
+      debug "loaded config from " & defaultPath
     except IOError:
       debug "no config file loaded"
       config = newConfig()
 
 proc saveConfig*() =
-  debug "saving config to " & writePath & "/config.ini"
+  let path = joinPath(writePath, "config.ini")
+  debug "saving config to " & path
   assert(config != nil)
   try:
-    config.writeConfig(joinPath(writePath, "config.ini"))
-    debug "saved config to " & writePath & "/config.ini"
+    config.writeConfig(path)
+    debug "saved config to " & path
   except IOError:
     debug "error saving config"
 

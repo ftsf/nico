@@ -2065,6 +2065,9 @@ proc removeEventListener*(f: EventListener) =
   let i = eventListeners.find(f)
   eventListeners.del(i)
 
+proc removeAllEventListeners*() =
+  eventListeners = @[]
+
 proc sgn*(x: Pint): Pint =
   if x < 0:
     return -1

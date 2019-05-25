@@ -94,6 +94,7 @@ type
     scancode*: Scancode
     mods*: uint16
     clicks*: uint8
+    repeat*: int
     ywheel*: int
     text*: string
 

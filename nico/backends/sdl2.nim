@@ -729,8 +729,6 @@ proc checkInput() =
         e.clicks = evt.button.clicks
       of MouseWheel:
         e.ywheel = evt.wheel.y
-        e.x = evt.button.x.int div screenScale
-        e.y = evt.button.y.int div screenScale
       of MouseMotion:
         e.x = evt.motion.x.int div screenScale
         e.y = evt.motion.y.int div screenScale
@@ -740,6 +738,7 @@ proc checkInput() =
         e.keycode = toNicoKeycode(evt.key.keysym.sym)
         e.scancode = toNicoScancode(evt.key.keysym.scancode)
         e.mods = evt.key.keysym.mods
+        e.repeat = evt.key.repeat
       of TextInput:
         e.text = $evt.text.text
       else:

@@ -242,7 +242,7 @@ when not defined(js):
 # Tilemap functions
 proc mset*(tx,ty: Pint, t: uint8)
 proc mget*(tx,ty: Pint): uint8
-proc mapDraw*(tx,ty, tw,th, dx,dy: Pint)
+proc mapDraw*(tx,ty, tw,th, dx,dy: Pint, dw,dh: Pint = -1, loop: bool = false, ox,oy: Pint = 0)
 proc setMap*(index: int)
 proc loadMap*(index: int, filename: string)
 proc newMap*(index: int, w,h: Pint, tw,th: Pint)
@@ -1660,10 +1660,12 @@ proc mapDrawHex(tx,ty, tw,th, dx,dy: Pint) =
         drawTile(t, px - cameraX, py - cameraY)
 
 
-proc mapDraw*(tx,ty, tw,th, dx,dy: Pint) =
+proc mapDraw*(tx,ty, tw,th, dx,dy: Pint, dw,dh: Pint = -1, loop: bool = false, ox,oy: Pint = 0) =
   ## tx,ty = top left tilemap coordinates to draw from
   ## tw,th = how many tiles to draw across and down
   ## dx,dy = position on virtual screen to draw at
+  ## dw,dh = draw width, draw height, -1 = as big as map
+  ## ox,oy = offset drawing position, useful for parallax
 
   if currentTilemap == nil:
     raise newException(Exception, "No map set")
@@ -1676,27 +1678,66 @@ proc mapDraw*(tx,ty, tw,th, dx,dy: Pint) =
   let yincrement = currentTilemap.th
   let xincrement = currentTilemap.tw
 
-  let drawWidth = clipMaxX - clipMinX
-  let drawHeight = clipMaxY - clipMinY
+  let dx = dx - cameraX
+  let dy = dy - cameraY
 
-  let startCol = max(tx, (cameraX + clipMinX) div xincrement)
-  let startRow = max(ty, (cameraY + clipMinY) div yincrement)
-  let endCol = min(startCol + ((drawWidth + xincrement - 1) div xincrement), tx + tw - 1)
-  let endRow = min(startRow + ((drawHeight + yincrement - 1) div yincrement), ty + th - 1)
-  let offsetX = dx
-  let offsetY = dy
+  var dw = dw
+  var dh = dh
 
+  if dw == -1:
+    dw = tw * currentTilemap.tw
+  if dh == -1:
+    dh = th * currentTilemap.th
+
+  var dminx = dx
+  var dminy = dy
+  var dmaxx = dx + dw - 1
+  var dmaxy = dy + dh - 1
+
+  # clip these bounds
+  dminx = max(dminx, clipMinX)
+  dmaxx = min(dmaxx, clipMaxX)
+  dminy = max(dminy, clipMinY)
+  dmaxy = min(dmaxy, clipMaxY)
+
+  dw = min(dw, dmaxx - dminx)
+  dh = min(dh, dmaxy - dminy)
+
+  let offsetX = dminx - dx - ox
+  let offsetY = dminy - dy - oy
+
+  # the first row,col we draw might not be the one specified as it might be offscreen
+  var startCol = (offsetX - xincrement + 1) div xincrement
+  var startRow = (offsetY - yincrement + 1) div yincrement
+  if not loop:
+    startCol = max(0, startCol)
+    startRow = max(0, startRow)
+
+  var endCol = startCol + (dw + xincrement + 1) div xincrement
+  var endRow = startRow + (dh + yincrement + 1) div yincrement
+  if not loop:
+    endCol = min(endCol, currentTilemap.w - tx)
+    endRow = min(endRow, currentTilemap.h - ty)
+
+  #debug "d", dw, dh, "dmin", dminx, dminy, "dmax", dmaxx, dmaxy, "o", offsetX, offsetY, "tstart", startCol, startRow, "tend", endCol, endRow
+
+  var count = 0
   for y in startRow..endRow:
-    if y < 0 or y >= currentTilemap.h:
+    var ty = if loop: ty + wrap(y, currentTilemap.h) else: ty + y
+    if not loop and ty < 0 or ty >= currentTilemap.h:
       continue
     for x in startCol..endCol:
-      if x < 0 or x >= currentTilemap.w:
+      var tx = if loop: tx + wrap(x, currentTilemap.w) else: tx + x
+      if not loop and tx < 0 or tx >= currentTilemap.w:
         continue
-      let t = currentTilemap.data[y * currentTilemap.w + x]
+      let t = currentTilemap.data[ty * currentTilemap.w + tx]
       let px = x * xincrement
       let py = y * yincrement
       if t != 0:
-        drawTile(t, px - cameraX, py - cameraY)
+        drawTile(t, dminx - offsetX + px, dminy - offsetY + py)
+      count+=1
+
+  #debug "count", count, "x", endCol - startCol, "y", endRow - startRow
 
 proc mapWidth*(): Pint =
   return currentTilemap.w

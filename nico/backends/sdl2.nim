@@ -207,7 +207,11 @@ proc resize*(w,h: int) =
   if render != nil:
     destroyRenderer(render)
 
-  render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture)
+  if window == nil:
+    echo "window is null, cannot resize"
+    return
+
+  render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync)
 
   if integerScreenScale:
     screenScale = max(1.0, min(

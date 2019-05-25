@@ -250,8 +250,7 @@ proc loadMap*(index: int, filename: string)
 proc newMap*(index: int, w,h: Pint, tw,th: Pint)
 proc pixelToMap*(px,py: Pint): (Pint,Pint) # returns the tile coordinates at pixel position
 proc mapToPixel*(tx,ty: Pint): (Pint,Pint) # returns the pixel position of the tile coordinates
-
-#proc saveMap*(filename: string)
+proc saveMap*(index: int, filename: string)
 
 export toPint
 export screenWidth
@@ -1766,6 +1765,53 @@ proc loadMapFromJson(index: int, filename: string) =
     tm.data[i] = t.uint8
 
   tilemaps[index] = tm
+
+proc saveMap*(index: int, filename: string) =
+  var tm = tilemaps[index]
+  var data: seq[int] = @[]
+  for t in tm.data:
+    data.add(t.int+1)
+  var j = %*{
+    "height": tm.h,
+    "width": tm.w,
+    "version": 1,
+    "tilewidth": tm.tw,
+    "tileheight": tm.th,
+    "nextobjectid": 1,
+    "orientation": "orthogonal",
+    "renderorder": "right-down",
+    "layers": [
+      {
+        "width": tm.w,
+        "height": tm.h,
+        "data": data,
+        "name": "map",
+        "opacity": 1,
+        "type": "tilelayer",
+        "visible": true,
+        "x": 0,
+        "y": 0,
+      }
+    ],
+    "tilesets": [
+      {
+        "columns": (spriteSheet[].w div tm.tw),
+        "firstgid": 1,
+        "image": joinPath("..",spriteSheet[].filename),
+        "imagewidth": spriteSheet[].w,
+        "imageheight": spriteSheet[].h,
+        "margin": 0,
+        "name": "tileset",
+        "spacing": 0,
+        "tilewidth": tm.tw,
+        "tileheight": tm.th,
+        "tilecount": (spriteSheet[].w div tm.tw) * (spriteSheet[].h div tm.th),
+      }
+    ]
+  }
+  var fp = open(joinPath(assetPath,filename), fmWrite)
+  fp.write($j)
+  fp.close()
 
 proc pixelToMap*(px,py: Pint): (Pint,Pint) = # returns the tile coordinates at pixel position
   if currentTilemap.hex:

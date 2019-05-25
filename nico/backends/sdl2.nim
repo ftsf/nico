@@ -1145,24 +1145,9 @@ proc run*() =
     step()
   sdl.quit()
 
-proc saveMap*(filename: string) =
-  createDir(joinPath(assetPath,"maps"))
-  var fs = newFileStream(joinPath(assetPath,"maps",filename), fmWrite)
-  if fs == nil:
-    debug "error opening map for writing: ", filename
-    return
-  fs.write(currentTilemap[].w.int32)
-  fs.write(currentTilemap[].h.int32)
-  for y in 0..<currentTilemap[].h:
-    for x in 0..<currentTilemap[].w:
-      let t = currentTilemap[].data[y * currentTilemap[].w + x]
-      fs.write(t.char)
-  fs.close()
-  debug "saved map: ", filename
-
 proc loadMapBinary*(index: int, filename: string) =
   var tm: Tilemap
-  var fs = newFileStream(joinPath(assetPath,"maps",filename), fmRead)
+  var fs = newFileStream(joinPath(assetPath,filename), fmRead)
   if fs == nil:
     raise newException(IOError, "Unable to open " & filename & " for reading")
 

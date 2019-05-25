@@ -101,9 +101,6 @@ export saveConfig
 export updateConfigValue
 export getConfigValue
 
-when not defined(js):
-  export saveMap
-
 # Fonts
 proc getFont*(): FontId
 proc setFont*(fontId: FontId)
@@ -212,6 +209,11 @@ export sin
 export cos
 export abs
 export `mod`
+
+proc wrap*[T](x,m: T): T
+
+proc clamp*[T](a: T): T =
+  clamp(a, 0, 1)
 
 proc clamp01*[T](a: T): T =
   clamp(a, 0, 1)

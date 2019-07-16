@@ -251,9 +251,6 @@ proc gameUpdate(dt: float32) =
         if currentInstrumentSetting < 15:
           currentInstrumentSetting += 1
 
-  else:
-    discard
-
 proc noteString(n: int): string =
   if n == 0:
     return "..."
@@ -337,8 +334,6 @@ proc gameDraw() =
     print("INIT:   " & $instruments[currentInstrument].init, 1, 30)
     setColor(if currentInstrumentSetting == 2: 7 else: 5)
     print("CHANGE: " & $instruments[currentInstrument].change, 1, 40)
-  else:
-    discard
 
 nico.init("nico", "audio")
 nico.createWindow("audio", 128, 128, 4)

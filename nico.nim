@@ -1821,17 +1821,24 @@ proc setSpritesheet*(bank: range[0..15] = 0) =
     raise newException(Exception, "No spritesheet loaded: " & $bank)
   spritesheet = spritesheets[bank]
 
-proc loadSpriteSheet*(index: range[0..15], filename: string, w,h: Pint = 8) =
+proc loadSpriteSheet*(index: range[0..15], filename: string, tileWidth,tileHeight: Pint = 8) =
+  let shouldReplace = spritesheet == spritesheets[index]
   backend.loadSurfaceIndexed(joinPath(assetPath,filename)) do(surface: Surface):
+    echo "loaded spritesheet: ", filename, " ", surface.w, "x", surface.h, " tile:", tileWidth, "x", tileHeight
     spritesheets[index] = surface
-    spritesheets[index].tw = w
-    spritesheets[index].th = h
+    spritesheets[index].tw = tileWidth
+    spritesheets[index].th = tileHeight
     spritesheets[index].filename = filename
+    if shouldReplace:
+      setSpritesheet(index)
 
 proc spriteSize*(): (int,int) =
   return (spritesheet.tw, spritesheet.th)
 
 proc getSprRect(spr: Pint, w,h: Pint = 1): Rect {.inline.} =
+  assert(spritesheet != nil)
+  assert(spritesheet.tw > 0)
+  assert(spritesheet.th > 0)
   let tilesX = spritesheet.w div spritesheet.tw
   result.x = spr mod tilesX * spritesheet.tw
   result.y = spr div tilesX * spritesheet.th
@@ -2272,7 +2279,9 @@ proc init*(org, app: string) =
   randomize(epochTime().int64)
   loadConfig()
 
-  spritesheets[0] = newSurface(1,1)
+  spritesheets[0] = newSurface(128,128)
+  spritesheets[0].tw = 8
+  spritesheets[0].th = 8
   setSpritesheet(0)
 
   clip()

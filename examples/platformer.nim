@@ -621,7 +621,7 @@ method draw(self: Platform) =
   spr(30, self.pos.x, self.pos.y)
 
 proc gameInit() =
-  loadPaletteCGA()
+  setPalette(loadPaletteCGA())
   loadSpriteSheet(0, "platformer.png")
 
   objects = newSeq[Obj]()

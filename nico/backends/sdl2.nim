@@ -355,10 +355,10 @@ proc loadSurfaceRGBA*(filename: string, callback: proc(surface: common.Surface))
   callback(surface)
 
 proc refreshSpritesheets*() =
-  echo "refreshSpritesheets"
   for i in 0..<spriteSheets.len:
     if spriteSheets[i] != nil and spriteSheets[i].filename != "":
       loadSurfaceIndexed(joinPath(assetPath,spriteSheets[i].filename)) do(surface: common.Surface):
+        debug "refreshed spritesheet", spriteSheets[i].filename, surface.w, surface.h, spriteSheets[i].tw, spriteSheets[i].th
         spriteSheets[i].data = surface.data
         spriteSheets[i].w = surface.w
         spriteSheets[i].h = surface.h

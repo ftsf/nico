@@ -10,7 +10,6 @@ export Scancode
 # Constants
 
 const maxPaletteSize* = 256
-
 const nAudioChannels* = 16
 const deadzone* = int16.high div 2
 const gifScale* = 2
@@ -19,6 +18,10 @@ const recordingEnabled* = true
 const musicBufferSize* = 4096
 
 # TYPES
+
+type Palette* = tuple
+  size: int
+  data: array[maxPaletteSize, tuple[r,g,b: uint8]]
 
 proc hash*(a: Keycode): Hash =
   var h: Hash = 0
@@ -37,7 +40,7 @@ type KeyListener* = proc(sym: int, mods: uint16, scancode: int, down: bool): boo
 type
   Pint* = int32
   Pfloat* = float32
-  ColorId* = range[0..maxPaletteSize-1]
+  ColorId* = int
 
   Rect* = tuple
     x,y,w,h: int
@@ -101,12 +104,22 @@ type
   EventListener* = proc(e: Event): bool # takes a single event and returns true if it's handled or false if not
 
 type
-  Surface* = object
+  Surface* = ref object
     data*: seq[uint8]
     channels*: int
     w*,h*: int
     tw*,th*: int
     filename*: string
+
+proc set*(s: Surface, x,y: int, v: uint8) =
+  if x < 0 or y < 0 or x >= s.w or y >= s.h:
+    return
+  s.data[y * s.w + x] = v
+
+proc get*(s: Surface, x,y: int): uint8 =
+  if x < 0 or y < 0 or x >= s.w or y >= s.h:
+    return 0
+  return s.data[y * s.w + x]
 
 type
   Tilemap* = object
@@ -143,6 +156,8 @@ converter toPfloat*(x: float): Pfloat {.inline.} =
 ## GLOBALS
 ##
 
+var currentPalette*: Palette
+
 var masterVolume* = 1.0
 var sfxVolume* = 1.0
 var musicVolume* = 1.0
@@ -167,6 +182,19 @@ var cursorX* = 0
 var cursorY* = 0
 
 var swCanvas*: Surface
+
+var stencilBuffer*: Surface
+type StencilMode* = enum
+  stencilAlways,
+  stencilEqual,
+  stencilLess,
+  stencilGreater,
+  stencilLEqual,
+  stencilGEqual,
+  stencilNot,
+var stencilMode*: StencilMode
+var stencilWrite*: bool
+var stencilRef*: uint8
 
 var targetScreenWidth* = 128
 var targetScreenHeight* = 128
@@ -206,8 +234,8 @@ var assetPath*: string # basepath + "/assets"
 var writePath*: string # should be a writable dir
 
 var screenScale* = 4.0
-var spriteSheets*: array[16,Surface]
-var spriteSheet*: ptr Surface
+var spritesheets*: array[16,Surface]
+var spritesheet*: Surface
 
 var tilemaps*: array[16,Tilemap]
 var currentTilemap*: ptr Tilemap
@@ -216,7 +244,7 @@ var initFunc*: proc()
 var updateFunc*: proc(dt: Pfloat)
 var drawFunc*: proc()
 var textFunc*: proc(text: string): bool
-var resizeFunc*: ResizeFunc
+var resizeFuncs*: seq[ResizeFunc]
 
 var fonts*: array[FontId, Font]
 var currentFont*: Font
@@ -224,20 +252,14 @@ var currentFontId*: FontId
 
 var frame* = 0
 
-type NicoColor* = tuple[r,g,b: uint8]
-
-var colors*: array[maxPaletteSize, NicoColor]
-
 var cameraX*: Pint = 0
 var cameraY*: Pint = 0
-
-var paletteSize*: range[0..maxPaletteSize-1] = 16
 
 var paletteMapDraw*: array[maxPaletteSize, ColorId]
 var paletteMapDisplay*: array[maxPaletteSize, ColorId]
 var paletteTransparent*: array[maxPaletteSize, bool]
 
-for i in 0..<paletteSize.int:
+for i in 0..<maxPaletteSize:
   paletteMapDraw[i] = i
   paletteMapDisplay[i] = i
   paletteTransparent[i] = if i == 0: true else: false
@@ -271,6 +293,7 @@ proc interpolatedLookup*[T](a: openarray[T], s: Pfloat): T =
   result = lerp(a[sample],a[nextSample],alpha)
 
 proc newSurface*(w,h: int): Surface =
+  result = new(Surface)
   result.data = newSeq[uint8](w*h)
   result.w = w
   result.h = h
@@ -281,7 +304,7 @@ proc convertToABGR*(src: Surface, rgbaPixels: pointer, dpitch, w,h: cint) =
   var rgbaPixels = cast[ptr array[int.high, uint8]](rgbaPixels)
   for y in 0..h-1:
     for x in 0..w-1:
-      let c = colors[paletteMapDisplay[src.data[y*src.w+x]]]
+      let c = currentPalette.data[paletteMapDisplay[src.data[y*src.w+x]]]
       rgbaPixels[y*dpitch+(x*4)] = 255
       rgbaPixels[y*dpitch+(x*4)+1] = c.b
       rgbaPixels[y*dpitch+(x*4)+2] = c.g
@@ -291,20 +314,20 @@ proc convertToRGBA*(src: Surface, abgrPixels: pointer, dpitch, w,h: cint) =
   var abgrPixels = cast[ptr array[int.high, uint8]](abgrPixels)
   for y in 0..h-1:
     for x in 0..w-1:
-      let c = colors[paletteMapDisplay[src.data[y*src.w+x]]]
+      let c = currentPalette.data[paletteMapDisplay[src.data[y*src.w+x]]]
       abgrPixels[y*dpitch+(x*4)] = c.r
       abgrPixels[y*dpitch+(x*4)+1] = c.g
       abgrPixels[y*dpitch+(x*4)+2] = c.b
       abgrPixels[y*dpitch+(x*4)+3] = 255
 
 proc mapRGB*(r,g,b: uint8): ColorId =
-  for i,v in colors:
+  for i,v in currentPalette.data:
     if v[0] == r and v[1] == g and v[2] == b:
       return i
   return 0
 
 proc mapRGBA*(r,g,b,a: uint8): ColorId =
-  for i,v in colors:
+  for i,v in currentPalette.data:
     if a == 0 and i == 0:
       return i
     elif i != 0 and v[0] == r and v[1] == g and v[2] == b:
@@ -324,7 +347,7 @@ proc convertToIndexed*(surface: Surface): Surface =
         surface.data[i*surface.channels+0],
         surface.data[i*surface.channels+1],
         surface.data[i*surface.channels+2]
-      )
+      ).uint8
   elif surface.channels == 4:
     for i in 0..<surface.w*surface.h:
       result.data[i] = mapRGBA(
@@ -332,8 +355,8 @@ proc convertToIndexed*(surface: Surface): Surface =
         surface.data[i*surface.channels+1],
         surface.data[i*surface.channels+2],
         surface.data[i*surface.channels+3]
-      )
+      ).uint8
 
-proc RGB*(r,g,b: Pint): NicoColor =
+proc RGB*(r,g,b: Pint): tuple[r,g,b: uint8] =
   return (r.uint8,g.uint8,b.uint8)
 {.pop.}

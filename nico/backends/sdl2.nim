@@ -200,6 +200,7 @@ proc createRecordBuffer(forceClear: bool = false) =
 
 
 proc resize*(w,h: int) =
+  debug "sdl resize", w, h
   if w == 0 or h == 0:
     return
   # calculate screenScale based on size
@@ -268,11 +269,13 @@ proc resize*(w,h: int) =
   if swCanvas32 == nil:
     raise newException(Exception, "error creating RGB surface")
 
+  stencilBuffer = newSurface(screenWidth, screenHeight)
+
   discard render.setRenderTarget(hwCanvas)
   createRecordBuffer(true)
 
-  if resizeFunc != nil:
-    resizeFunc(screenWidth,screenHeight)
+  for rf in resizeFuncs:
+    rf(screenWidth,screenHeight)
 
 proc resize*() =
   if window == nil:
@@ -332,7 +335,7 @@ proc loadSurfaceIndexed*(filename: string, callback: proc(surface: common.Surfac
   let ss = newStringStream(buffer)
   let png = decodePNG(ss, LCT_PALETTE, 8)
 
-  var surface: common.Surface
+  var surface = newSurface(png.width, png.height)
   surface.w = png.width
   surface.h = png.height
   surface.channels = 1
@@ -344,7 +347,7 @@ proc loadSurfaceRGBA*(filename: string, callback: proc(surface: common.Surface))
   let ss = newStringStream(buffer)
   let png = decodePNG(ss, LCT_RGBA, 8)
 
-  var surface: common.Surface
+  var surface = newSurface(png.width, png.height)
   surface.w = png.width
   surface.h = png.height
   surface.channels = 4
@@ -352,8 +355,9 @@ proc loadSurfaceRGBA*(filename: string, callback: proc(surface: common.Surface))
   callback(surface)
 
 proc refreshSpritesheets*() =
+  echo "refreshSpritesheets"
   for i in 0..<spriteSheets.len:
-    if spriteSheets[i].filename != "":
+    if spriteSheets[i] != nil and spriteSheets[i].filename != "":
       loadSurfaceIndexed(joinPath(assetPath,spriteSheets[i].filename)) do(surface: common.Surface):
         spriteSheets[i].data = surface.data
         spriteSheets[i].w = surface.w
@@ -392,6 +396,7 @@ proc flip*() =
       if fullSpeedGif or frame mod 2 == 0:
         copyMem(recordFrame.data[0].addr, swCanvas.data[0].addr, swCanvas.w * swCanvas.h)
         recordFrames.add([recordFrame])
+        recordFrame = newSurface(swCanvas.w, swCanvas.h)
 
   #delay(0)
 
@@ -415,7 +420,7 @@ proc saveRecording*() =
 
     var palette: array[maxPaletteSize,array[3,uint8]]
     for i in 0..<maxPaletteSize:
-      palette[i] = [colors[i].r, colors[i].g, colors[i].b]
+      palette[i] = cast[array[3,uint8]](currentPalette.data[i])
 
     let filename = joinPath(writePath, joinPath("video", "video-$1T$2.gif".format(getDateStr(), getClockStr().replace(":","-"))))
 
@@ -423,7 +428,7 @@ proc saveRecording*() =
       filename.cstring,
       (screenWidth*gifScale).uint16,
       (screenHeight*gifScale).uint16,
-      palette[0][0].addr, if paletteSize <= 16: 4 else: 8, 0
+      palette[0][0].addr, if currentPalette.size <= 16: 4 else: 8, 0
     )
 
     if gif == nil:
@@ -433,6 +438,7 @@ proc saveRecording*() =
     debug "created gif: ", filename
     var pixels: ptr[array[int32.high, uint8]]
 
+    var frames = 0
     block exportFrames:
       for j in 0..<recordFrames.size:
         var frame = recordFrames[j]
@@ -454,9 +460,10 @@ proc saveRecording*() =
         else:
           copyMem(gif.frame, frame.data[0].addr, screenWidth*screenHeight)
         gif.add_frame(if fullSpeedGif: 2 else: 3)
+        frames += 1
 
     gif.close()
-    echo "completed saving gif ", filename
+    echo "completed saving gif ", filename, " frames: ", frames
 
 proc getKeyNamesForBtn*(btn: NicoButton): seq[string] =
   result = newSeq[string]()

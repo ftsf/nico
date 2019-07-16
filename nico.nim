@@ -22,6 +22,8 @@ else:
   import nico/backends/sdl2 as backend
   import os
 
+export StencilMode
+
 # Audio
 export joinPath
 export loadSfx
@@ -40,6 +42,10 @@ export glide
 export wavData
 export pitchbend
 export pitch
+
+export clipMinX,clipMinY,clipMaxX,clipMaxY
+export currentColor
+export cameraX,cameraY
 
 export debug
 import nico/controller
@@ -122,9 +128,10 @@ proc glyphWidth*(c: char, scale: Pint = 1): Pint
 # Colors
 proc setColor*(colId: ColorId)
 proc getColor*(): ColorId
-proc loadPaletteFromGPL*(filename: string)
-proc loadPalettePico8*()
-proc loadPaletteCGA*()
+proc loadPaletteFromGPL*(filename: string): Palette
+proc loadPalettePico8*(): Palette
+proc loadPaletteCGA*(): Palette
+proc loadPaletteGrayscale*(): Palette
 
 proc pal*(a,b: ColorId) # maps one color to another
 proc pald*(a,b: ColorId) # maps one color to another on display output
@@ -133,22 +140,49 @@ proc pald*() # resets display palette
 proc palt*(a: ColorId, trans: bool) # sets transparency for color
 proc palt*() # resets transparency
 
-proc palCol*(c: ColorId, r,g,b: uint8) =
+proc palCol*(c: Pint, r,g,b: uint8) =
   ## sets the palette color to rgb value
-  colors[c] = RGB(r.int,g.int,b.int)
-
-proc palSet*(cols: array[maxPaletteSize, tuple[r,g,b: uint8]]) =
-  ## sets the entire color palette
-  for i in 0..<maxPaletteSize:
-    palCol(i, cols[i].r, cols[i].g, cols[i].b)
-
-proc palGet*(): array[maxPaletteSize, tuple[r,g,b: uint8]] =
-  for i in 0..<maxPaletteSize:
-    result[i] = colors[i]
+  currentPalette.data[c.uint8] = (r,g,b)
 
 # Clipping
 proc clip*(x,y,w,h: Pint)
 proc clip*()
+
+# Stencil
+proc stencilSet*(x,y,v: Pint) =
+  stencilBuffer.set(x,y,v.uint8)
+proc stencilGet*(x,y: Pint): uint8 =
+  return stencilBuffer.get(x,y)
+proc setStencilRef*(v: Pint) =
+  stencilRef = v.uint8
+proc setStencilWrite*(on: bool) =
+  stencilWrite = on
+proc stencilMode*(mode: StencilMode) =
+  common.stencilMode = mode
+proc stencilClear*() =
+  zeroMem(stencilBuffer.data[0].addr, screenWidth * screenHeight)
+proc stencilClear*(v: Pint) =
+  let v = v.uint8
+  for i in 0..<stencilBuffer.data.len:
+    stencilBuffer.data[i] = v
+
+proc stencilTest(x,y: int, nv: uint8): bool =
+  let v = stencilBuffer.get(x,y)
+  case common.stencilMode:
+  of stencilAlways:
+    return true
+  of stencilEqual:
+    return nv == v
+  of stencilLess:
+    return nv < v
+  of stencilGreater:
+    return nv > v
+  of stencilLEqual:
+    return nv <= v
+  of stencilGEqual:
+    return nv >= v
+  of stencilNot:
+    return nv != v
 
 # Camera
 proc setCamera*(x,y: Pint = 0)
@@ -188,7 +222,8 @@ proc hline*(x0,y,x1: Pint)
 proc vline*(x,y0,y1: Pint)
 
 # triangles
-proc trifill*(x1,y1,x2,y2,x3,y3: Pint)
+proc trifill*(ax,ay,bx,by,cx,cy: Pint)
+proc quadfill*(x1,y1,x2,y2,x3,y3,x4,y4: Pint)
 
 # circles
 proc circfill*(cx,cy: Pint, r: Pint)
@@ -268,7 +303,8 @@ proc rnd*(x: Pfloat): Pfloat
 
 ## Internal functions
 
-proc psetRaw*(x,y: int, c: ColorId) {.inline.}
+proc psetRaw*(x,y: int, c: Pint) {.inline.}
+proc psetRaw*(x,y: int) {.inline.}
 
 proc fps*(fps: int) =
   frameRate = fps
@@ -283,7 +319,7 @@ proc time*(): float =
 proc speed*(speed: int) =
   frameMult = speed
 
-proc loadPaletteFromGPL*(filename: string) =
+proc loadPaletteFromGPL*(filename: string): Palette =
   var data = backend.readFile(joinPath(assetPath,filename))
   var i = 0
   for line in data.splitLines():
@@ -299,48 +335,53 @@ proc loadPaletteFromGPL*(filename: string) =
       continue
     var r,g,b: int
     if scanf(line, "$s$i $s$i $s$i", r,g,b):
-      colors[i-1] = RGB(r,g,b)
+      result.data[i-1] = RGB(r,g,b)
       if i > maxPaletteSize:
         break
       i += 1
     else:
       debug "not matched: ", line
-  paletteSize = i-1
+  result.size = i
   pal()
   pald()
   palt()
 
-proc loadPaletteCGA*() =
-  colors[0]  = RGB(0,0,0)
-  colors[1]  = RGB(85,255,255)
-  colors[2]  = RGB(255,85,255)
-  colors[3]  = RGB(255,255,255)
-  paletteSize = 4;
-  pal()
-  pald()
-  palt()
+proc setPalette*(p: Palette) =
+  currentPalette = p
 
-proc loadPalettePico8*() =
-  colors[0]  = RGB(0,0,0)
-  colors[1]  = RGB(29,43,83)
-  colors[2]  = RGB(126,37,83)
-  colors[3]  = RGB(0,135,81)
-  colors[4]  = RGB(171,82,54)
-  colors[5]  = RGB(95,87,79)
-  colors[6]  = RGB(194,195,199)
-  colors[7]  = RGB(255,241,232)
-  colors[8]  = RGB(255,0,77)
-  colors[9]  = RGB(255,163,0)
-  colors[10] = RGB(255,240,36)
-  colors[11] = RGB(0,231,86)
-  colors[12] = RGB(41,173,255)
-  colors[13] = RGB(131,118,156)
-  colors[14] = RGB(255,119,168)
-  colors[15] = RGB(255,204,170)
-  paletteSize = 16;
-  pal()
-  pald()
-  palt()
+proc getPalette*(): Palette =
+  return currentPalette
+
+proc loadPaletteCGA*(): Palette =
+  result.data[0] = RGB(0,0,0)
+  result.data[1] = RGB(85,255,255)
+  result.data[2] = RGB(255,85,255)
+  result.data[3] = RGB(255,255,255)
+  result.size = 4
+
+proc loadPalettePico8*(): Palette =
+  result.data[0]  = RGB(0,0,0)
+  result.data[1]  = RGB(29,43,83)
+  result.data[2]  = RGB(126,37,83)
+  result.data[3]  = RGB(0,135,81)
+  result.data[4]  = RGB(171,82,54)
+  result.data[5]  = RGB(95,87,79)
+  result.data[6]  = RGB(194,195,199)
+  result.data[7]  = RGB(255,241,232)
+  result.data[8]  = RGB(255,0,77)
+  result.data[9]  = RGB(255,163,0)
+  result.data[10] = RGB(255,240,36)
+  result.data[11] = RGB(0,231,86)
+  result.data[12] = RGB(41,173,255)
+  result.data[13] = RGB(131,118,156)
+  result.data[14] = RGB(255,119,168)
+  result.data[15] = RGB(255,204,170)
+  result.size = 16
+
+proc loadPaletteGrayscale*(): Palette =
+  for i in 0..<256:
+    result.data[i] = RGB(i,i,i)
+  result.size = 256
 
 clipMaxX = screenWidth-1
 clipMaxY = screenHeight-1
@@ -364,6 +405,11 @@ proc clip*(x,y,w,h: Pint) =
   clippingRect.y = max(y, 0)
   clippingRect.w = min(w, screenWidth - x)
   clippingRect.h = min(h, screenHeight - y)
+
+var ditherColor: int = -1
+
+proc setDitherColor*(c: Pint = -1) =
+  ditherColor = c
 
 proc ditherPattern*(pattern: uint16 = 0b1111_1111_1111_1111) =
   # 0123
@@ -457,21 +503,21 @@ proc pal*(a,b: ColorId) =
   paletteMapDraw[a] = b
 
 proc pal*() =
-  for i in 0..<paletteSize.int:
+  for i in 0..<maxPaletteSize:
     paletteMapDraw[i] = i
 
 proc pald*(a,b: ColorId) =
   paletteMapDisplay[a] = b
 
 proc pald*() =
-  for i in 0..<paletteSize.int:
+  for i in 0..<maxPaletteSize:
     paletteMapDisplay[i] = i
 
 proc palt*(a: ColorId, trans: bool) =
   paletteTransparent[a] = trans
 
 proc palt*() =
-  for i in 0..<paletteSize.int:
+  for i in 0..<maxPaletteSize:
     paletteTransparent[i] = if i == 0: true else: false
 
 {.push checks:off, optimization: speed.}
@@ -494,42 +540,52 @@ proc setColor*(colId: ColorId) =
 proc getColor*(): ColorId =
   return currentColor
 
+proc pset*(x,y: Pint, c: ColorId) =
+  let x = x-cameraX
+  let y = y-cameraY
+  if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
+    return
+  if stencilTest(x,y,stencilRef):
+    if ditherPass(x,y):
+      swCanvas.set(x,y,paletteMapDraw[currentColor].uint8)
+    elif ditherColor >= 0:
+      swCanvas.set(x,y,paletteMapDraw[ditherColor.ColorId].uint8)
+    if stencilWrite:
+      stencilBuffer.set(x,y,stencilRef)
+
 proc pset*(x,y: Pint) =
-  let x = x-cameraX
-  let y = y-cameraY
-  if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
-    return
-  if ditherPass(x,y):
-    swCanvas.data[y*swCanvas.w+x] = paletteMapDraw[currentColor]
+  pset(x,y,currentColor)
 
-proc pset*(x,y: Pint, c: int) =
-  let x = x-cameraX
-  let y = y-cameraY
-  if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
-    return
-  if ditherPass(x,y):
-    swCanvas.data[y*swCanvas.w+x] = paletteMapDraw[c]
+proc psetRaw*(x,y: int, c: Pint) =
+  # relies on you not going outside the buffer bounds
+  if stencilTest(x,y,stencilRef):
+    if ditherPass(x,y):
+      swCanvas.set(x,y,c.uint8)
+    elif ditherColor >= 0:
+      swCanvas.set(x,y,ditherColor.uint8)
+    if stencilWrite:
+      stencilBuffer.set(x,y,stencilRef)
 
-proc psetRaw*(x,y: int, c: ColorId) =
-  if ditherPass(x,y):
-    swCanvas.data[y*swCanvas.w+x] = c
+proc psetRaw*(x,y: int) =
+  psetRaw(x,y,currentColor)
 
 proc sset*(x,y: Pint, c: int = -1) =
   let c = if c == -1: currentColor else: c
-  if x < 0 or y < 0 or x > spriteSheet.w-1 or y > spriteSheet.h-1:
+  if x < 0 or y < 0 or x > spritesheet.w-1 or y > spritesheet.h-1:
     raise newException(RangeError, "sset ($1,$2) out of bounds".format(x,y))
-  spriteSheet[].data[y*spriteSheet[].w+x] = paletteMapDraw[c]
+  spritesheet.data[y*spritesheet.w+x] = paletteMapDraw[c].uint8
 
 proc sget*(x,y: Pint): ColorId =
-  if x > spriteSheet.w-1 or x < 0 or y > spriteSheet.h-1 or y < 0:
+  if x > spritesheet.w-1 or x < 0 or y > spritesheet.h-1 or y < 0:
+    debug "sget invalid coord: ", x, y
     return 0
-  let color = spriteSheet[].data[y*spriteSheet.w+x]
+  let color = spritesheet.data[y*spritesheet.w+x].ColorId
   return color
 
 proc pget*(x,y: Pint): ColorId =
   if x > swCanvas.w-1 or x < 0 or y > swCanvas.h-1 or y < 0:
     return 0
-  return swCanvas.data[y*swCanvas.w+x]
+  return swCanvas.data[y*swCanvas.w+x].ColorId
 
 proc rectfill*(x1,y1,x2,y2: Pint) =
   let minx = min(x1,x2)
@@ -584,6 +640,235 @@ proc innerLineHigh(x0,y0,x1,y1: int) =
       D = D - 2*dy
     D = D + 2*dx
 
+proc innerLineClipped(x1,y1,x2,y2: int) =
+  # TODO clipping
+  # https://stackoverflow.com/questions/40884680/how-to-use-bresenhams-line-drawing-algorithm-with-clipping
+  var x1 = x1
+  var x2 = x2
+  var y1 = y1
+  var y2 = y2
+  var signX = 1
+  var signY = 1
+  var clipMinX = clipMinX
+  var clipMaxX = clipMaxX
+  var clipMinY = clipMinY
+  var clipMaxY = clipMaxY
+
+  if x1 < x2:
+    if x1 > clipMaxX or x2 < clipMinX:
+      return
+    signX = 1
+  else:
+    if x2 > clipMaxX or x1 < clipMinX:
+      return
+    signX = -1
+
+    x1 = -x1
+    x2 = -x2
+    swap(clipMinX, clipMaxX)
+    clipMinX = -clipMinX
+    clipMaxX = -clipMaxX
+
+  if y1 < y2:
+    if y1 > clipMaxY or y2 < clipMinY:
+      return
+    signY = 1
+  else:
+    if y2 > clipMaxY or y1 < clipMinY:
+      return
+    signY = -1
+
+    y1 = -y1
+    y2 = -y2
+
+    swap(clipMinY,clipMaxY)
+    clipMinY = -clipMinY
+    clipMaxY = -clipMaxY
+
+  var delta_x = x2 - x1
+  var delta_y = y2 - y1
+
+  var delta_x_step = 2 * delta_x
+  var delta_y_step = 2 * delta_y
+
+  # Plotting values
+  var x_pos = x1
+  var y_pos = y1
+
+  var set_exit = false
+
+  var rem: int
+
+  if delta_x >= delta_y:
+    var error = delta_y_step - delta_x
+    set_exit = false
+
+    # Line starts below the clip window.
+    if y1 < clipMinY:
+      var temp = (2 * (clipMinY - y1) - 1) * delta_x
+      var msd = temp div delta_y_step
+      x_pos += msd
+
+      # Line misses the clip window entirely.
+      if x_pos > clipMaxX:
+        return
+
+      # Line starts.
+      if x_pos >= clipMinX:
+        rem = temp - msd * delta_y_step
+
+        y_pos = clipMinY
+        error -= rem + delta_x
+
+        if rem > 0:
+          x_pos += 1
+          error += delta_y_step
+        set_exit = true
+
+        # Line starts left of the clip window.
+        if not set_exit and x1 < clipMinX:
+            temp = delta_y_step * (clipMinX - x1)
+            msd = temp div delta_x_step
+            y_pos += msd
+            rem = temp mod delta_x_step
+
+            # Line misses clip window entirely.
+            if y_pos > clipMaxY or (y_pos == clipMaxY and rem >= delta_x):
+                return
+
+            x_pos = clipMinX
+            error += rem
+
+            if rem >= delta_x:
+                y_pos += 1
+                error -= delta_x_step
+
+        var x_pos_end = x2
+
+        if y2 > clipMaxY:
+            temp = delta_x_step * (clipMaxY - y1) + delta_x
+            msd = temp div delta_y_step
+            x_pos_end = x1 + msd
+
+            if (temp - msd * delta_y_step) == 0:
+                x_pos_end -= 1
+
+        x_pos_end = min(x_pos_end, clipMaxX) + 1
+        if sign_y == -1:
+            y_pos = -y_pos
+        if sign_x == -1:
+            x_pos = -x_pos
+            x_pos_end = -x_pos_end
+        delta_x_step -= delta_y_step
+
+        while x_pos != x_pos_end:
+            psetRaw(x_pos, y_pos)
+
+            if error >= 0:
+                y_pos += sign_y
+                error -= delta_x_step
+            else:
+                error += delta_y_step
+
+            x_pos += sign_x
+    else:
+        # Line is steep '/' (delta_x < delta_y).
+        # Same as previous block of code with swapped x/y axis.
+
+        error = delta_x_step - delta_y
+        set_exit = false
+
+        # Line starts left of the clip window.
+        if x1 < clipMinX:
+            var temp = (2 * (clipMinX - x1) - 1) * delta_y
+            var msd = temp div delta_x_step
+            y_pos += msd
+
+            # Line misses the clip window entirely.
+            if y_pos > clipMaxY:
+                return
+
+            # Line starts.
+            if y_pos >= clipMinY:
+                rem = temp - msd * delta_x_step
+
+                x_pos = clipMinX
+                error -= rem + delta_y
+
+                if rem > 0:
+                    y_pos += 1
+                    error += delta_x_step
+                set_exit = true
+
+        # Line starts below the clip window.
+        if not set_exit and y1 < clipMinY:
+            var temp = delta_x_step * (clipMinY - y1)
+            var msd = temp div delta_y_step
+            x_pos += msd
+            rem = temp mod delta_y_step
+
+            # Line misses clip window entirely.
+            if x_pos > clipMaxX or (x_pos == clipMaxX and rem >= delta_y):
+                return
+
+            y_pos = clipMinY
+            error += rem
+
+            if rem >= delta_y:
+                x_pos += 1
+                error -= delta_y_step
+
+        var y_pos_end = y2
+
+        if x2 > clipMaxX:
+            var temp = delta_y_step * (clipMaxX - x1) + delta_y
+            var msd = temp div delta_x_step
+            y_pos_end = y1 + msd
+
+            if (temp - msd * delta_x_step) == 0:
+                y_pos_end -= 1
+
+        y_pos_end = min(y_pos_end, clipMaxY) + 1
+        if sign_x == -1:
+            x_pos = -x_pos
+        if sign_y == -1:
+            y_pos = -y_pos
+            y_pos_end = -y_pos_end
+        delta_y_step -= delta_x_step
+
+        while y_pos != y_pos_end:
+            psetRaw(x_pos, y_pos)
+
+            if error >= 0:
+                x_pos += sign_x
+                error -= delta_y_step
+            else:
+                error += delta_x_step
+
+            y_pos += sign_y
+
+proc innerLine*(x0,y0,x1,y1: Pint) =
+  if abs(y1 - y0) < abs(x1 - x0):
+    if x0 > x1:
+      innerLineLow(x1,y1,x0,y0)
+    else:
+      innerLineLow(x0,y0,x1,y1)
+  else:
+    if y0 > y1:
+      innerLineHigh(x1,y1,x0,y0)
+    else:
+      innerLineHigh(x0,y0,x1,y1)
+
+proc line*(x0,y0,x1,y1: Pint) =
+  if x0 == x1 and y0 == y1:
+    pset(x0,y0)
+  elif x0 == x1:
+    vline(x0, y0, y1)
+  elif y0 == y1:
+    hline(x0, y0, x1)
+  else:
+    innerLine(x0,y0,x1,y1)
+
 proc innerLineDashedLow(x0,y0,x1,y1: int, pattern: uint8) =
   var dx = x1 - x0
   var dy = y1 - y0
@@ -624,18 +909,6 @@ proc innerLineDashedHigh(x0,y0,x1,y1: int, pattern: uint8) =
       D = D - 2*dy
     D = D + 2*dx
 
-proc innerLine(x0,y0,x1,y1: int) =
-  if abs(y1 - y0) < abs(x1 - x0):
-    if x0 > x1:
-      innerLineLow(x1,y1,x0,y0)
-    else:
-      innerLineLow(x0,y0,x1,y1)
-  else:
-    if y0 > y1:
-      innerLineHigh(x1,y1,x0,y0)
-    else:
-      innerLineHigh(x0,y0,x1,y1)
-
 proc innerLineDashed(x0,y0,x1,y1: int, pattern: uint8) =
   if abs(y1 - y0) < abs(x1 - x0):
     if x0 > x1:
@@ -648,23 +921,41 @@ proc innerLineDashed(x0,y0,x1,y1: int, pattern: uint8) =
     else:
       innerLineDashedHigh(x0,y0,x1,y1,pattern)
 
-proc hlineFast(x0,y,x1: Pint, c: ColorId) =
-  for x in x0..x1:
-    psetRaw(x,y,c)
+proc hlineFast(x0,x1,y: Pint) =
+  if y < clipMinY or y > clipMaxY:
+    return
+  for x in max(x0,clipMinX)..min(x1,clipMaxX):
+    psetRaw(x,y,currentColor)
 
 proc hline*(x0,y,x1: Pint) =
+  let minX = clipMinX + cameraX
+  let maxX = clipMaxX + cameraX
+  if x0 < minX and x1 < minX:
+    return
+  if x0 > maxX and x1 > maxX:
+    return
   var x0 = x0
   var x1 = x1
   if x1<x0:
     swap(x1,x0)
+  x0 = max(x0, minX)
+  x1 = min(x1, maxX)
   for x in x0..x1:
     pset(x,y)
 
 proc vline*(x,y0,y1: Pint) =
+  let minY = clipMinY + cameraY
+  let maxY = clipMaxY + cameraY
+  if y0 < minY and y1 < minY:
+    return
+  if y0 > maxY and y1 > maxY:
+    return
   var y0 = y0
   var y1 = y1
   if y1<y0:
     swap(y1,y0)
+  y0 = max(y0, minY)
+  y1 = min(y1, maxY)
   for y in y0..y1:
     pset(x,y)
 
@@ -689,16 +980,6 @@ proc vlineDashed*(x,y0,y1: Pint, pattern: uint8 = 0b10101010) =
     if (pattern and (1 shl i).uint8) != 0:
       pset(x,y)
     i = (i + 1) mod 8
-
-proc line*(x0,y0,x1,y1: Pint) =
-  if x0 == x1 and y0 == y1:
-    pset(x0,y0)
-  elif x0 == x1:
-    vline(x0, y0, y1)
-  elif y0 == y1:
-    hline(x0, y0, x1)
-  else:
-    innerLine(x0,y0,x1,y1)
 
 proc lineDashed*(x0,y0,x1,y1: Pint, pattern: uint8 = 0b10101010) =
   if x0 == x1 and y0 == y1:
@@ -782,79 +1063,53 @@ proc step(self: var Bresenham): (int,int) =
       self.y += self.sy
       return (self.x,self.y)
 
-proc trifill*(x1,y1,x2,y2,x3,y3: Pint) =
-  var x1 = x1 - cameraX
-  var x2 = x2 - cameraX
-  var x3 = x3 - cameraX
-  var y1 = y1 - cameraY
-  var y2 = y2 - cameraY
-  var y3 = y3 - cameraY
+proc orient2d(ax,ay,bx,by,cx,cy: Pint): int =
+  return (bx - ax) * (cy - ay) - (by - ay) * (cx-ax)
 
-  if y2<y1:
-    if y3<y2:
-      swap(y1,y3)
-      swap(x1,x3)
-    else:
-      swap(y1,y2)
-      swap(x1,x2)
-  else:
-    if y3<y1:
-      swap(y1,y3)
-      swap(x1,x3)
-  if y2>y3:
-    swap(y3,y2)
-    swap(x3,x2)
+proc trifill*(ax,ay,bx,by,cx,cy: Pint) =
+  let ax = ax - cameraX
+  let bx = bx - cameraX
+  let cx = cx - cameraX
+  let ay = ay - cameraY
+  let by = by - cameraY
+  let cy = cy - cameraY
 
-  let minx = min(x1,min(x2,x3))
-  let maxx = max(x1,max(x2,x3))
+  let minX = max(min(min(ax, bx), cx), clipMinX)
+  let minY = max(min(min(ay, by), cy), clipMinY)
+  let maxX = min(max(max(ax, bx), cx), clipMaxX)
+  let maxY = min(max(max(ay, by), cy), clipMaxY)
 
-  if maxx < clipMinX or minx > clipMaxX or y3 < clipMinY or y1 > clipMaxY:
-    # if the tri is on screen skip it
-    return
+  let
+    A01 = ay - by
+    B01 = bx - ax
+    A12 = by - cy
+    B12 = cx - bx
+    A20 = cy - ay
+    B20 = ax - cx
 
-  var sx = x1
-  var ex = x1
-  var sy = y1
-  var ey = y1
+  var w0_row = orient2d(bx,by,cx,cy,minx,miny)
+  var w1_row = orient2d(cx,cy,ax,ay,minx,miny)
+  var w2_row = orient2d(ax,ay,bx,by,minx,miny)
 
-  # create the three lines of the triangle AC, AB, BC
-  # A is the highest point
-  # C is the lowest point
-  var ab = initBresenham(x1,y1, x2,y2)
-  var ac = initBresenham(x1,y1, x3,y3)
-  var bc = initBresenham(x2,y2, x3,y3)
+  for py in minY..maxY:
+    var w0 = w0_row
+    var w1 = w1_row
+    var w2 = w2_row
 
-  let c = paletteMapDraw[currentColor]
+    for px in minX..maxX:
+      if w0 >= 0 and w1 >= 0 and w2 >= 0:
+        psetRaw(px,py)
+      w0 += A12
+      w1 += A20
+      w2 += A01
 
-  if sx >= clipMinX and sx <= clipMaxX and sy >= clipMinY and sy <= clipMaxY:
-    psetRaw(sx,sy, c)
+    w0_row += B12
+    w1_row += B20
+    w2_row += B01
 
-  if y1 != y2:
-    # draw flat bottom tri
-    while true:
-      (sx,sy) = ab.step()
-      (ex,ey) = ac.step()
-      let ax = min(sx,ex)
-      let bx = max(sx,ex)
-      if not(ax > clipMaxX or bx < clipMinX or sy < clipMinY or sy > clipMaxY):
-        hlineFast(clamp(ax,clipMinX,clipMaxX),sy,clamp(bx,clipMinX,clipMaxX), c)
-      if sy == y2 or sy >= clipMaxY:
-        break
-
-  if sy >= clipMinY and sy <= clipMaxY:
-    hlineFast(clamp(sx,clipMinX,clipMaxX),sy,clamp(x2,clipMinX,clipMaxX), c)
-
-  if y2 != y3:
-    # draw flat top tri
-    while true:
-      (sx,sy) = ac.step()
-      (ex,ey) = bc.step()
-      let ax = min(sx,ex)
-      let bx = max(sx,ex)
-      if not (ax > clipMaxX or bx < clipMinX or sy < clipMinY or sy > clipMaxY):
-        hlineFast(clamp(ax,clipMinX,clipMaxX),sy,clamp(bx,clipMinX,clipMaxX), c)
-      if sy == y3 or sy >= clipMaxY:
-        break
+proc quadfill*(x1,y1,x2,y2,x3,y3,x4,y4: Pint) =
+  trifill(x1,y1,x2,y2,x3,y3)
+  trifill(x1,y1,x3,y3,x4,y4)
 
 proc plot4pointsfill(cx,cy,x,y: Pint) =
   hline(cx - x, cy + y, cx + x)
@@ -1025,7 +1280,10 @@ proc fontBlit(font: Font, srcRect, dstRect: Rect, color: ColorId) =
       if dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY:
         continue
       if font.data[sy * font.w + sx] == 1 and ditherPass(dx.int,dy.int):
-        swCanvas.data[dy * swCanvas.w + dx] = currentColor
+        swCanvas.data[dy * swCanvas.w + dx] = currentColor.uint8
+      elif ditherColor >= 0:
+        swCanvas.data[dy * swCanvas.w + dx] = ditherColor.uint8
+
       sx += 1.0 * (sw/dw)
       dx += 1.0
     sy += 1.0 * (sh/dh)
@@ -1057,6 +1315,8 @@ proc blitFastRaw(src: Surface, sx,sy, dx,dy, w,h: Pint) =
       if ditherPass(dxi,dyi):
         let srcCol = src.data[syi * src.w + sxi]
         swCanvas.data[dyi * swCanvas.w + dxi] = srcCol
+      elif ditherColor >= 0:
+        swCanvas.data[dyi * swCanvas.w + dxi] = ditherColor.uint8
       sxi += 1
       dxi += 1
     syi += 1
@@ -1071,8 +1331,8 @@ proc blitFastRaw*(sx,sy, dx,dy, w,h: Pint) =
   var dxi = dx
   var dyi = dy
 
-  let srcw = spriteSheet[].w
-  let srch = spriteSheet[].w
+  let srcw = spritesheet.w
+  let srch = spritesheet.w
 
   while dyi < dy + h:
     if syi < 0 or syi > srch-1 or dyi < clipMinY or dyi > min(swCanvas.h-1,clipMaxY):
@@ -1088,8 +1348,11 @@ proc blitFastRaw*(sx,sy, dx,dy, w,h: Pint) =
         sxi += 1
         continue
       if ditherPass(dxi,dyi):
-        let srcCol = spriteSheet[].data[syi * srcw + sxi]
+        let srcCol = spritesheet.data[syi * srcw + sxi]
         swCanvas.data[dyi * swCanvas.w + dxi] = srcCol
+      elif ditherColor >= 0:
+        swCanvas.data[dyi * swCanvas.w + dxi] = ditherColor.uint8
+
       sxi += 1
       dxi += 1
     syi += 1
@@ -1120,7 +1383,10 @@ proc blitFast(src: Surface, sx,sy, dx,dy, w,h: Pint) =
       if ditherPass(dxi,dyi):
         let srcCol = src.data[syi * src.w + sxi]
         if not paletteTransparent[srcCol]:
-          swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol]
+          swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol].uint8
+      elif ditherColor >= 0:
+        swCanvas.data[dyi * swCanvas.w + dxi] = ditherColor.uint8
+
       sxi += 1
       dxi += 1
     syi += 1
@@ -1155,7 +1421,10 @@ proc blitFastFlip(src: Surface, sx,sy, dx,dy, w,h: Pint, hflip, vflip: bool) =
       if ditherPass(dxi,dyi):
         let srcCol = src.data[syi * src.w + sxi]
         if not paletteTransparent[srcCol]:
-          swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol]
+          swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol].uint8
+      elif ditherColor >= 0:
+        swCanvas.data[dyi * swCanvas.w + dxi] = ditherColor.uint8
+
       sxi += xi
       dxi += 1
     syi += yi
@@ -1196,7 +1465,10 @@ proc blit(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = false) =
         if ditherPass(dx.int,dy.int):
           let srcCol = src.data[sy.int * src.w + sx.int]
           if not paletteTransparent[srcCol]:
-            swCanvas.data[dy.int * swCanvas.w + dx.int] = paletteMapDraw[srcCol]
+            swCanvas.data[dy.int * swCanvas.w + dx.int] = paletteMapDraw[srcCol].uint8
+        elif ditherColor >= 0:
+          swCanvas.data[dy.int * swCanvas.w + dx.int] = paletteMapDraw[ditherColor.ColorId].uint8
+
       if hflip:
         sx -= 1.0 * (sw/dw)
         dx -= 1.0
@@ -1242,7 +1514,10 @@ proc blitStretch(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = fals
       if not (dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY or sx < 0 or sy < 0 or sx >= src.w or sy >= src.h):
         let srcCol = src.data[sy.int * src.w + sx.int]
         if ditherPass(dx.int,dy.int) and not paletteTransparent[srcCol]:
-          swCanvas.data[dy * swCanvas.w + dx] = paletteMapDraw[srcCol]
+          swCanvas.data[dy * swCanvas.w + dx] = paletteMapDraw[srcCol].uint8
+        elif ditherColor >= 0:
+          swCanvas.data[dy * swCanvas.w + dx] = paletteMapDraw[ditherColor.ColorId].uint8
+
       if hflip:
         sx -= 1.0 * (sw/dw)
         dx -= 1.0
@@ -1283,13 +1558,13 @@ proc unset[T](flags: var T, bit: T) =
 proc fget*(s: uint8): uint8 =
   return spriteFlags[s]
 
-proc fget*(s: uint8, f: range[0..7]): bool =
+proc fget*(s: uint8, f: uint8): bool =
   return spriteFlags[s].contains(f)
 
-proc fset*(s: uint8, f: range[0..7]) =
+proc fset*(s: uint8, f: uint8) =
   spriteFlags[s] = f
 
-proc fset*(s: uint8, f: range[0..7], v: bool) =
+proc fset*(s: uint8, f: uint8, v: bool) =
   if v:
     spriteFlags[s].set(f)
   else:
@@ -1515,8 +1790,12 @@ proc resize() =
   cls()
   present()
 
-proc setResizeFunc*(newResizeFunc: ResizeFunc) =
-  resizeFunc = newResizeFunc
+proc addResizeFunc*(newResizeFunc: ResizeFunc) =
+  resizeFuncs.add(newResizeFunc)
+
+proc removeResizeFunc*(resizeFunc: ResizeFunc) =
+  let i = resizeFuncs.find(resizeFunc)
+  resizeFuncs.del(i)
 
 proc setTargetSize*(w,h: int) =
   if targetScreenWidth == w and targetScreenHeight == h:
@@ -1538,80 +1817,82 @@ proc integerScale*(enabled: bool) =
   integerScreenScale = enabled
 
 proc setSpritesheet*(bank: range[0..15] = 0) =
-  spriteSheet = spriteSheets[bank].addr
+  if spritesheets[bank] == nil:
+    raise newException(Exception, "No spritesheet loaded: " & $bank)
+  spritesheet = spritesheets[bank]
 
 proc loadSpriteSheet*(index: range[0..15], filename: string, w,h: Pint = 8) =
   backend.loadSurfaceIndexed(joinPath(assetPath,filename)) do(surface: Surface):
-    spriteSheets[index] = surface
-    spriteSheets[index].tw = w
-    spriteSheets[index].th = h
-    spriteSheets[index].filename = filename
+    spritesheets[index] = surface
+    spritesheets[index].tw = w
+    spritesheets[index].th = h
+    spritesheets[index].filename = filename
 
 proc spriteSize*(): (int,int) =
-  return (spriteSheet[].tw, spriteSheet[].th)
+  return (spritesheet.tw, spritesheet.th)
 
 proc getSprRect(spr: Pint, w,h: Pint = 1): Rect {.inline.} =
-  let tilesX = spriteSheet.w div spriteSheet.tw
-  result.x = spr mod tilesX * spriteSheet.tw
-  result.y = spr div tilesX * spriteSheet.th
-  result.w = w * spriteSheet.tw
-  result.h = h * spriteSheet.th
+  let tilesX = spritesheet.w div spritesheet.tw
+  result.x = spr mod tilesX * spritesheet.tw
+  result.y = spr div tilesX * spritesheet.th
+  result.w = w * spritesheet.tw
+  result.h = h * spritesheet.th
 
 proc spr*(spr: Pint, x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false) =
-  if spriteSheet.tw == 0 or spriteSheet.th == 0:
+  if spritesheet.tw == 0 or spritesheet.th == 0:
     return
   # draw a sprite
   var src = getSprRect(spr, w, h)
   if hflip or vflip:
-    blitFastFlip(spriteSheet[], src.x, src.y, x-cameraX, y-cameraY, src.w, src.h, hflip, vflip)
+    blitFastFlip(spritesheet, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h, hflip, vflip)
   else:
-    blitFast(spriteSheet[], src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
+    blitFast(spritesheet, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
 
 proc sprBlit*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
   # draw a sprite
   let src = getSprRect(spr, w, h)
   let dst: Rect = ((x-cameraX).int,(y-cameraY).int,src.w,src.h)
-  blit(spriteSheet[], src, dst)
+  blit(spritesheet, src, dst)
 
 proc sprBlitFast*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
   # draw a sprite
   let src = getSprRect(spr, w, h)
-  blitFast(spriteSheet[], src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
+  blitFast(spritesheet, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
 
 proc sprBlitFastRaw*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
   # draw a sprite
   let src = getSprRect(spr, w, h)
-  blitFastRaw(spriteSheet[], src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
+  blitFastRaw(spritesheet, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
 
 proc sprBlitStretch*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
   # draw a sprite
   let src = getSprRect(spr, w, h)
   let dst: Rect = ((x-cameraX).int,(y-cameraY).int,src.w,src.h)
-  blitStretch(spriteSheet[], src, dst)
+  blitStretch(spritesheet, src, dst)
 
 proc sprs*(spr: Pint, x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip, vflip: bool = false) =
   # draw an integer scaled sprite
   var src = getSprRect(spr, w, h)
   var dst: Rect = ((x-cameraX).int,(y-cameraY).int,(dw*8).int,(dh*8).int)
-  blitStretch(spriteSheet[], src, dst, hflip, vflip)
+  blitStretch(spritesheet, src, dst, hflip, vflip)
 
 proc sprss*(spr: Pint, x,y: Pint, w,h: Pint = 1, dw,dh: Pint, hflip, vflip: bool = false) =
   # draw a scaled sprite
   var src = getSprRect(spr, w, h)
   var dst: Rect = ((x-cameraX).int,(y-cameraY).int,dw.int,dh.int)
-  blit(spriteSheet[], src, dst, hflip, vflip)
+  blit(spritesheet, src, dst, hflip, vflip)
 
 proc drawTile(spr: uint8, x,y: Pint) =
   var src = getSprRect(spr.Pint)
-  if overlap(clippingRect,(x.int,y.int, spriteSheet.tw, spriteSheet.th)):
-    blitFast(spriteSheet[], src.x, src.y, x, y, spriteSheet.tw, spriteSheet.th)
+  if overlap(clippingRect,(x.int,y.int, spritesheet.tw, spritesheet.th)):
+    blitFast(spritesheet, src.x, src.y, x, y, spritesheet.tw, spritesheet.th)
 
 proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = false) =
   var src: Rect = (sx.int,sy.int,sw.int,sh.int)
   let dw = if dw >= 0: dw else: sw
   let dh = if dh >= 0: dh else: sh
   var dst: Rect = ((dx-cameraX).int,(dy-cameraY).int,dw.int,dh.int)
-  blitStretch(spriteSheet[], src, dst, hflip, vflip)
+  blitStretch(spritesheet, src, dst, hflip, vflip)
 
 proc roundTo*(a: int, n: int): int =
   if a < 0:
@@ -1795,17 +2076,17 @@ proc saveMap*(index: int, filename: string) =
     ],
     "tilesets": [
       {
-        "columns": (spriteSheet[].w div tm.tw),
+        "columns": (spritesheet.w div tm.tw),
         "firstgid": 1,
-        "image": joinPath("..",spriteSheet[].filename),
-        "imagewidth": spriteSheet[].w,
-        "imageheight": spriteSheet[].h,
+        "image": joinPath("..",spritesheet.filename),
+        "imagewidth": spritesheet.w,
+        "imageheight": spritesheet.h,
         "margin": 0,
         "name": "tileset",
         "spacing": 0,
         "tilewidth": tm.tw,
         "tileheight": tm.th,
-        "tilecount": (spriteSheet[].w div tm.tw) * (spriteSheet[].h div tm.th),
+        "tilecount": (spritesheet.w div tm.tw) * (spritesheet.h div tm.th),
       }
     ]
   }
@@ -1862,7 +2143,7 @@ proc rnd*[T](min: T, max: T): T =
   return rand(max - min) + min
 
 proc rnd*[T](a: openarray[T]): T =
-  return rand(a)
+  return sample(a)
 
 proc srand*(seed: int) =
   if seed == 0:
@@ -1919,6 +2200,8 @@ proc cursor*(x,y: Pint) =
   cursorY = y
 
 proc wrap*[T](x,m: T): T =
+  if m == 0:
+    return 0
   return (x mod m + m) mod m
 
 proc noteToNoteStr*(value: int): string =
@@ -1982,13 +2265,15 @@ proc init*(org, app: string) =
 
   backend.init(org, app)
 
-  loadPalettePico8()
-  setSpritesheet(0)
+  setPalette(loadPalettePico8())
 
   initialized = true
 
   randomize(epochTime().int64)
   loadConfig()
+
+  spritesheets[0] = newSurface(1,1)
+  setSpritesheet(0)
 
   clip()
 

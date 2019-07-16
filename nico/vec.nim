@@ -335,9 +335,6 @@ proc length*[N,T](v: Vec[N,T]): T =
   let l2 = v.length2()
   return sqrt(l2)
 
-template magnitude(x) = length(x)
-template sqrMagnitude(x) = length2(x)
-
 proc normalized*[N,T](v: Vec[N,T]): Vec[N,T] =
   let length = v.length()
   if length < 0.000001:

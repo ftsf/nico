@@ -4,7 +4,7 @@ import nico/console
 import nico/tweaks
 import sets
 import hashes
-import queues
+import deques
 import sequtils
 
 {.this:self.}
@@ -67,16 +67,16 @@ proc newBoid(pos: Vec2f): Boid =
   result.alignment = 0.5
   result.shootTimeout = 5.0
   result.splitTimer = 10.0
-  result.neighbors = initSet[Boid]()
+  result.neighbors = initHashSet[Boid]()
 
 proc hash(self: Boid): Hash =
   var h: Hash = 0
   h = h !& self.id
   result = !$h
 
-proc seek(self: Boid, target: Vec2f, weight = 1.0) =
-  if (target - pos).sqrMagnitude > 0.01:
-    steering += (target - pos).normalized * maxSpeed * weight
+proc seek(self: Boid, target: Vec2f, weight = 1.0'f) =
+  if (target - self.pos).length2 > 0.01'f:
+    self.steering += (target - self.pos).normalized * self.maxSpeed * weight
 
 proc arrive(self: Boid, target: Vec2f, stoppingDistance = 1.0, weight = 1.0) =
   steering += (target - pos).normalized * maxSpeed * weight
@@ -191,12 +191,12 @@ proc gameUpdate(dt: float32) =
     let (mx,my) = mouse()
     let mv = vec2f(mx,my)
     let diff = (mv - ship.pos)
-    if diff.sqrMagnitude > 0.01:
+    if diff.length2 > 0.01:
       ship.vel += (mv - ship.pos).normalized * shipMaxForce * dt
 
   ship.vel = clamp(ship.vel, shipMaxSpeed)
 
-  if ship.vel.sqrMagnitude > 0.01:
+  if ship.vel.length2 > 0.01:
     let d = angleDiff(ship.vel.angle(), ship.angle)
     ship.angle = ship.angle + d * 0.1
 
@@ -295,7 +295,7 @@ proc gameUpdate(dt: float32) =
         var bullet: Bullet
         bullet.pos = b.pos
         let diff = ship.pos - b.pos
-        let mag = diff.magnitude
+        let mag = diff.length
         bullet.vel = ((ship.pos + ship.vel * mag * 0.001) - b.pos).normalized * 20.0
         bullet.ttl = 10.0
         bullets.add(bullet)
@@ -360,12 +360,12 @@ proc gameUpdate(dt: float32) =
       if b.splitTimer < 0:
         # split one mine into 3
         if boids.len < maxBoids:
-          var b2 = newBoid(b.pos + rndVec(0.1))
-          b2.vel = b.vel + rndVec(0.01)
+          var b2 = newBoid(b.pos + rndVec2f(0.1))
+          b2.vel = b.vel + rndVec2f(0.01)
           newBoids.add(b2)
           if b.state == Mine:
-            var b3 = newBoid(b.pos + rndVec(0.1))
-            b3.vel = b.vel + rndVec(0.01)
+            var b3 = newBoid(b.pos + rndVec2f(0.1))
+            b3.vel = b.vel + rndVec2f(0.01)
             newBoids.add(b3)
             b.splitTimer = 10.0
           else:
@@ -553,7 +553,7 @@ nico.init("impbox", "vertex")
 
 nico.createWindow("vertex prototype", 1920 div 6 , 1080 div 6, 5)
 
-loadPaletteFromGPL("palette.gpl")
+setPalette(loadPaletteFromGPL("palette.gpl"))
 loadSpritesheet(0, "spritesheet.png")
 setSpritesheet(0)
 

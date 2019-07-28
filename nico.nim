@@ -1694,13 +1694,19 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
   return font
 
 proc loadFont*(index: int, filename: string) =
+  let shouldReplace = currentFont == fonts[index]
   var chars = backend.readFile(joinPath(assetPath, filename & ".dat"))
   backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
     fonts[index] = createFontFromSurface(surface, chars)
+  if shouldReplace:
+    setFont(index)
 
 proc loadFont*(index: int, filename: string, chars: string) =
+  let shouldReplace = currentFont == fonts[index]
   backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
     fonts[index] = createFontFromSurface(surface, chars)
+  if shouldReplace:
+    setFont(index)
 
 proc glyph*(c: Rune, x,y: Pint, scale: Pint = 1): Pint =
   if currentFont == nil:

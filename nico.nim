@@ -1761,6 +1761,9 @@ proc mouse*(): (int,int) =
 proc mouserel*(): (float32,float32) =
   return (mouseRelX,mouseRelY)
 
+proc useRelativeMouse*(on: bool) =
+  backend.useRelativeMouse(on)
+
 proc mousebtn*(b: range[0..2]): bool =
   return mouseButtons[b] > 0
 

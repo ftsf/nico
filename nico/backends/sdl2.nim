@@ -545,10 +545,10 @@ proc appHandleEvent(evt: sdl.Event) =
   elif evt.kind == MouseMotion:
     if evt.motion.which != TOUCH_MOUSEID:
       mouseDetected = true
-    mouseX = ((evt.motion.x - screenPaddingX).float32 / screenScale.float32).int
-    mouseY = ((evt.motion.y - screenPaddingY).float32 / screenScale.float32).int
-    mouseRelX = ((evt.motion.xrel - screenPaddingX).float32 / screenScale.float32)
-    mouseRelY = ((evt.motion.yrel - screenPaddingY).float32 / screenScale.float32)
+    mouseRawX = evt.motion.x - screenPaddingX
+    mouseRawY = evt.motion.y - screenPaddingY
+    mouseX = (mouseRawX.float32 / screenScale.float32).int
+    mouseY = (mouseRawY.float32 / screenScale.float32).int
 
   elif evt.kind == ControllerDeviceAdded:
     for v in controllers:
@@ -809,6 +809,11 @@ proc step*() {.cdecl.} =
 
     mouseWheelState = 0
 
+    mouseRelX = (mouseRawX - lastMouseRawX).float32 / screenScale.float32
+    mouseRelY = (mouseRawY - lastMouseRawY).float32 / screenScale.float32
+
+    lastMouseRawX = mouseRawX
+    lastMouseRawY = mouseRawY
     lastMouseX = mouseX
     lastMouseY = mouseY
 
@@ -1358,6 +1363,9 @@ proc startTextInput*() =
 
 proc stopTextInput*() =
   sdl.stopTextInput()
+
+proc useRelativeMouse*(on: bool) =
+  discard sdl.setRelativeMouseMode(on)
 
 proc isTextInput*(): bool =
   return sdl.isTextInputActive()

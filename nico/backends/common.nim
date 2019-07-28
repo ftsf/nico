@@ -277,8 +277,10 @@ var clippingRect*: Rect
 
 var mouseDetected*: bool
 var mouseX*,mouseY*: int
+var mouseRawX*,mouseRawY*: int
 var mouseRelX*,mouseRelY*: float32
 var lastMouseX*,lastMouseY*: int
+var lastMouseRawX*,lastMouseRawY*: int
 var mouseButtonsDown*: array[3,bool]
 var mouseButtons*: array[3,int]
 var mouseWheelState*: int

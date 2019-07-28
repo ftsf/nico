@@ -24,8 +24,10 @@ type NicoButton* = enum
   pcY = "Y"
   pcL1 = "L1"
   pcL2 = "L2"
+  pcL3 = "L3"
   pcR1 = "R1"
   pcR2 = "R2"
+  pcR3 = "R3"
   pcStart = "Start"
   pcBack = "Back"
 

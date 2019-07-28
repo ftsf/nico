@@ -179,8 +179,10 @@ keymap = [
   @[SCANCODE_C.int], # Y
   @[SCANCODE_F.int], # L1
   @[SCANCODE_G.int], # L2
+  @[SCANCODE_H.int], # L3
   @[SCANCODE_V.int], # R1
   @[SCANCODE_B.int], # R2
+  @[SCANCODE_N.int], # R3
   @[SCANCODE_RETURN.int], # Start
   @[SCANCODE_ESCAPE.int, SCANCODE_BACKSPACE.int], # Back
 ]
@@ -598,6 +600,10 @@ proc appHandleEvent(evt: sdl.Event) =
           controller.setButtonState(pcL1, down)
         of CONTROLLER_BUTTON_RIGHTSHOULDER:
           controller.setButtonState(pcR1, down)
+        of CONTROLLER_BUTTON_LEFTSTICK:
+          controller.setButtonState(pcL3, down)
+        of CONTROLLER_BUTTON_RIGHTSTICK:
+          controller.setButtonState(pcR3, down)
         of CONTROLLER_BUTTON_DPAD_UP:
           controller.setButtonState(pcUp, down)
         of CONTROLLER_BUTTON_DPAD_DOWN:
@@ -709,6 +715,7 @@ proc appHandleEvent(evt: sdl.Event) =
 
 proc checkInput() =
   var evt: sdl.Event
+
   while pollEvent(evt.addr) == 1:
     var handled = false
     if evt.kind in [MouseButtonDown, MouseButtonUp, MouseMotion, KeyDown, KeyUp, MouseWheel, TextInput]:
@@ -777,7 +784,7 @@ proc step*() {.cdecl.} =
 
   next_time = getTicks()
   var diff = float32(next_time - current_time)/1000.0 * frameMult.float32
-  if diff > timeStep * 2.0:
+  if diff > timeStep * 2.0'f:
     diff = timeStep
   acc += diff
   current_time = next_time

@@ -376,6 +376,10 @@ proc line*[T](a,b: Vec2[T]) =
 proc lineDashed*[T](a,b: Vec2[T], pattern: uint8 = 0b10101010) =
   lineDashed(a.x.int, a.y.int, b.x.int, b.y.int, pattern)
 
+proc rndVec2i*(mag: int): Vec2i =
+  result.x = rnd(mag*2) - mag
+  result.y = rnd(mag*2) - mag
+
 proc rndVec2f*(mag: float32): Vec2f =
   result.x = rnd(mag*2.0) - mag
   result.y = rnd(mag*2.0) - mag

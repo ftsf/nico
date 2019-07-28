@@ -234,6 +234,7 @@ proc ellipsefill*(cx,cy: Pint, rx,ry: Pint)
 proc spr*(spr: Pint, x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false)
 proc sprs*(spr: Pint, x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip, vflip: bool = false)
 proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = false)
+proc sprshift*(spr: Pint, x,y: Pint, w,h: Pint = 1, ox,oy: Pint = 0, hflip, vflip: bool = false)
 
 # misc
 proc copy*(sx,sy,dx,dy,w,h: Pint) # copy one area of the screen to another
@@ -1395,7 +1396,7 @@ proc blitFast(src: Surface, sx,sy, dx,dy, w,h: Pint) =
     dxi = dx
 
 proc blitFastFlip(src: Surface, sx,sy, dx,dy, w,h: Pint, hflip, vflip: bool) =
-  # used for tile drawing, no stretch or flipping
+  # used for tile drawing, no stretch
   let startsx = sx + (if hflip: w - 1 else: 0)
   var sxi = startsx
   var syi = sy + (if vflip: h - 1 else: 0)
@@ -1420,6 +1421,45 @@ proc blitFastFlip(src: Surface, sx,sy, dx,dy, w,h: Pint, hflip, vflip: bool) =
         continue
       if ditherPass(dxi,dyi):
         let srcCol = src.data[syi * src.w + sxi]
+        if not paletteTransparent[srcCol]:
+          swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol].uint8
+      elif ditherColor >= 0:
+        swCanvas.data[dyi * swCanvas.w + dxi] = ditherColor.uint8
+
+      sxi += xi
+      dxi += 1
+    syi += yi
+    dyi += 1
+    sxi = startsx
+    dxi = dx
+
+proc blitFastFlipShift(src: Surface, sx,sy, dx,dy, w,h: Pint, ox,oy: Pint, hflip, vflip: bool) =
+  # used for tile drawing, no stretch, but with flipping and shifting
+  let startsx = sx + (if hflip: w - 1 else: 0)
+  var sxi = 0
+  let startsy = sy + (if vflip: h - 1 else: 0)
+  var syi = 0
+  var dxi = dx
+  var dyi = dy
+
+  let xi = if hflip: -1 else: 1
+  let yi = if vflip: -1 else: 1
+
+  while dyi < dy + h:
+    if syi < 0 or syi > src.h-1 or dyi < clipMinY or dyi > clipMaxY:
+      syi += yi
+      dyi += 1
+      sxi = startsx
+      dxi = dx
+      continue
+    while dxi < dx + w:
+      if sxi < 0 or sxi > src.w-1 or dxi < clipMinX or dxi > clipMaxX:
+        # ignore if it goes outside the source size
+        dxi += 1
+        sxi += xi
+        continue
+      if ditherPass(dxi,dyi):
+        let srcCol = src.data[(startsy + wrap(syi + oy, h)) * src.w + (startsx + wrap(sxi + ox, w))]
         if not paletteTransparent[srcCol]:
           swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol].uint8
       elif ditherColor >= 0:
@@ -1857,6 +1897,16 @@ proc spr*(spr: Pint, x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false) =
     blitFastFlip(spritesheet, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h, hflip, vflip)
   else:
     blitFast(spritesheet, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
+
+proc sprshift*(spr: Pint, x,y: Pint, w,h: Pint = 1, ox,oy: Pint = 0, hflip, vflip: bool = false) =
+  if spritesheet.tw == 0 or spritesheet.th == 0:
+    return
+  # draw a sprite
+  var src = getSprRect(spr, w, h)
+  if hflip or vflip:
+    blitFastFlipShift(spritesheet, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h, ox, oy, hflip, vflip)
+  else:
+    blitFastFlipShift(spritesheet, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h, ox, oy, false, false)
 
 proc sprBlit*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
   # draw a sprite

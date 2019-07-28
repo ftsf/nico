@@ -202,7 +202,7 @@ proc mouse*(): (int,int)
 proc mouserel*(): (float32,float32)
 proc mousebtn*(b: range[0..2]): bool
 proc mousebtnp*(b: range[0..2]): bool
-proc mousebtnpr*(b: range[0..2], r: Pint): bool
+proc mousebtnpr*(b: range[0..2], r: Pint = 48): bool
 
 ## Drawing API
 

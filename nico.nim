@@ -2196,6 +2196,18 @@ proc newMap*(index: int, w,h: Pint, tw,th: Pint) =
 proc setMap*(index: int) =
   currentTilemap = tilemaps[index].addr
 
+proc incWrap*[T](x: var T) =
+  if x < T.high:
+    x.inc
+  else:
+    x = T.low
+
+proc decWrap*[T](x: var T) =
+  if x > T.low:
+    x.dec
+  else:
+    x = T.high
+
 proc rnd*[T: Natural](x: T): T =
   return rand(x.int-1).T
 

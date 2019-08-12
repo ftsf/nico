@@ -1210,7 +1210,7 @@ proc newSfxBuffer(filename: string): SfxBuffer =
 
   discard fp.close()
 
-proc loadSfx*(index: range[-1..63], filename: string) =
+proc loadSfx*(index: int, filename: string) =
   if index < 0 or index > 63:
     return
   sfxBufferLibrary[index] = newSfxBuffer(joinPath(assetPath, filename))
@@ -1239,7 +1239,7 @@ proc findFreeChannel(priority: float32): int =
     return -2
   return bestChannel
 
-proc sfx*(index: range[-1..63], channel: int = -1, loop: int = 1, gain: Pfloat = 1.0, pitch: Pfloat = 1.0, priority: Pfloat = Inf) =
+proc sfx*(channel: int = -1, index: int, loop: int = 1, gain: Pfloat = 1.0, pitch: Pfloat = 1.0, priority: Pfloat = Inf) =
   let channel = if channel == -1: findFreeChannel(priority) else: channel
   if channel == -2:
     return

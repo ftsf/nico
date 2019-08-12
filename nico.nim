@@ -147,6 +147,7 @@ proc palCol*(c: Pint, r,g,b: uint8) =
 # Clipping
 proc clip*(x,y,w,h: Pint)
 proc clip*()
+proc getClip*(): (int,int,int,int)
 
 # Stencil
 proc stencilSet*(x,y,v: Pint) =
@@ -406,6 +407,9 @@ proc clip*(x,y,w,h: Pint) =
   clippingRect.y = max(y, 0)
   clippingRect.w = min(w, screenWidth - x)
   clippingRect.h = min(h, screenHeight - y)
+
+proc getClip*(): (int,int,int,int) =
+  return (clipMinX,clipMinY,clipMaxX-clipMinX,clipMaxY-clipMinY)
 
 var ditherColor: int = -1
 

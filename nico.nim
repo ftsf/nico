@@ -214,8 +214,12 @@ proc sset*(x,y: Pint, c: int = -1)
 proc sget*(x,y: Pint): ColorId
 
 # rectangles
-proc rectfill*(x1,y1,x2,y2: Pint)
 proc rect*(x1,y1,x2,y2: Pint)
+proc rectfill*(x1,y1,x2,y2: Pint)
+proc rrect*(x1,y1,x2,y2: Pint)
+proc rrectfill*(x1,y1,x2,y2: Pint)
+proc rectCorner*(x1,y1,x2,y2: Pint)
+proc rrectCorner*(x1,y1,x2,y2: Pint)
 
 # line drawing
 proc line*(x0,y0,x1,y1: Pint)
@@ -1023,6 +1027,46 @@ proc rrect*(x1,y1,x2,y2: Pint) =
   vline(x+w, y+1, y+h-1)
   # left
   vline(x, y+1, y+h-1)
+
+proc rectCorner*(x1,y1,x2,y2: Pint) =
+  let w = x2-x1
+  let h = y2-y1
+  let x = x1
+  let y = y1
+  # top left
+  pset(x, y)
+  pset(x+1, y)
+  pset(x, y+1)
+  # top right
+  pset(x2, y)
+  pset(x2-1, y)
+  pset(x2, y+1)
+  # bottom left
+  pset(x1, y2)
+  pset(x1+1, y2)
+  pset(x1, y2-1)
+  # bottom right
+  pset(x2, y2)
+  pset(x2-1, y2)
+  pset(x2, y2-1)
+
+proc rrectCorner*(x1,y1,x2,y2: Pint) =
+  let w = x2-x1
+  let h = y2-y1
+  let x = x1
+  let y = y1
+  # top left
+  pset(x+1, y)
+  pset(x, y+1)
+  # top right
+  pset(x2-1, y)
+  pset(x2, y+1)
+  # bottom left
+  pset(x1+1, y2)
+  pset(x1, y2-1)
+  # bottom right
+  pset(x2-1, y2)
+  pset(x2, y2-1)
 
 proc flr*(x: Pfloat): Pfloat =
   return x.floor()

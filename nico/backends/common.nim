@@ -218,7 +218,8 @@ var drawFunc*: proc()
 var textFunc*: proc(text: string): bool
 var resizeFunc*: ResizeFunc
 
-var fonts*: array[FontId, Font]
+var fonts*: array[16, Font]
+var testFont*: Font = nil
 var currentFont*: Font
 var currentFontId*: FontId
 
@@ -324,7 +325,7 @@ proc convertToIndexed*(surface: Surface): Surface =
         surface.data[i*surface.channels+0],
         surface.data[i*surface.channels+1],
         surface.data[i*surface.channels+2]
-      )
+      ).uint8
   elif surface.channels == 4:
     for i in 0..<surface.w*surface.h:
       result.data[i] = mapRGBA(
@@ -332,7 +333,7 @@ proc convertToIndexed*(surface: Surface): Surface =
         surface.data[i*surface.channels+1],
         surface.data[i*surface.channels+2],
         surface.data[i*surface.channels+3]
-      )
+      ).uint8
 
 proc RGB*(r,g,b: Pint): NicoColor =
   return (r.uint8,g.uint8,b.uint8)

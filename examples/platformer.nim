@@ -693,7 +693,7 @@ proc gameUpdate(dt: float32) =
 proc gameDraw() =
   cls()
 
-  setCamera(cx.int,cy.int)
+  setCamera(cx.int, cy.int)
 
   mapDraw(0,0,16,256,0,0)
   setColor(1)

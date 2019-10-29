@@ -30,7 +30,8 @@ export sfx
 export music
 export getMusic
 export synth
-export audioCallback
+when not defined(JS):
+  export audioCallback
 export synthUpdate
 export synthShape
 export SynthShape
@@ -49,9 +50,10 @@ export NicoAxis
 export NicoButton
 export ColorId
 
-export startTextInput
-export stopTextInput
-export isTextInput
+when not defined(JS):
+  export startTextInput
+  export stopTextInput
+  export isTextInput
 
 export btn
 export btnp
@@ -494,13 +496,13 @@ proc setColor*(colId: ColorId) =
 proc getColor*(): ColorId =
   return currentColor
 
-proc pset*(x,y: Pint) =
-  let x = x-cameraX
-  let y = y-cameraY
+proc pset*(x, y: Pint) =
+  let x = x - cameraX
+  let y = y - cameraY
   if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
     return
   if ditherPass(x,y):
-    swCanvas.data[y*swCanvas.w+x] = paletteMapDraw[currentColor]
+    swCanvas.data[y*swCanvas.w+x] = paletteMapDraw[currentColor].uint8
 
 proc pset*(x,y: Pint, c: int) =
   let x = x-cameraX
@@ -508,17 +510,17 @@ proc pset*(x,y: Pint, c: int) =
   if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
     return
   if ditherPass(x,y):
-    swCanvas.data[y*swCanvas.w+x] = paletteMapDraw[c]
+    swCanvas.data[y*swCanvas.w+x] = paletteMapDraw[c].uint8
 
 proc psetRaw*(x,y: int, c: ColorId) =
   if ditherPass(x,y):
-    swCanvas.data[y*swCanvas.w+x] = c
+    swCanvas.data[y*swCanvas.w+x] = c.uint8
 
 proc sset*(x,y: Pint, c: int = -1) =
   let c = if c == -1: currentColor else: c
   if x < 0 or y < 0 or x > spriteSheet.w-1 or y > spriteSheet.h-1:
     raise newException(RangeError, "sset ($1,$2) out of bounds".format(x,y))
-  spriteSheet[].data[y*spriteSheet[].w+x] = paletteMapDraw[c]
+  spriteSheet[].data[y*spriteSheet[].w+x] = paletteMapDraw[c].uint8
 
 proc sget*(x,y: Pint): ColorId =
   if x > spriteSheet.w-1 or x < 0 or y > spriteSheet.h-1 or y < 0:
@@ -1025,7 +1027,7 @@ proc fontBlit(font: Font, srcRect, dstRect: Rect, color: ColorId) =
       if dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY:
         continue
       if font.data[sy * font.w + sx] == 1 and ditherPass(dx.int,dy.int):
-        swCanvas.data[dy * swCanvas.w + dx] = currentColor
+        swCanvas.data[dy * swCanvas.w + dx] = currentColor.uint8
       sx += 1.0 * (sw/dw)
       dx += 1.0
     sy += 1.0 * (sh/dh)
@@ -1120,7 +1122,7 @@ proc blitFast(src: Surface, sx,sy, dx,dy, w,h: Pint) =
       if ditherPass(dxi,dyi):
         let srcCol = src.data[syi * src.w + sxi]
         if not paletteTransparent[srcCol]:
-          swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol]
+          swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol].uint8
       sxi += 1
       dxi += 1
     syi += 1
@@ -1155,7 +1157,7 @@ proc blitFastFlip(src: Surface, sx,sy, dx,dy, w,h: Pint, hflip, vflip: bool) =
       if ditherPass(dxi,dyi):
         let srcCol = src.data[syi * src.w + sxi]
         if not paletteTransparent[srcCol]:
-          swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol]
+          swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol].uint8
       sxi += xi
       dxi += 1
     syi += yi
@@ -1196,7 +1198,7 @@ proc blit(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = false) =
         if ditherPass(dx.int,dy.int):
           let srcCol = src.data[sy.int * src.w + sx.int]
           if not paletteTransparent[srcCol]:
-            swCanvas.data[dy.int * swCanvas.w + dx.int] = paletteMapDraw[srcCol]
+            swCanvas.data[dy.int * swCanvas.w + dx.int] = paletteMapDraw[srcCol].uint8
       if hflip:
         sx -= 1.0 * (sw/dw)
         dx -= 1.0
@@ -1242,7 +1244,7 @@ proc blitStretch(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = fals
       if not (dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY or sx < 0 or sy < 0 or sx >= src.w or sy >= src.h):
         let srcCol = src.data[sy.int * src.w + sx.int]
         if ditherPass(dx.int,dy.int) and not paletteTransparent[srcCol]:
-          swCanvas.data[dy * swCanvas.w + dx] = paletteMapDraw[srcCol]
+          swCanvas.data[dy * swCanvas.w + dx] = paletteMapDraw[srcCol].uint8
       if hflip:
         sx -= 1.0 * (sw/dw)
         dx -= 1.0
@@ -1284,16 +1286,16 @@ proc fget*(s: uint8): uint8 =
   return spriteFlags[s]
 
 proc fget*(s: uint8, f: range[0..7]): bool =
-  return spriteFlags[s].contains(f)
+  return spriteFlags[s].contains(f.uint8)
 
 proc fset*(s: uint8, f: range[0..7]) =
-  spriteFlags[s] = f
+  spriteFlags[s] = f.uint8
 
 proc fset*(s: uint8, f: range[0..7], v: bool) =
   if v:
-    spriteFlags[s].set(f)
+    spriteFlags[s].set(f.uint8)
   else:
-    spriteFlags[s].unset(f)
+    spriteFlags[s].unset(f.uint8)
 
 proc masterVol*(newVol: int) =
   masterVolume = clamp(newVol.float / 255.0, 0, 1)
@@ -1380,14 +1382,17 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
 
 proc loadFont*(index: int, filename: string) =
   var chars = backend.readFile(joinPath(assetPath, filename & ".dat"))
-  backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
-    fonts[index] = createFontFromSurface(surface, chars)
+  backend.loadSurfaceRGBA(joinPath(assetPath, filename)) do(surface: Surface):
+    let f = createFontFromSurface(surface, chars)
+    testFont = f
+    fonts[index] = f
 
 proc loadFont*(index: int, filename: string, chars: string) =
-  backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
+  backend.loadSurfaceRGBA(joinPath(assetPath, filename)) do(surface: Surface):
+    testFont = createFontFromSurface(surface, chars)
     fonts[index] = createFontFromSurface(surface, chars)
 
-proc glyph*(c: Rune, x,y: Pint, scale: Pint = 1): Pint =
+proc glyph*(c: Rune, x, y: Pint, scale: Pint = 1): Pint =
   if currentFont == nil:
     raise newException(Exception, "No font selected")
   if not currentFont.rects.hasKey(c):

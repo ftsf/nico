@@ -7,7 +7,7 @@ license       = "MIT"
 
 # Dependencies
 
-requires "nim >= 0.16.0"
+requires "nim >= 1.0.0"
 requires "sdl2_nim#head"
 requires "gifenc >= 0.1.0"
 requires "webaudio >= 0.1.0"

@@ -12,7 +12,7 @@ import webaudio
 var ctx: CanvasRenderingContext2d
 var swCanvas32: ImageData
 var canvas: Canvas
-var interval: ref TInterval
+var interval: ref Interval
 var audioContext: AudioContext
 var noiseBuffer: AudioBuffer
 var noiseBuffer2: AudioBuffer
@@ -118,40 +118,43 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   canvas.style.width = $(w * scale) & "px"
   canvas.style.height = $(h * scale) & "px"
 
-  canvas.onmousemove = proc(e: Event) =
+  canvas.onmousemove = proc(e: dom.Event) =
+    let me = e.MouseEvent
     mouseDetected = true
     let scale = canvas.clientWidth.float / screenWidth.float
-    mouseX = (e.offsetX.float / scale).int
-    mouseY = (e.offsetY.float / scale).int
+    mouseX = (me.offsetX.float / scale).int
+    mouseY = (me.offsetY.float / scale).int
 
-  canvas.onmousedown = proc(e: Event) =
-    mouseButtonsDown[e.button] = true
+  canvas.onmousedown = proc(e: dom.Event) =
+    let me = e.MouseEvent
+    mouseButtonsDown[me.button] = true
     e.preventDefault()
 
-  canvas.onmouseup = proc(e: Event) =
-    mouseButtonsDown[e.button] = false
+  canvas.onmouseup = proc(e: dom.Event) =
+    let me = e.MouseEvent
+    mouseButtonsDown[me.button] = false
     e.preventDefault()
 
-  canvas.addEventListener("contextmenu") do(e: Event):
+  canvas.addEventListener("contextmenu") do(e: dom.Event):
     e.preventDefault()
 
-  canvas.addEventListener("touchstart") do(e: Event):
+  canvas.addEventListener("touchstart") do(e: dom.Event):
     let e = e.TouchEvent
     mouseButtonsDown[0] = true
     let scale = canvas.clientWidth.float / screenWidth.float
-    mouseX = ((e.touches.item(0).pageX - e.target.HtmlElement.offsetLeft).float / scale).int
-    mouseY = ((e.touches.item(0).pageY - e.target.HtmlElement.offsetTop).float / scale).int
+    mouseX = ((e.touches[0].pageX - e.target.Element.offsetLeft).float / scale).int
+    mouseY = ((e.touches[0].pageY - e.target.Element.offsetTop).float / scale).int
 
     e.preventDefault()
 
-  canvas.addEventListener("touchmove") do(e: Event):
+  canvas.addEventListener("touchmove") do(e: dom.Event):
     let e = e.TouchEvent
     let scale = canvas.clientWidth.float / screenWidth.float
-    mouseX = ((e.touches.item(0).pageX - e.target.HtmlElement.offsetLeft).float / scale).int
-    mouseY = ((e.touches.item(0).pageY - e.target.HtmlElement.offsetTop).float / scale).int
+    mouseX = ((e.touches[0].pageX - e.target.Element.offsetLeft).float / scale).int
+    mouseY = ((e.touches[0].pageY - e.target.Element.offsetTop).float / scale).int
     e.preventDefault()
 
-  canvas.addEventListener("touchend") do(e: Event):
+  canvas.addEventListener("touchend") do(e: dom.Event):
     mouseButtonsDown[0] = false
     e.preventDefault()
 
@@ -164,17 +167,19 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
 
   frame = 0
 
-  dom.window.onkeydown = proc(event: Event) =
-    for btn,keys in keymap:
+  dom.window.onkeydown = proc(event: dom.Event) =
+    let ke = event.KeyboardEvent
+    for btn, keys in keymap:
       for key in keys:
-        if event.keyCode == key:
+        if ke.keyCode == key:
           controllers[0].setButtonState(btn, true)
           event.preventDefault()
 
-  dom.window.onkeyup = proc(event: Event) =
+  dom.window.onkeyup = proc(event: dom.Event) =
+    let ke = event.KeyboardEvent
     for btn,keys in keymap:
       for key in keys:
-        if event.keyCode == key:
+        if ke.keyCode == key:
           controllers[0].setButtonState(btn, false)
           event.preventDefault()
 
@@ -188,7 +193,7 @@ proc loadFile*(filename: string, callback: proc(data: string)) =
   var xhr = newXMLHttpRequest()
   xhr.open("GET", filename, true)
   xhr.send()
-  xhr.onreadystatechange = proc(e: Event) =
+  xhr.onreadystatechange = proc(e: dom.Event) =
     if xhr.status == 200:
       loading -= 1
       callback($xhr.responseText)
@@ -211,7 +216,7 @@ proc readJsonFile*(filename: string): JsonNode =
 proc loadSurfaceRGBA*(filename: string, callback: proc(surface: Surface)) =
   loading += 1
   var img = dom.document.createElement("img").ImageElement
-  img.addEventListener("load") do(event: Event):
+  img.addEventListener("load") do(event: dom.Event):
     loading -= 1
     let target = event.target.ImageElement
     console.log("image loaded: ", target.src)
@@ -237,7 +242,8 @@ proc loadSurfaceIndexed*(filename: string, callback: proc(surface: Surface)) =
 
 proc stop(self: var Channel) =
   if self.source != nil:
-    self.source.disconnect()
+    # FIXME: Resolve what its trying to disconnect to
+    # self.source.disconnect()
     try:
       self.source.stop()
     except:
@@ -310,7 +316,7 @@ proc process(self: var Channel) =
         OscillatorNode(self.source).frequency.value = self.freq
       except:
         try:
-          AudioBufferSourceNode(self.source).playbackRate.value = self.freq / 1000.0
+          AudioBufferSourceNode(self.source).playbackRate = self.freq / 1000.0
         except:
           discard
     if self.env < 0:
@@ -433,7 +439,7 @@ proc resize*(w,h: int) =
   discard
 
 proc initNoiseBuffer(samples: int, freq: float): AudioBuffer =
-  var b = audioContext.createBuffer(1, samples, sampleRate.int)
+  var b = audioContext.createBuffer(1, samples.int32, sampleRate.int32)
   var data = b.getChannelData(0)
 
   var nextClick = 0
@@ -460,7 +466,7 @@ proc loadSfx*(sfxId: SfxId, filename: string) =
   var xhr = newXMLHttpRequest()
   xhr.open("GET", assetPath & filename, true)
   xhr.responseType = "arraybuffer"
-  xhr.onreadystatechange = proc(e: Event) =
+  xhr.onreadystatechange = proc(e: dom.Event) =
     if xhr.readyState == rsDone:
       loading -= 1
       if xhr.status == 200:
@@ -476,7 +482,7 @@ proc loadMusic*(musicId: MusicId, filename: string) =
   var xhr = newXMLHttpRequest()
   xhr.open("GET", assetPath & filename, true)
   xhr.responseType = "arraybuffer"
-  xhr.onreadystatechange = proc(e: Event) =
+  xhr.onreadystatechange = proc(e: dom.Event) =
     if xhr.readyState == rsDone:
       loading -= 1
       if xhr.status == 200:

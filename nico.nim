@@ -1374,6 +1374,8 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
         i += 1
       newChar = true
       currentRect.x = x + 1
+      if charPos >= chars.len:
+        break
 
   if font.rects.len != chars.runeLen:
     raise newException(Exception, "didn't load all characters from font")

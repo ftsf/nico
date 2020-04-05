@@ -25,19 +25,19 @@ task test, "run tests":
 
 task paintout, "compile paintout example":
   exec "nim c -p:. -d:debug examples/paintout.nim"
-  exec "nim js -p:. -d:debug --lineTrace:on --stackTrace:on -o:examples/paintout.js examples/paintout.nim"
+  #exec "nim js -p:. -d:debug --lineTrace:on --stackTrace:on -o:examples/paintout.js examples/paintout.nim"
 
 task platformer, "compile platformer example":
   exec "nim c -p:. -d:release -o:examples/platformer examples/platformer.nim"
-  exec "nim js -p:. -d:release -o:examples/platformer.js examples/platformer.nim"
+  #exec "nim js -p:. -d:release -o:examples/platformer.js examples/platformer.nim"
 
 task audio, "compile audio example":
   exec "nim c -p:. -d:debug -o:examples/audio examples/audio.nim"
-  exec "nim js -p:. -d:release -o:examples/audio.js examples/audio.nim"
+  #exec "nim js -p:. -d:release -o:examples/audio.js examples/audio.nim"
 
 task vertex, "compile vertex example":
   exec "nim c -p:. -d:debug -o:examples/vertex examples/vertex.nim"
-  exec "nim js -p:. -d:release -o:examples/vertex.js examples/vertex.nim"
+  #exec "nim js -p:. -d:release -o:examples/vertex.js examples/vertex.nim"
 
 task examples, "compile all examples":
   exec "nimble paintout"

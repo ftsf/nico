@@ -4,7 +4,7 @@ import nico/console
 import nico/tweaks
 import sets
 import hashes
-import queues
+#import queues
 import sequtils
 
 {.this:self.}

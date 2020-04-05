@@ -45,8 +45,8 @@ proc reloadTweaks*() =
             tweak.f[] = v.getFloat
           of TweakInt:
             tweak.i[] = v.getInt
-          else:
-            echo "unknown tweak kind: " & $tweak.kind
+          #else:
+          #  echo "unknown tweak kind: " & $tweak.kind
         else:
           echo "unregistered tweak: ", k
     except:
@@ -91,3 +91,4 @@ proc setTweak(args: seq[string]): seq[string] =
 
 registerConsoleCommand("tweaks", listTweaks)
 registerConsoleCommand("tweak", setTweak)
+

@@ -1800,6 +1800,7 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
   let transparentColor = 0.uint8
 
   if surface.channels == 4:
+    debug "loading font from RGBA", surface.filename
     let borderColorRGBA = (surface.data[0],surface.data[1],surface.data[2],surface.data[3])
     let transparentColorRGBA = (surface.data[4],surface.data[5],surface.data[6],surface.data[7])
 
@@ -1818,6 +1819,7 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
         font.data[i] = solidColor
 
   elif surface.channels == 1:
+    debug "loading font from indexed", surface.filename
     for i in 0..<font.w*font.h:
       font.data[i] = surface.data[i]
 
@@ -1849,13 +1851,20 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
       currentRect.x = x + 1
 
   if font.rects.len != chars.runeLen:
-    raise newException(Exception, "didn't load all characters from font")
+    raise newException(Exception, "didn't load all characters from font, loaded: " & $font.rects.len & " bitmaps of specified chars " & $chars.runeLen)
 
   return font
 
 proc loadFont*(index: int, filename: string) =
   let shouldReplace = currentFont == fonts[index]
-  var chars = backend.readFile(joinPath(assetPath, filename & ".dat"))
+  var chars: string
+  var datPath: string
+  try:
+    datPath = joinPath(assetPath, filename & ".dat")
+    chars = backend.readFile(datPath)
+  except IOError:
+    raise newException(Exception, "Missing " & datPath & " needed if not passing chars to loadFont")
+  chars.removeSuffix()
   backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
     fonts[index] = createFontFromSurface(surface, chars)
   if shouldReplace:
@@ -2025,12 +2034,25 @@ proc integerScale*(): bool =
 proc integerScale*(enabled: bool) =
   integerScreenScale = enabled
 
-proc setSpritesheet*(bank: range[0..15] = 0) =
-  if spritesheets[bank] == nil:
-    raise newException(Exception, "No spritesheet loaded: " & $bank)
-  spritesheet = spritesheets[bank]
+proc newSpritesheet*(index: int, w, h: int, tw,th = 8) =
+  if index < 0 or index >= spritesheets.len:
+    raise newException(Exception, "Invalid spritesheet " & $index)
+  spritesheets[index] = newSurface(w, h)
+  spritesheets[index].tw = tw
+  spritesheets[index].th = th
+  spritesheets[index].filename = ""
 
-proc loadSpriteSheet*(index: range[0..15], filename: string, tileWidth,tileHeight: Pint = 8) =
+proc setSpritesheet*(index: int) =
+  if index < 0 or index >= spritesheets.len:
+    raise newException(Exception, "Invalid spritesheet " & $index)
+
+  if spritesheets[index] == nil:
+    raise newException(Exception, "No spritesheet loaded: " & $index)
+  spritesheet = spritesheets[index]
+
+proc loadSpriteSheet*(index: int, filename: string, tileWidth,tileHeight: Pint = 8) =
+  if index < 0 or index >= spritesheets.len:
+    raise newException(Exception, "Invalid spritesheet " & $index)
   let shouldReplace = spritesheet == spritesheets[index]
   backend.loadSurfaceIndexed(joinPath(assetPath,filename)) do(surface: Surface):
     echo "loaded spritesheet: ", filename, " ", surface.w, "x", surface.h, " tile:", tileWidth, "x", tileHeight

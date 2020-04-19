@@ -343,6 +343,7 @@ proc loadSurfaceIndexed*(filename: string, callback: proc(surface: common.Surfac
   let png = decodePNG(ss, LCT_PALETTE, 8)
 
   var surface = newSurface(png.width, png.height)
+  surface.filename = filename
   surface.w = png.width
   surface.h = png.height
   surface.channels = 1
@@ -355,6 +356,7 @@ proc loadSurfaceRGBA*(filename: string, callback: proc(surface: common.Surface))
   let png = decodePNG(ss, LCT_RGBA, 8)
 
   var surface = newSurface(png.width, png.height)
+  surface.filename = filename
   surface.w = png.width
   surface.h = png.height
   surface.channels = 4
@@ -443,23 +445,20 @@ proc saveRecording*() =
       return
 
     debug "created gif: ", filename
-    var pixels: ptr[array[int32.high, uint8]]
+    var pixels: ptr[UncheckedArray[uint8]]
 
     var frames = 0
     block exportFrames:
       for j in 0..<recordFrames.size:
         var frame = recordFrames[j]
 
-        pixels = cast[ptr array[int32.high, uint8]](gif.frame)
+        pixels = cast[ptr UncheckedArray[uint8]](gif.frame)
 
         if gifScale != 1:
           for y in 0..<screenHeight*gifScale:
             for x in 0..<screenWidth*gifScale:
               let sx = x div gifScale
               let sy = y div gifScale
-              if y*screenWidth*gifScale+x > pixels[].len - 1:
-                debug "went past end of output data on frame ", j, " of ", recordFrames.size
-                break exportFrames
               if sy*frame.w+sx > frame.data.len - 1:
                 debug "went past end of input data on frame ", j, " of ", recordFrames.size
                 break exportFrames

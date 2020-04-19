@@ -37,7 +37,7 @@ type NicoController* = ref object
   when not defined(js):
     sdlController*: GameController # nil for keyboard
   id*: int # -1 for keyboard
-  axes*: array[NicoAxis, tuple[current, previous: float]]
+  axes*: array[NicoAxis, tuple[current, previous: float, hold: int]]
   buttons*: array[NicoButton, int]
   deadzone*: float
   invertX*: bool
@@ -74,11 +74,23 @@ proc update*(self: NicoController) =
         else:
           self.buttons[i] = 0
 
+    if self.buttons[i] == -1:
+      self.buttons[i] = 0
+
+    elif self.buttons[i] == -2:
+      self.buttons[i] = -1
+
     if self.buttons[i] >= 1:
       self.buttons[i] += 1
 
 proc postUpdate*(self: NicoController) =
   for i in self.axes.low..self.axes.high:
+    if self.axes[i].previous < -self.deadzone and self.axes[i].current < -self.deadzone:
+      self.axes[i].hold += 1
+    elif self.axes[i].previous > self.deadzone and self.axes[i].current > self.deadzone:
+      self.axes[i].hold += 1
+    else:
+      self.axes[i].hold = 0
     self.axes[i].previous = self.axes[i].current
 
 proc axis*(self: NicoController, axis: NicoAxis): float =
@@ -114,14 +126,35 @@ proc btnp*(self: NicoController, button: NicoButton): bool =
     return self.buttons[button] == 2 or self.axisp(pcYAxis, 1.0)
   return self.buttons[button] == 2
 
+proc btnup*(self: NicoController, button: NicoButton): bool =
+  return self.buttons[button] == -1
+
 proc btnpr*(self: NicoController, button: NicoButton, repeat = 48): bool =
   let v = self.buttons[button]
-  return v == 2 or v == (repeat + 2) or (v > repeat + 2 and v mod (repeat div 2) == 2)
+  if v == 2 or v == (repeat + 2) or (v > repeat + 2 and v mod (repeat div 2) == 2):
+    return true
+  if button == pcLeft:
+    if self.axes[pcXAxis].current < -self.deadzone:
+      let v = self.axes[pcXAxis].hold
+      return v == 2 or v == (repeat + 2) or (v > repeat + 2 and v mod (repeat div 2) == 2)
+  elif button == pcRight:
+    if self.axes[pcXAxis].current > self.deadzone:
+      let v = self.axes[pcXAxis].hold
+      return v == 2 or v == (repeat + 2) or (v > repeat + 2 and v mod (repeat div 2) == 2)
+  elif button == pcUp:
+    if self.axes[pcYAxis].current < -self.deadzone:
+      let v = self.axes[pcYAxis].hold
+      return v == 2 or v == (repeat + 2) or (v > repeat + 2 and v mod (repeat div 2) == 2)
+  elif button == pcDown:
+    if self.axes[pcYAxis].current > self.deadzone:
+      let v = self.axes[pcYAxis].hold
+      return v == 2 or v == (repeat + 2) or (v > repeat + 2 and v mod (repeat div 2) == 2)
+  return false
 
 proc setButtonState*(self: NicoController, button: NicoButton, down: bool) =
   if button > NicoButton.high:
     return
-  self.buttons[button] = if down: 1 else: 0
+  self.buttons[button] = if down: 1 else: -2
 
 proc setAxisValue*(self: NicoController, axis: NicoAxis, value: float) =
   if axis > NicoAxis.high:

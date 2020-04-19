@@ -307,8 +307,6 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
 
   resize(displayW,displayH)
 
-  discard showCursor(0)
-
   window.raiseWindow()
 
 proc readFile*(filename: string): string =
@@ -657,13 +655,6 @@ proc appHandleEvent(evt: sdl.Event) =
     let scancode = evt.key.keysym.scancode
     let down = evt.kind == Keydown
 
-    if down:
-      keysDown[toNicoKeycode(sym)] = 1.uint32
-      aKeyWasPressed = true
-    else:
-      keysDown[toNicoKeycode(sym)] = 0.uint32
-      aKeyWasReleased = true
-
     for listener in keyListeners:
       if listener(sym.int, mods.uint16, scancode.int, down.bool):
         return
@@ -718,7 +709,7 @@ proc checkInput() =
 
   while pollEvent(evt.addr) == 1:
     var handled = false
-    if evt.kind in [MouseButtonDown, MouseButtonUp, MouseMotion, KeyDown, KeyUp, MouseWheel, TextInput]:
+    if evt.kind in [MouseButtonDown, MouseButtonUp, MouseMotion, KeyDown, KeyUp, MouseWheel, TextInput, ControllerButtonUp, ControllerButtonDown, ControllerAxisMotion]:
       # convert to NicoEvent
       var e: common.Event
       e.kind = case evt.kind:
@@ -736,6 +727,12 @@ proc checkInput() =
         ekMouseWheel
       of TextInput:
         ekTextInput
+      of ControllerButtonDown:
+        ekButtonDown
+      of ControllerButtonUp:
+        ekButtonUp
+      of ControllerAxisMotion:
+        ekAxisMotion
       else:
         ekMouseButtonDown
 
@@ -757,6 +754,22 @@ proc checkInput() =
         e.scancode = toNicoScancode(evt.key.keysym.scancode)
         e.mods = evt.key.keysym.mods
         e.repeat = evt.key.repeat
+
+        let down = evt.kind == Keydown
+        if down:
+          keysDown[toNicoKeycode(evt.key.keysym.sym)] = 1.uint32
+          aKeyWasPressed = true
+        else:
+          keysDown[toNicoKeycode(evt.key.keysym.sym)] = 0.uint32
+          aKeyWasReleased = true
+
+      of ControllerButtonDown, ControllerButtonUp:
+        e.which = evt.cbutton.which.uint8
+        e.button = evt.cbutton.button.uint8
+      of ControllerAxisMotion:
+        e.which = evt.caxis.which.uint8
+        e.button = evt.caxis.axis.uint8
+        e.xrel = evt.caxis.value.float32 / 32767'f
       of TextInput:
         e.text = $evt.text.text
       else:
@@ -1393,3 +1406,10 @@ proc audioCallback*(channel: int, callback: proc(): float32, stereo: bool) =
   audioChannels[channel].callback = callback
   audioChannels[channel].callbackStereo = stereo
   audioChannels[channel].gain = 1.0
+
+proc hideMouse*() =
+  discard showCursor(0)
+
+proc showMouse*() =
+  discard showCursor(1)
+

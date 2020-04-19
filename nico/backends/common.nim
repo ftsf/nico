@@ -90,6 +90,9 @@ type
     ekMouseWheel
     ekTextInput
     ekTextEditing
+    ekButtonDown
+    ekButtonUp
+    ekAxisMotion
 
   Event* = object
     kind*: EventKind
@@ -103,6 +106,7 @@ type
     repeat*: int
     ywheel*: int
     text*: string
+    which*: uint8
 
   EventListener* = proc(e: Event): bool # takes a single event and returns true if it's handled or false if not
 

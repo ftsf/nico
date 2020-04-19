@@ -24,6 +24,7 @@ else:
 
 export StencilMode
 
+export EventListener
 
 export profileGetLastStats
 export profileGetLastStatsPeak
@@ -71,6 +72,7 @@ export isTextInput
 export btn
 export btnp
 export btnpr
+export btnup
 export axis
 export axisp
 
@@ -201,18 +203,23 @@ proc getCamera*(): (Pint,Pint)
 # Input
 proc btn*(b: NicoButton): bool
 proc btnp*(b: NicoButton): bool
+proc btnup*(b: NicoButton): bool
 proc btnpr*(b: NicoButton, repeat = 48): bool
 proc jaxis*(axis: NicoAxis): Pfloat
 
 proc btn*(b: NicoButton, player: range[0..maxPlayers]): bool
 proc btnp*(b: NicoButton, player: range[0..maxPlayers]): bool
+proc btnup*(b: NicoButton, player: range[0..maxPlayers]): bool
 proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool
+proc btnRaw*(b: NicoButton, player: range[0..maxPlayers]): int
 proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): Pfloat
 proc mouse*(): (int,int)
 proc mouserel*(): (float32,float32)
 proc mousebtn*(b: range[0..2]): bool
 proc mousebtnp*(b: range[0..2]): bool
 proc mousebtnpr*(b: range[0..2], r: Pint = 48): bool
+export hideMouse
+export showMouse
 
 ## Drawing API
 
@@ -466,10 +473,26 @@ proc btn*(b: NicoButton): bool =
       return true
   return false
 
+proc btnup*(b: NicoButton): bool =
+  for c in controllers:
+    if c.btnup(b):
+      return true
+  return false
+
 proc btn*(b: NicoButton, player: range[0..maxPlayers]): bool =
   if player > controllers.high:
     return false
   return controllers[player].btn(b)
+
+proc btnup*(b: NicoButton, player: range[0..maxPlayers]): bool =
+  if player > controllers.high:
+    return false
+  return controllers[player].btnup(b)
+
+proc btnRaw*(b: NicoButton, player: range[0..maxPlayers]): int =
+  if player > controllers.high:
+    return 0
+  return controllers[player].buttons[b]
 
 proc btnp*(b: NicoButton): bool =
   for c in controllers:
@@ -2480,12 +2503,13 @@ proc removeKeyListener*(p: KeyListener) =
       keyListeners.del(i)
       break
 
-proc addEventListener*(f: EventListener) =
+proc addEventListener*(f: EventListener): EventListener {.discardable.} =
   eventListeners.add(f)
 
 proc removeEventListener*(f: EventListener) =
   let i = eventListeners.find(f)
-  eventListeners.del(i)
+  if i != -1:
+    eventListeners.del(i)
 
 proc removeAllEventListeners*() =
   eventListeners = @[]

@@ -235,8 +235,8 @@ proc sget*(x,y: Pint): ColorId
 # rectangles
 proc rect*(x1,y1,x2,y2: Pint)
 proc rectfill*(x1,y1,x2,y2: Pint)
-proc rrect*(x1,y1,x2,y2: Pint)
-proc rrectfill*(x1,y1,x2,y2: Pint)
+proc rrect*(x1,y1,x2,y2: Pint, r: Pint = 1)
+proc rrectfill*(x1,y1,x2,y2: Pint, r: Pint = 1)
 proc rectCorner*(x1,y1,x2,y2: Pint)
 proc rrectCorner*(x1,y1,x2,y2: Pint)
 
@@ -640,15 +640,20 @@ proc rectfill*(x1,y1,x2,y2: Pint) =
     for x in minx..maxx:
       pset(x,y)
 
-proc rrectfill*(x1,y1,x2,y2: Pint) =
+proc rrectfill*(x1,y1,x2,y2: Pint, r: Pint = 1) =
   let minx = min(x1,x2)
   let maxx = max(x1,x2)
   let miny = min(y1,y2)
   let maxy = max(y1,y2)
-  for y in miny..maxy:
-    for x in minx..maxx:
-      if not (y == miny or y == maxy or x == minx or x == maxx):
-        pset(x,y)
+
+  circfill(minx + r, miny + r, r)
+  circfill(maxx - r, miny + r, r)
+  circfill(maxx - r, maxy - r, r)
+  circfill(minx + r, maxy - r, r)
+
+  rectfill(minx, miny + r, maxx, maxy - r)
+  rectfill(minx + r, miny, maxx - r, miny + r)
+  rectfill(minx + r, maxy - r, maxx - r, maxy)
 
 proc innerLineLow(x0,y0,x1,y1: int) =
   var dx = x1 - x0
@@ -1049,19 +1054,85 @@ proc rect*(x1,y1,x2,y2: Pint) =
   # left
   vline(x, y+1, y+h-1)
 
-proc rrect*(x1,y1,x2,y2: Pint) =
-  let w = x2-x1
-  let h = y2-y1
-  let x = x1
-  let y = y1
-  # top
-  hline(x+1, y, x+w-1)
-  # bottom
-  hline(x+1, y+h, x+w-1)
-  # right
-  vline(x+w, y+1, y+h-1)
-  # left
-  vline(x, y+1, y+h-1)
+proc rrect*(x1,y1,x2,y2: Pint, r: Pint = 1) =
+#  https://www.freebasic.net/forum/viewtopic.php?t=19874
+#  Sub drawRoundedRectangle(x0 As Integer, y0 As Integer, x1 As Integer, y1 As Integer, radius As Integer, col As UInteger = RGB(255,255,255))
+#   Dim f As Integer
+#   Dim ddF_x As Integer
+#   Dim ddF_y As Integer
+#   Dim xx As Integer
+#   Dim yy As Integer
+#
+#   f = 1 - radius
+#   ddF_x = 1
+#   ddF_y = -2 * radius
+#   xx = 0
+#   yy = radius
+#
+#   While xx < yy
+#      If (f >= 0) Then
+#         yy-=1
+#         ddF_y += 2
+#         f += ddF_y
+#      EndIf
+#      xx+=1
+#      ddF_x += 2
+#      f += ddF_x
+#      PSet (x1 + xx - radius, y1 + yy - radius), col ''Bottom Right Corner
+#      PSet (x1 + yy - radius, y1 + xx - radius), col ''^^^
+
+#      PSet (x0 - xx + radius, y1 + yy - radius), col ''Bottom Left Corner
+#      PSet (x0 - yy + radius, y1 + xx - radius), col ''^^^
+
+#      PSet (x1 + xx - radius, y0 - yy + radius), col ''Top Right Corner
+#      PSet (x1 + yy - radius, y0 - xx + radius), col ''^^^
+
+#      PSet (x0 - xx + radius, y0 - yy + radius), col ''Top Left Corner
+#      PSet (x0 - yy + radius, y0 - xx + radius), col ''^^^
+#   Wend
+#   Line (x0 + radius,        y0)-(x1 - radius,        y0), col ''top side
+#   Line (x0 + radius,        y1)-(x1 - radius,        y1), col ''botom side
+#   Line (x0         , y0+radius)-(x0         , y1-radius), col ''left side
+#   Line (x1         , y0+radius)-(x1         , y1-radius), col ''right side
+#End Sub
+  let minx = min(x1,x2)
+  let maxx = max(x1,x2)
+  let miny = min(y1,y2)
+  let maxy = max(y1,y2)
+
+  var f = 1 - r
+  var dfx = 1
+  var dfy = -2 * r
+  var xx = 0
+  var yy = r
+
+  while xx < yy:
+    if f >= 0:
+      yy -= 1
+      dfy += 2
+      f += dfy
+
+    xx += 1
+    dfx += 2
+    f += dfx
+
+    pset(maxx + xx - r, maxy + yy - r)
+    pset(maxx + yy - r, maxy + xx - r)
+
+    pset(minx - xx + r, maxy + yy - r)
+    pset(minx - yy + r, maxy + xx - r)
+
+    pset(maxx + xx - r, miny - yy + r)
+    pset(maxx + yy - r, miny - xx + r)
+
+    pset(minx - xx + r, miny - yy + r)
+    pset(minx - yy + r, miny - xx + r)
+
+  hline(minx + r, miny, maxx - r)
+  hline(minx + r, maxy, maxx - r)
+
+  vline(minx, miny + r, maxy - r)
+  vline(maxx, miny + r, maxy - r)
 
 proc rectCorner*(x1,y1,x2,y2: Pint) =
   let w = x2-x1

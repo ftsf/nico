@@ -1,14 +1,14 @@
 # Package
 
-version       = "0.1.0"
+version       = "0.2.0"
 author        = "Jez Kabanov"
 description   = "Nico Game Engine"
 license       = "MIT"
 
 # Dependencies
 
-requires "nim >= 0.16.0"
-requires "sdl2_nim#head"
+requires "nim >= 1.0.0"
+requires "sdl2_nim >= 2.0.10.0"
 requires "gifenc >= 0.1.0"
 requires "webaudio >= 0.1.0"
 requires "html5_canvas >= 0.1.0"

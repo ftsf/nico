@@ -790,18 +790,24 @@ proc step*() {.cdecl.} =
   current_time = next_time
 
   while acc > timeStep:
+    when defined(profile):
+      profileStartFrame()
 
     for controller in mitems(controllers):
       controller.update()
 
+    profileBegin("update")
     updateFunc(timeStep)
+    profileEnd()
 
     for controller in mitems(controllers):
       controller.postUpdate()
 
     frame += 1
     if acc > timeStep and acc < timeStep+timeStep:
+      profileBegin("draw")
       drawFunc()
+      profileEnd()
       flip()
 
     for i,b in mouseButtonsDown:
@@ -813,6 +819,9 @@ proc step*() {.cdecl.} =
     for k,v in keysDown:
       if v != 0:
         keysDown[k] += 1
+
+    when defined(profile):
+      profileEndFrame()
 
     mouseWheelState = 0
 

@@ -24,6 +24,15 @@ else:
 
 export StencilMode
 
+
+export profileGetLastStats
+export profileGetLastStatsPeak
+export profileCollect
+export profileBegin
+export profileEnd
+export ProfilerNode
+export profileHistory
+
 # Audio
 export joinPath
 export loadSfx

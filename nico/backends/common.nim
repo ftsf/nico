@@ -2,6 +2,9 @@ import math
 import tables
 import unicode
 import hashes
+import times
+import algorithm
+import strutils
 
 import nico/keycodes
 export Keycode
@@ -362,3 +365,141 @@ proc convertToIndexed*(surface: Surface): Surface =
 proc RGB*(r,g,b: Pint): tuple[r,g,b: uint8] =
   return (r.uint8,g.uint8,b.uint8)
 {.pop.}
+
+type ProfilerNode* = object
+  name*: string
+  start*: Time
+  time*: int64
+  count*: int
+  parent*: ptr ProfilerNode
+  children*: seq[ProfilerNode]
+
+var profileCollect* = true
+var profileHistory* = newRingBuffer[ProfilerNode](256)
+
+when defined(profile):
+  var rootProfilerNode: ProfilerNode
+  var currentProfilerNode: ptr ProfilerNode
+  var profilePath: string
+  var profileStack*: seq[tuple[name: string, path: string, time: Time]]
+  var profileData* = initTable[string,int64](64)
+  var profileDataHistory* = initTable[(string,uint8),int64](64)
+  var profileFrame: uint8
+  var lastProfileStats*: ProfilerNode
+
+  proc sortChildren(n: var ProfilerNode) =
+    n.children.sort do(a,b: ProfilerNode) -> int:
+      cmp(b.time, a.time)
+    for c in n.children.mitems:
+      c.sortChildren()
+
+  proc profileBegin*(name: string) =
+    if not profileCollect:
+      return
+    let now = getTime()
+    profileStack.add((name, profilePath, now))
+    profilePath &= "/" & name
+
+    currentProfilerNode.children.add(ProfilerNode(name: name, start: now, count: 1, parent: currentProfilerNode))
+    currentProfilerNode = currentProfilerNode.children[^1].addr
+
+  proc profileEnd*() =
+    if not profileCollect:
+      return
+    let now = getTime()
+    #var top = profileStack.pop()
+    #if not profileData.hasKey(profilePath):
+    #  profileData[profilePath] = 0
+    #profileData[profilePath] += (now - top.time).inNanoseconds
+    #profilePath = top.path
+
+    currentProfilerNode.time = (now - currentProfilerNode.start).inNanoseconds
+    currentProfilerNode = currentProfilerNode.parent
+
+  proc profileStartFrame*() =
+    if not profileCollect:
+      return
+
+    rootProfilerNode = ProfilerNode(name: "", parent: nil, start: getTime())
+    currentProfilerNode = rootProfilerNode.addr
+    #profilePath = ""
+    #for k,v in profileData:
+    #  profileData[k] = 0
+
+  proc profileEndFrame*() =
+    if not profileCollect:
+      return
+
+    if currentProfilerNode == nil:
+      return
+    assert(currentProfilerNode == rootProfilerNode.addr)
+
+    let now = getTime()
+    currentProfilerNode.time = (now - currentProfilerNode.start).inNanoseconds
+
+
+    # go through each node and sort siblings by time
+    #currentProfilerNode[].sortChildren()
+
+    lastProfileStats = currentProfilerNode[]
+    profileHistory.add(currentProfilerNode[])
+
+    proc dumpNode(n: ProfilerNode, depth = 0) =
+      echo "  ".repeat(depth), (if n.name == "": "root" else: n.name), ": ", n.time
+      for c in n.children:
+        dumpNode(c, depth + 1)
+
+    #dumpNode(currentProfilerNode[])
+
+    #var stats = newSeq[tuple[name: string, time: int64]]()
+    #for k,v in profileData:
+    #  stats.add((k,v))
+    #  profileDataHistory[(k,profileFrame)] = v
+
+    #stats.sort do(a,b: tuple[name: string, time: int64]) -> int:
+    #  result = cmp(b.time, a.time)
+
+    #result = stats
+    profileFrame.inc()
+    if profileFrame mod 16 == 0:
+      profileFrame = 0
+
+  proc profileGetLastStats*(): ProfilerNode =
+    return lastProfileStats
+
+  proc profileGetLastStatsPeak*(): seq[tuple[name: string, time: int64]] =
+    var peakTable = initTable[string,int64](64)
+    for k,time in profileDataHistory:
+      let (key,frame) = k
+      if not peakTable.hasKey(key):
+        peakTable[key] = 0
+      if time > peakTable[key]:
+        peakTable[key] = time
+
+    var stats = newSeq[tuple[name: string, time: int64]]()
+    for k,v in peakTable:
+      stats.add((k,v))
+
+    stats.sort do(a,b: tuple[name: string, time: int64]) -> int:
+      result = cmp(b.time, a.time)
+
+    result = stats
+
+else:
+  template profileBegin*(name: untyped): untyped =
+    discard
+
+  template profileEnd*(): untyped =
+    discard
+
+  template profileStartFrame*(): untyped =
+    discard
+
+  template profileEndFrame*(): untyped =
+    discard
+
+  proc profileGetLastStats*(): seq[tuple[name: string, time: int64]] =
+    return @[]
+
+  proc profileGetLastStatsPeak*(): seq[tuple[name: string, time: int64]] =
+    return @[]

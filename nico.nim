@@ -42,7 +42,9 @@ export sfx
 export music
 export getMusic
 export synth
-export audioCallback
+export setAudioCallback
+export setAudioBufferSize
+export audioInSample
 export synthUpdate
 export synthShape
 export SynthShape
@@ -52,6 +54,7 @@ export glide
 export wavData
 export pitchbend
 export pitch
+export audioOut
 
 export clipMinX,clipMinY,clipMaxX,clipMaxY
 export currentColor

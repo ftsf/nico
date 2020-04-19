@@ -56,7 +56,7 @@ type
   Channel = object
     kind: ChannelKind
     buffer: SfxBuffer
-    callback: proc(): float32
+    callback: proc(input: float32): float32
     callbackStereo: bool
     musicFile: ptr TSNDFILE
     musicIndex: int
@@ -98,6 +98,7 @@ type
     priority: float32
 
     wavData: array[32, uint8]
+    outputBuffer: RingBuffer[float32]
 
 when defined(android):
   type LogPriority = enum
@@ -129,6 +130,12 @@ else:
 var keyListeners = newSeq[KeyListener]()
 
 var audioDeviceId: AudioDeviceID
+var audioInDeviceId: AudioDeviceID
+var audioInSample*: float32
+var audioBufferSize = 1024*2
+
+var inputSamples: seq[float32]
+var outputSamples: seq[float32]
 
 var window: Window
 
@@ -787,10 +794,10 @@ proc setScreenSize*(w,h: int) =
   window.setWindowSize(w,h)
   resize()
 
-proc queueMixerAudio*(nSamples: int)
+proc queueMixerAudio*()
 
 proc queuedAudioSize*(): int =
-  return getQueuedAudioSize(audioDeviceId).int div 4
+  return getQueuedAudioSize(audioDeviceId).int div sizeof(float32)
 
 proc step*() {.cdecl.} =
   checkInput()
@@ -848,8 +855,10 @@ proc step*() {.cdecl.} =
 
     acc -= timeStep
 
-    if queuedAudioSize() < 8192:
-      queueMixerAudio(4096)
+    if queuedAudioSize() < audioBufferSize * 4:
+      profileBegin("audio")
+      queueMixerAudio()
+      profileEnd()
 
 proc getPerformanceCounter*(): uint64 {.inline.} =
   return sdl.getPerformanceCounter()
@@ -903,7 +912,7 @@ proc getConfigValue*(section, key: string, default: string = ""): string =
   debug "getConfigValue", section, key, result
 
 proc queueAudio*(samples: var seq[float32]) =
-  let ret = queueAudio(audioDeviceId, samples[0].addr, (samples.len * 4).uint32)
+  let ret = queueAudio(audioDeviceId, samples[0].addr, (samples.len * sizeof(float32)).uint32)
   if ret != 0:
     raise newException(Exception, "error queueing audio: " & $getError())
 
@@ -941,7 +950,7 @@ proc process(self: var Channel): float32 =
           if lsb == 1:
             self.lfsr = self.lfsr xor 0xb400
           self.outvalue = if lsb == 1: 1.0 else: -1.0
-          self.nextClick = ((1.0 / self.freq) * sampleRate).int
+          self.nextClick = (self.freq * invSampleRate).int
         self.nextClick -= 1
       o = self.outvalue
     of synNoise2:
@@ -952,7 +961,7 @@ proc process(self: var Channel): float32 =
           if lsb == 1:
             self.lfsr2 = self.lfsr2 xor 0x0043
           self.outvalue = if lsb == 1: 1.0 else: -1.0
-          self.nextClick = ((1.0 / self.freq) * sampleRate).int
+          self.nextClick = (self.freq * invSampleRate).int
         self.nextClick -= 1
       o = self.outvalue
     of synWav:
@@ -978,8 +987,8 @@ proc process(self: var Channel): float32 =
           self.targetFreq = self.targetFreq + self.targetFreq * self.pchange.float32 / 128.0
           self.basefreq = self.targetFreq
           self.freq = self.targetFreq
-          if self.targetFreq > sampleRate / 2.0:
-            self.targetFreq = sampleRate / 2.0
+          if self.targetFreq > sampleRate * 0.5'f:
+            self.targetFreq = sampleRate * 0.5'f
 
         if self.arp != 0:
           let a0 = (self.arp and 0x000f)
@@ -1043,7 +1052,7 @@ proc process(self: var Channel): float32 =
       return self.outvalue
     var o: float32
     o = self.musicBuffers[self.musicBuffer].interpolatedLookup(self.phase) * self.gain
-    self.phase += (self.musicSampleRate / sampleRate)
+    self.phase += (self.musicSampleRate * invSampleRate)
     if self.phase >= musicBufferSize:
       # end of buffer, switch buffers and fill
       self.phase = 0.0
@@ -1060,13 +1069,23 @@ proc process(self: var Channel): float32 =
     return o * musicVolume
   of channelCallback:
     if self.callbackStereo or audioSampleId mod 2 == 0:
-      self.outvalue = self.callback() * self.gain
+      self.outvalue = self.callback(audioInSample) * self.gain
     return self.outvalue * self.gain
 
-proc queueMixerAudio*(nSamples: int) =
-  var samples = newSeq[float32](nSamples)
+proc queueMixerAudio*() =
+  var nDequeuedSamples = 0
+  if audioInDeviceId != 0:
+    nDequeuedSamples = dequeueAudio(audioInDeviceId, inputSamples[0].addr, (audioBufferSize * sizeof(float32)).uint32).int div sizeof(float32)
 
-  for i in 0..<nSamples:
+    if nDequeuedSamples < audioBufferSize:
+      echo "didn't dequeue enough samples: ", nDequeuedSamples
+
+  for i in 0..<audioBufferSize:
+
+    if audioInDeviceId != 0:
+      audioInSample = inputSamples[i]
+    else:
+      audioInSample = 0'f
 
     if i mod 2 == 0:
       nextClock -= 1
@@ -1081,14 +1100,17 @@ proc queueMixerAudio*(nSamples: int) =
         tickFunc()
         nextTick = (sampleRate / (currentBpm.float32 / 60.0 * currentTpb.float32)).int
 
-    samples[i] = 0
+    outputSamples[i] = 0
     for j in 0..<audioChannels.len:
-      samples[i] += audioChannels[j].process()
+      let s = audioChannels[j].process()
+      audioChannels[j].outputBuffer.add([s])
+      outputSamples[i] += s
+
     audioSampleId += 1
 
-  queueAudio(samples)
+  queueAudio(outputSamples)
 
-proc initMixer*() =
+proc initMixer*(wantsAudioIn = false) =
   when defined(js):
     # use web audio
     discard
@@ -1099,9 +1121,9 @@ proc initMixer*() =
 
     var audioSpec: AudioSpec
     audioSpec.freq = sampleRate.cint
-    audioSpec.format = AUDIO_F32
+    audioSpec.format = AUDIO_S8
     audioSpec.channels = 2
-    audioSpec.samples = musicBufferSize
+    audioSpec.samples = audioBufferSize.uint16
     audioSpec.padding = 0
     audioSpec.callback = nil
     audioSpec.userdata = nil
@@ -1110,19 +1132,48 @@ proc initMixer*() =
     audioDeviceId = openAudioDevice(nil, 0, audioSpec.addr, obtained.addr, AUDIO_ALLOW_FORMAT_CHANGE)
     if audioDeviceId == 0:
       raise newException(Exception, "Unable to open audio device: " & $getError())
+    else:
+      echo "opened audio output ", obtained.freq.int, " channels: ", obtained.channels.int, " format: ", $obtained.format
 
     sampleRate = obtained.freq.float32
     invSampleRate = 1.0 / obtained.freq.float32
+
+    if wantsAudioIn:
+      var audioInSpec: AudioSpec
+      audioInSpec.freq = 44100.cint
+      audioInSpec.format = AUDIO_S8
+      audioInSpec.channels = 2
+      audioInSpec.samples = 1024
+      audioInSpec.padding = 0
+      audioInSpec.callback = nil
+      audioInSpec.userdata = nil
+
+      let nAudioInDevices = getNumAudioDevices(1)
+
+      echo "nAudioInDevices: ", nAudioInDevices
+      for i in 0..<nAudioInDevices:
+        echo "id: ", i, " = ", getAudioDeviceName(i, 1)
+
+      if nAudioInDevices > 0:
+        audioInDeviceId = openAudioDevice(nil, 1, audioInSpec.addr, obtained.addr, AUDIO_ALLOW_FORMAT_CHANGE)
+        if audioInDeviceId == 0:
+          raise newException(Exception, "Unable to open audio input device: " & $getError())
+        else:
+          echo "opened audio input  ", obtained.freq.int, " channels: ", obtained.channels.int
+        inputSamples = newSeq[float32](audioBufferSize)
+        pauseAudioDevice(audioInDeviceId, 0)
 
     for c in audioChannels.mitems:
       c.lfsr = 0xfeed
       c.lfsr2 = 0x00fe
       c.glide = 0
+      c.outputBuffer = newRingBuffer[float32](1024)
       for j in 0..<32:
         c.wavData[j] = rand(16).uint8
 
-    # start the audio thread
-    queueMixerAudio(4096)
+    outputSamples = newSeq[float32](audioBufferSize)
+
+    queueMixerAudio()
     pauseAudioDevice(audioDeviceId, 0)
     debug "audio initialised using main thread"
 
@@ -1345,6 +1396,11 @@ proc pitch*(channel: int, freq: Pfloat) =
 proc synthShape*(channel: int, newShape: SynthShape) =
   audioChannels[channel].shape = newShape
 
+proc audioOut*(channel: int, index: int): float32 =
+  if index > audioChannels[channel].outputBuffer.size:
+    return 0
+  return audioChannels[channel].outputBuffer[index]
+
 proc reset*(channel: int) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
@@ -1399,13 +1455,19 @@ proc useRelativeMouse*(on: bool) =
 proc isTextInput*(): bool =
   return sdl.isTextInputActive()
 
-proc audioCallback*(channel: int, callback: proc(): float32, stereo: bool) =
+# sets the audio callback for the channel
+proc setAudioCallback*(channel: int, callback: proc(input: float32): float32, stereo: bool) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
   audioChannels[channel].kind = channelCallback
   audioChannels[channel].callback = callback
   audioChannels[channel].callbackStereo = stereo
   audioChannels[channel].gain = 1.0
+
+proc setAudioBufferSize*(samples: int) =
+  audioBufferSize = samples
+  inputSamples = newSeq[float32](samples)
+  outputSamples = newSeq[float32](samples)
 
 proc hideMouse*() =
   discard showCursor(0)

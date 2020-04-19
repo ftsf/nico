@@ -47,6 +47,3 @@ task examples, "compile all examples":
 
 task runplatformer, "runs platformer":
   exec "nim c -r -p:. -d:release -o:examples/platformer examples/platformer.nim"
-
-task rungui, "runs gui example":
-  exec "nim c -r -p:. -d:release -o:examples/guiexample examples/guiexample.nim"

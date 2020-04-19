@@ -595,7 +595,7 @@ proc pset*(x,y: Pint, c: ColorId) =
     return
   if stencilTest(x,y,stencilRef):
     if ditherPass(x,y):
-      swCanvas.set(x,y,paletteMapDraw[currentColor].uint8)
+      swCanvas.set(x,y,paletteMapDraw[c].uint8)
     elif ditherColor >= 0:
       swCanvas.set(x,y,paletteMapDraw[ditherColor.ColorId].uint8)
     if stencilWrite:

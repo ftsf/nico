@@ -2649,9 +2649,11 @@ proc invLerp*(a,b,v: Pfloat): Pfloat =
   (v - a) / (b - a)
 
 proc angleDiff*(a,b: Pfloat): Pfloat =
-  let a = wrap(a,TAU)
-  let b = wrap(b,TAU)
-  return wrap((a - b) + PI, TAU) - PI
+  result = (b - a) mod TAU
+  if result < -PI:
+    result += TAU
+  elif result >= PI:
+    result -= TAU
 
 converter toPint*(x: uint8): Pint =
   x.Pint
@@ -2685,6 +2687,12 @@ when defined(test):
   import unittest
 
   suite "nico":
+    test "angleDiff":
+      check(angleDiff(0'f,0'f) == 0'f)
+      check(angleDiff(deg2rad(90'f),deg2rad(-90'f)) == deg2rad(180'f))
+      check(angleDiff(deg2rad(-90'f),deg2rad(90'f)) == deg2rad(180'f))
+      check(angleDiff(deg2rad(-180'f),deg2rad(180'f)) == deg2rad(0'f))
+
     test "roundTo":
       check(roundTo(16, 16) == 16)
       check(roundTo(0, 16) == 0)

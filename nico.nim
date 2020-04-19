@@ -613,6 +613,12 @@ proc psetRaw*(x,y: int, c: Pint) =
 proc psetRaw*(x,y: int) =
   psetRaw(x,y,currentColor)
 
+proc ssetSafe*(x,y: Pint, c: int = -1) =
+  let c = if c == -1: currentColor else: c
+  if x < 0 or y < 0 or x > spritesheet.w-1 or y > spritesheet.h-1:
+    return
+  spritesheet.data[y*spritesheet.w+x] = paletteMapDraw[c].uint8
+
 proc sset*(x,y: Pint, c: int = -1) =
   let c = if c == -1: currentColor else: c
   if x < 0 or y < 0 or x > spritesheet.w-1 or y > spritesheet.h-1:

@@ -331,9 +331,10 @@ proc length2*[N,T](a: Vec[N,T]): T =
   for i in 0..<N:
     result += a[i]*a[i]
 
-proc length*[N,T](v: Vec[N,T]): T =
-  let l2 = v.length2()
-  return sqrt(l2)
+proc length*[N,T](a: Vec[N,T]): T =
+  for i in 0..<N:
+    result += a[i]*a[i]
+  result = sqrt(result.float).T
 
 proc normalized*[N,T](v: Vec[N,T]): Vec[N,T] =
   let length = v.length()
@@ -381,27 +382,31 @@ proc rndVec2i*(mag: int): Vec2i =
   result.y = rnd(mag*2) - mag
 
 proc rndVec2f*(mag: float32): Vec2f =
-  result.x = rnd(mag*2.0) - mag
-  result.y = rnd(mag*2.0) - mag
-  result = result.normalized
+  result.x = rnd(mag*2'f) - mag
+  result.y = rnd(mag*2'f) - mag
 
 proc rndVec3f*(mag: float32): Vec3f =
-  result.x = rnd(mag*2.0) - mag
-  result.y = rnd(mag*2.0) - mag
-  result.z = rnd(mag*2.0) - mag
-  result = result.normalized
+  result.x = rnd(mag*2'f) - mag
+  result.y = rnd(mag*2'f) - mag
+  result.z = rnd(mag*2'f) - mag
 
-proc dist*[V](a,b: V): float32 =
+proc dist*[V](a,b: V): float32 {.inline.} =
   return (a-b).length()
 
-proc dist2*[V](a,b: V): float32 =
+proc dist2*[V](a,b: V): float32 {.inline.} =
   return (a-b).length2()
 
 proc nearer*[V](a,b: V, compDist: float32): bool =
   return dist2(a,b) < compDist * compDist
 
+proc nearer*[V](a: V, compDist: float32): bool =
+  return length2(a) < compDist * compDist
+
 proc further*[V](a,b: V, compDist: float32): bool =
   return dist2(a,b) > compDist * compDist
+
+proc further*[V](a: V, compDist: float32): bool =
+  return length2(a) > compDist * compDist
 
 proc clamp*[V](a: V, maxLength: float32): V =
   let d2 = a.length2

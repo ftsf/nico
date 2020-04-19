@@ -12,7 +12,7 @@ import webaudio
 var ctx: CanvasRenderingContext2d
 var swCanvas32: ImageData
 var canvas: Canvas
-var interval: ref TInterval
+var interval: ref Interval
 var audioContext: AudioContext
 var noiseBuffer: AudioBuffer
 var noiseBuffer2: AudioBuffer
@@ -82,11 +82,14 @@ keymap = [
   @[67, 79, 75], # X = c, o, k
   @[86, 80, 76], # Y = v, p, l
 
-  @[66], # L1
+  @[70], # L1, F
+  @[71], # L2, G
+  @[72], # L3, H
 
-  @[71], # L2
-  @[72], # R1
-  @[78], # R2
+  @[86], # R1, V
+  @[66], # R2, B
+  @[78], # R3, N
+
   @[13, 32], # Start
   @[27, 8], # Back
 ]
@@ -102,9 +105,10 @@ proc setKeyMap*(newmap: string) =
 proc present*() =
   # copy swCanvas to canvas
   for i,v in swCanvas.data:
-    swCanvas32.data[i*4] = colors[v][0]
-    swCanvas32.data[i*4+1] = colors[v][1]
-    swCanvas32.data[i*4+2] = colors[v][2]
+    let c = currentPalette.data[paletteMapDisplay[v]]
+    swCanvas32.data[i*4] = c[0]
+    swCanvas32.data[i*4+1] = c[1]
+    swCanvas32.data[i*4+2] = c[2]
     swCanvas32.data[i*4+3] = 255
   ctx.putImageData(swCanvas32,0,0)
 
@@ -118,40 +122,43 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   canvas.style.width = $(w * scale) & "px"
   canvas.style.height = $(h * scale) & "px"
 
-  canvas.onmousemove = proc(e: Event) =
+  canvas.onmousemove = proc(e: dom.Event) =
+    let e = e.MouseEvent
     mouseDetected = true
     let scale = canvas.clientWidth.float / screenWidth.float
     mouseX = (e.offsetX.float / scale).int
     mouseY = (e.offsetY.float / scale).int
 
-  canvas.onmousedown = proc(e: Event) =
+  canvas.onmousedown = proc(e: dom.Event) =
+    let e = e.MouseEvent
     mouseButtonsDown[e.button] = true
     e.preventDefault()
 
-  canvas.onmouseup = proc(e: Event) =
+  canvas.onmouseup = proc(e: dom.Event) =
+    let e = e.MouseEvent
     mouseButtonsDown[e.button] = false
     e.preventDefault()
 
-  canvas.addEventListener("contextmenu") do(e: Event):
+  canvas.addEventListener("contextmenu") do(e: dom.Event):
     e.preventDefault()
 
-  canvas.addEventListener("touchstart") do(e: Event):
+  canvas.addEventListener("touchstart") do(e: dom.Event):
     let e = e.TouchEvent
     mouseButtonsDown[0] = true
     let scale = canvas.clientWidth.float / screenWidth.float
-    mouseX = ((e.touches.item(0).pageX - e.target.HtmlElement.offsetLeft).float / scale).int
-    mouseY = ((e.touches.item(0).pageY - e.target.HtmlElement.offsetTop).float / scale).int
+    mouseX = ((e.touches[0].pageX - e.target.offsetLeft).float / scale).int
+    mouseY = ((e.touches[0].pageY - e.target.offsetTop).float / scale).int
 
     e.preventDefault()
 
-  canvas.addEventListener("touchmove") do(e: Event):
+  canvas.addEventListener("touchmove") do(e: dom.Event):
     let e = e.TouchEvent
     let scale = canvas.clientWidth.float / screenWidth.float
-    mouseX = ((e.touches.item(0).pageX - e.target.HtmlElement.offsetLeft).float / scale).int
-    mouseY = ((e.touches.item(0).pageY - e.target.HtmlElement.offsetTop).float / scale).int
+    mouseX = ((e.touches[0].pageX - e.target.offsetLeft).float / scale).int
+    mouseY = ((e.touches[0].pageY - e.target.offsetTop).float / scale).int
     e.preventDefault()
 
-  canvas.addEventListener("touchend") do(e: Event):
+  canvas.addEventListener("touchend") do(e: dom.Event):
     mouseButtonsDown[0] = false
     e.preventDefault()
 
@@ -162,16 +169,20 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   ctx = canvas.getContext2D()
   swCanvas32 = ctx.getImageData(0,0,w.float,h.float)
 
+  stencilBuffer = newSurface(w, h)
+
   frame = 0
 
-  dom.window.onkeydown = proc(event: Event) =
+  dom.window.onkeydown = proc(event: dom.Event) =
+    let event = event.KeyboardEvent
     for btn,keys in keymap:
       for key in keys:
         if event.keyCode == key:
           controllers[0].setButtonState(btn, true)
           event.preventDefault()
 
-  dom.window.onkeyup = proc(event: Event) =
+  dom.window.onkeyup = proc(event: dom.Event) =
+    let event = event.KeyboardEvent
     for btn,keys in keymap:
       for key in keys:
         if event.keyCode == key:
@@ -188,7 +199,7 @@ proc loadFile*(filename: string, callback: proc(data: string)) =
   var xhr = newXMLHttpRequest()
   xhr.open("GET", filename, true)
   xhr.send()
-  xhr.onreadystatechange = proc(e: Event) =
+  xhr.onreadystatechange = proc(e: dom.Event) =
     if xhr.status == 200:
       loading -= 1
       callback($xhr.responseText)
@@ -211,7 +222,7 @@ proc readJsonFile*(filename: string): JsonNode =
 proc loadSurfaceRGBA*(filename: string, callback: proc(surface: Surface)) =
   loading += 1
   var img = dom.document.createElement("img").ImageElement
-  img.addEventListener("load") do(event: Event):
+  img.addEventListener("load") do(event: dom.Event):
     loading -= 1
     let target = event.target.ImageElement
     console.log("image loaded: ", target.src)
@@ -223,10 +234,8 @@ proc loadSurfaceRGBA*(filename: string, callback: proc(surface: Surface)) =
     canvas.height = h
     ctx.drawImage(target, 0, 0)
     var imgData = ctx.getImageData(0,0, w.float,h.float)
-    var surface: Surface
-    surface.w = w
-    surface.h = h
-    surface.channels = 4
+    var surface = newSurfaceRGBA(w,h)
+    surface.filename = filename
     surface.data = imgData.data
     callback(surface)
   img.src = filename
@@ -340,12 +349,7 @@ proc step() =
   if loading > 0:
     debug("loading...", loading)
     # copy swCanvas to canvas
-    for i,v in swCanvas.data:
-      swCanvas32.data[i*4] = colors[v][0]
-      swCanvas32.data[i*4+1] = colors[v][1]
-      swCanvas32.data[i*4+2] = colors[v][2]
-      swCanvas32.data[i*4+3] = 255
-    ctx.putImageData(swCanvas32,0,0)
+    present()
 
     frame += 1
     return
@@ -365,13 +369,7 @@ proc step() =
   if drawFunc != nil:
     drawFunc()
 
-  # copy swCanvas to canvas
-  for i,v in swCanvas.data:
-    swCanvas32.data[i*4] = colors[v][0]
-    swCanvas32.data[i*4+1] = colors[v][1]
-    swCanvas32.data[i*4+2] = colors[v][2]
-    swCanvas32.data[i*4+3] = 255
-  ctx.putImageData(swCanvas32,0,0)
+  present()
 
   audioClock()
 
@@ -460,7 +458,7 @@ proc loadSfx*(sfxId: SfxId, filename: string) =
   var xhr = newXMLHttpRequest()
   xhr.open("GET", assetPath & filename, true)
   xhr.responseType = "arraybuffer"
-  xhr.onreadystatechange = proc(e: Event) =
+  xhr.onreadystatechange = proc(e: dom.Event) =
     if xhr.readyState == rsDone:
       loading -= 1
       if xhr.status == 200:
@@ -476,7 +474,7 @@ proc loadMusic*(musicId: MusicId, filename: string) =
   var xhr = newXMLHttpRequest()
   xhr.open("GET", assetPath & filename, true)
   xhr.responseType = "arraybuffer"
-  xhr.onreadystatechange = proc(e: Event) =
+  xhr.onreadystatechange = proc(e: dom.Event) =
     if xhr.readyState == rsDone:
       loading -= 1
       if xhr.status == 200:

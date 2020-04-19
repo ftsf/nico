@@ -304,6 +304,14 @@ proc interpolatedLookup*[T](a: openarray[T], s: Pfloat): T =
 proc newSurface*(w,h: int): Surface =
   result = new(Surface)
   result.data = newSeq[uint8](w*h)
+  result.channels = 1
+  result.w = w
+  result.h = h
+
+proc newSurfaceRGBA*(w,h: int): Surface =
+  result = new(Surface)
+  result.data = newSeq[uint8](w*h*4)
+  result.channels = 4
   result.w = w
   result.h = h
 

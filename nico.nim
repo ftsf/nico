@@ -42,9 +42,13 @@ export sfx
 export music
 export getMusic
 export synth
-export setAudioCallback
-export setAudioBufferSize
-export audioInSample
+
+when not defined(js):
+  export setAudioCallback
+  export setAudioBufferSize
+  export audioInSample
+  export audioOut
+
 export synthUpdate
 export synthShape
 export SynthShape
@@ -54,7 +58,6 @@ export glide
 export wavData
 export pitchbend
 export pitch
-export audioOut
 
 export clipMinX,clipMinY,clipMaxX,clipMaxY
 export currentColor
@@ -68,9 +71,10 @@ export NicoAxis
 export NicoButton
 export ColorId
 
-export startTextInput
-export stopTextInput
-export isTextInput
+when not defined(js):
+  export startTextInput
+  export stopTextInput
+  export isTextInput
 
 export btn
 export btnp
@@ -175,13 +179,11 @@ proc setStencilWrite*(on: bool) =
 proc stencilMode*(mode: StencilMode) =
   common.stencilMode = mode
 proc stencilClear*() =
-  zeroMem(stencilBuffer.data[0].addr, screenWidth * screenHeight)
-proc stencilClear*(v: Pint) =
-  let v = v.uint8
-  for i in 0..<stencilBuffer.data.len:
-    stencilBuffer.data[i] = v
-
+  for i in 0..<screenWidth*screenHeight:
+    stencilBuffer.data[i] = 0
 proc stencilTest(x,y: int, nv: uint8): bool =
+  if common.stencilMode == stencilAlways:
+    return true
   let v = stencilBuffer.get(x,y)
   case common.stencilMode:
   of stencilAlways:
@@ -221,8 +223,10 @@ proc mouserel*(): (float32,float32)
 proc mousebtn*(b: range[0..2]): bool
 proc mousebtnp*(b: range[0..2]): bool
 proc mousebtnpr*(b: range[0..2], r: Pint = 48): bool
-export hideMouse
-export showMouse
+
+when not defined(js):
+  export hideMouse
+  export showMouse
 
 ## Drawing API
 
@@ -1867,8 +1871,9 @@ proc loadFont*(index: int, filename: string) =
   chars.removeSuffix()
   backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
     fonts[index] = createFontFromSurface(surface, chars)
-  if shouldReplace:
-    setFont(index)
+    if shouldReplace:
+      debug "updating current font ", index
+      setFont(index)
 
 proc loadFont*(index: int, filename: string, chars: string) =
   let shouldReplace = currentFont == fonts[index]
@@ -1977,7 +1982,8 @@ proc mouserel*(): (float32,float32) =
   return (mouseRelX,mouseRelY)
 
 proc useRelativeMouse*(on: bool) =
-  backend.useRelativeMouse(on)
+  when not defined(js):
+    backend.useRelativeMouse(on)
 
 proc mousebtn*(b: range[0..2]): bool =
   return mouseButtons[b] > 0

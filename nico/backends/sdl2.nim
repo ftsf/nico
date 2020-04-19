@@ -184,12 +184,15 @@ keymap = [
   @[SCANCODE_X.int], # B
   @[SCANCODE_LSHIFT.int, SCANCODE_RSHIFT.int], # X
   @[SCANCODE_C.int], # Y
+
   @[SCANCODE_F.int], # L1
   @[SCANCODE_G.int], # L2
   @[SCANCODE_H.int], # L3
+
   @[SCANCODE_V.int], # R1
   @[SCANCODE_B.int], # R2
   @[SCANCODE_N.int], # R3
+
   @[SCANCODE_RETURN.int], # Start
   @[SCANCODE_ESCAPE.int, SCANCODE_BACKSPACE.int], # Back
 ]

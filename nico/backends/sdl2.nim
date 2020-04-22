@@ -330,8 +330,8 @@ proc readFile*(filename: string): string =
 
   var offset = 0
   while offset < size:
-    let r = rwRead(fp, buffer[offset].addr, 1, 1.csize)
-    offset += r
+    let r = rwRead(fp, buffer[offset].addr, 1.csize_t, 1.csize_t)
+    offset += r.int
     if r == 0:
       break
 

@@ -1109,7 +1109,7 @@ proc queueMixerAudio*() =
     outputSamples[i] = 0
     for j in 0..<audioChannels.len:
       let s = audioChannels[j].process()
-      audioChannels[j].outputBuffer.add([s])
+      audioChannels[j].outputBuffer.add(s)
       outputSamples[i] += s
 
     audioSampleId += 1
@@ -1289,6 +1289,9 @@ proc newSfxBuffer(filename: string): SfxBuffer =
 
   discard fp.close()
 
+proc reset*(channel: var Channel) =
+  channel.kind = channelNone
+
 proc loadSfx*(index: int, filename: string) =
   if index < 0 or index > 63:
     return
@@ -1319,6 +1322,13 @@ proc findFreeChannel(priority: float32): AudioChannelId =
   return bestChannel
 
 proc sfx*(channel: AudioChannelId = -1, index: int, loop: int = 1, gain: Pfloat = 1.0, pitch: Pfloat = 1.0, priority: Pfloat = Inf) =
+  if index == -1 and channel == audioChannelAuto:
+    echo "resetting all audio channels"
+    # stop all audio
+    for i in 0..<nAudioChannels:
+      audioChannels[i].reset()
+    return
+
   let channel = if channel == audioChannelAuto: findFreeChannel(priority) else: channel
   if channel == audioChannelAuto:
     return
@@ -1340,12 +1350,10 @@ proc sfx*(channel: AudioChannelId = -1, index: int, loop: int = 1, gain: Pfloat 
   audioChannels[channel].gain = gain
   audioChannels[channel].loop = loop
 
-proc reset*(channel: AudioChannelId)
-
 proc music*(channel: AudioChannelId, index: int, loop: int = -1) =
   if index == -1:
     # stop music
-    reset(channel)
+    audioChannels[channel].reset()
     return
 
   if index < 0 or index >= 64:
@@ -1402,15 +1410,6 @@ proc audioOut*(channel: AudioChannelId, index: int): float32 =
   if index > audioChannels[channel].outputBuffer.size:
     return 0
   return audioChannels[channel].outputBuffer[index]
-
-proc reset*(channel: AudioChannelId) =
-  if channel > audioChannels.high:
-    raise newException(KeyError, "invalid channel: " & $channel)
-  audioChannels[channel].kind = channelNone
-  audioChannels[channel].freq = 1.0
-  audioChannels[channel].gain = 0.0
-  audioChannels[channel].loop = 0
-  audioChannels[channel].musicIndex = 0
 
 proc synth*(channel: AudioChannelId, shape: SynthShape, freq: Pfloat, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
   if channel > audioChannels.high:

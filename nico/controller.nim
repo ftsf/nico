@@ -83,7 +83,6 @@ proc update*(self: NicoController) =
     if self.buttons[i] >= 1:
       self.buttons[i] += 1
 
-proc postUpdate*(self: NicoController) =
   for i in self.axes.low..self.axes.high:
     if self.axes[i].previous < -self.deadzone and self.axes[i].current < -self.deadzone:
       self.axes[i].hold += 1
@@ -91,6 +90,9 @@ proc postUpdate*(self: NicoController) =
       self.axes[i].hold += 1
     else:
       self.axes[i].hold = 0
+
+proc postUpdate*(self: NicoController) =
+  for i in self.axes.low..self.axes.high:
     self.axes[i].previous = self.axes[i].current
 
 proc axis*(self: NicoController, axis: NicoAxis): float =
@@ -131,24 +133,24 @@ proc btnup*(self: NicoController, button: NicoButton): bool =
 
 proc btnpr*(self: NicoController, button: NicoButton, repeat = 48): bool =
   let v = self.buttons[button]
-  if v == 2 or v == (repeat + 2) or (v > repeat + 2 and v mod (repeat div 2) == 2):
+  if v == 2 or (v > 2 and (v - 2) mod repeat == 0):
     return true
   if button == pcLeft:
     if self.axes[pcXAxis].current < -self.deadzone:
       let v = self.axes[pcXAxis].hold
-      return v == 2 or v == (repeat + 2) or (v > repeat + 2 and v mod (repeat div 2) == 2)
+      return v mod repeat == 0
   elif button == pcRight:
     if self.axes[pcXAxis].current > self.deadzone:
       let v = self.axes[pcXAxis].hold
-      return v == 2 or v == (repeat + 2) or (v > repeat + 2 and v mod (repeat div 2) == 2)
+      return v mod repeat == 0
   elif button == pcUp:
     if self.axes[pcYAxis].current < -self.deadzone:
       let v = self.axes[pcYAxis].hold
-      return v == 2 or v == (repeat + 2) or (v > repeat + 2 and v mod (repeat div 2) == 2)
+      return v mod repeat == 0
   elif button == pcDown:
     if self.axes[pcYAxis].current > self.deadzone:
       let v = self.axes[pcYAxis].hold
-      return v == 2 or v == (repeat + 2) or (v > repeat + 2 and v mod (repeat div 2) == 2)
+      return v mod repeat == 0
   return false
 
 proc setButtonState*(self: NicoController, button: NicoButton, down: bool) =

@@ -1,6 +1,7 @@
 import nico
 import math
 
+# frame counter
 var frame = 0
 
 # color
@@ -29,7 +30,28 @@ const textOptions = [
   "NIM IS FUN",
 ]
 
+type SfxName = enum
+  sfxHitPaddle
+  sfxHitWall
+  sfxDrop
+
+converter toInt(x: SfxName): int =
+  x.int
+
 proc gameInit() =
+  # load all our assets
+  loadFont(0, "font.png")
+  setFont(0)
+
+  loadMusic(0, "exampleMusic.ogg")
+
+  loadSfx(sfxHitPaddle, "hitPaddle.ogg")
+  loadSfx(sfxHitWall, "hitWall.ogg")
+  loadSfx(sfxDrop, "drop.ogg")
+
+  # start playing music
+  music(15, 0)
+
   text = "HELLO WORLD"
   bxv = 0.5
   byv = 0.75
@@ -63,12 +85,14 @@ proc gameUpdate(dt: Pfloat) =
   if bx > screenWidth - 4 or bx < 4:
     bxv = -bxv
     splat = true
+    sfx(-1, sfxHitWall)
 
   # hit paddle
   if by > screenHeight - 8 and bx > px - tw div 2 - 4 and bx < px + tw div 2 + 4:
     byv = -byv * 0.8 - 1.0
     bxv += pxv
     splat = true
+    sfx(-1, sfxHitPaddle)
 
   # restart
   if btnp(pcA) or by > screenHeight:
@@ -77,6 +101,7 @@ proc gameUpdate(dt: Pfloat) =
     byv = -2.0
     bxv = rnd(2.0)-1.0
     clear = true
+    sfx(-1, sfxDrop)
 
   if btnp(pcB):
     # switch text
@@ -126,19 +151,14 @@ proc gameDraw() =
       circfill(x + rnd(30)-15, y + rnd(30)-15, rnd(2)+1)
     splat = false
 
-
 # initialization
 nico.init("nico", "test")
 
 # we want a fixed sized screen with perfect square pixels
-# create the window
-nico.createWindow("nico",128,128,4)
-
-loadFont(0, "font.png")
-setFont(0)
-
 fixedSize(true)
 integerScale(true)
+# create the window
+nico.createWindow("nico",128,128,4)
 
 # start, say which functions to use for init, update and draw
 nico.run(gameInit, gameUpdate, gameDraw)

@@ -678,15 +678,19 @@ proc appHandleEvent(evt: sdl.Event) =
     elif sym == ((sdl.Keycode)K_f) and not down and (mods and uint16(KMOD_CTRL)) != 0:
       if getFullscreen():
         setFullscreen(false)
+        resize()
       else:
         setFullscreen(true)
+        resize()
       return
 
     elif sym == ((sdl.Keycode)K_return) and not down and (mods and uint16(KMOD_ALT)) != 0:
       if getFullscreen():
         setFullscreen(false)
+        resize()
       else:
         setFullscreen(true)
+        resize()
       return
 
     elif sym == ((sdl.Keycode)K_F8) and down:

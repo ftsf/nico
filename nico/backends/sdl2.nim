@@ -1295,28 +1295,28 @@ proc loadMusic*(index: int, filename: string) =
     return
   musicFileLibrary[index] = joinPath(assetPath, filename)
 
-proc getMusic*(channel: int): int =
+proc getMusic*(channel: AudioChannelId): int =
   if audioChannels[channel].kind != channelMusic:
     return -1
   return audioChannels[channel].musicIndex
 
-proc findFreeChannel(priority: float32): int =
+proc findFreeChannel(priority: float32): AudioChannelId =
   for i,c in audioChannels:
     if c.kind == channelNone:
       return i
   var lowestPriority: float32 = Inf
-  var bestChannel: int = -2
+  var bestChannel = audioChannelAuto
   for i,c in audioChannels:
     if c.priority < lowestPriority:
       lowestPriority = c.priority
       bestChannel = i
   if lowestPriority > priority or bestChannel < 0:
-    return -2
+    return audioChannelAuto
   return bestChannel
 
-proc sfx*(channel: int = -1, index: int, loop: int = 1, gain: Pfloat = 1.0, pitch: Pfloat = 1.0, priority: Pfloat = Inf) =
-  let channel = if channel == -1: findFreeChannel(priority) else: channel
-  if channel == -2:
+proc sfx*(channel: AudioChannelId = -1, index: int, loop: int = 1, gain: Pfloat = 1.0, pitch: Pfloat = 1.0, priority: Pfloat = Inf) =
+  let channel = if channel == audioChannelAuto: findFreeChannel(priority) else: channel
+  if channel == audioChannelAuto:
     return
 
   if index < 0:
@@ -1336,10 +1336,9 @@ proc sfx*(channel: int = -1, index: int, loop: int = 1, gain: Pfloat = 1.0, pitc
   audioChannels[channel].gain = gain
   audioChannels[channel].loop = loop
 
-proc reset*(channel: int)
+proc reset*(channel: AudioChannelId)
 
-proc music*(index: int, channel: int, loop: int = -1) =
-
+proc music*(channel: AudioChannelId, index: int, loop: int = -1) =
   if index == -1:
     # stop music
     reset(channel)
@@ -1370,40 +1369,37 @@ proc music*(index: int, channel: int, loop: int = -1) =
   audioChannels[channel].musicStereo = info.channels == 2
   audioChannels[channel].musicSampleRate = info.samplerate.float32
 
-  #discard snd.read_float(audioChannels[channel].musicBuffers[0][0].addr, musicBufferSize)
-  #discard snd.read_float(audioChannels[channel].musicBuffers[1][0].addr, musicBufferSize)
-
-proc volume*(channel: int, volume: int) =
+proc volume*(channel: AudioChannelId, volume: int) =
   audioChannels[channel].gain = (volume.float32 / 255.0)
 
-proc pitchbend*(channel: int, changeSpeed: range[-128..128]) =
+proc pitchbend*(channel: AudioChannelId, changeSpeed: range[-128..128]) =
   audioChannels[channel].pchange = changeSpeed
 
-proc vibrato*(channel: int, speed: range[1..15], amount: range[0..15]) =
+proc vibrato*(channel: AudioChannelId, speed: range[1..15], amount: range[0..15]) =
   audioChannels[channel].vibspeed = speed
   audioChannels[channel].vibamount = amount
 
-proc glide*(channel: int, glide: range[0..15]) =
+proc glide*(channel: AudioChannelId, glide: range[0..15]) =
   audioChannels[channel].glide = glide
 
-proc wavData*(channel: int): array[32, uint8] =
+proc wavData*(channel: AudioChannelId): array[32, uint8] =
   return audioChannels[channel].wavData
 
-proc wavData*(channel: int, data: array[32, uint8]) =
+proc wavData*(channel: AudioChannelId, data: array[32, uint8]) =
   audioChannels[channel].wavData = data
 
-proc pitch*(channel: int, freq: Pfloat) =
+proc pitch*(channel: AudioChannelId, freq: Pfloat) =
   audioChannels[channel].targetFreq = freq
 
-proc synthShape*(channel: int, newShape: SynthShape) =
+proc synthShape*(channel: AudioChannelId, newShape: SynthShape) =
   audioChannels[channel].shape = newShape
 
-proc audioOut*(channel: int, index: int): float32 =
+proc audioOut*(channel: AudioChannelId, index: int): float32 =
   if index > audioChannels[channel].outputBuffer.size:
     return 0
   return audioChannels[channel].outputBuffer[index]
 
-proc reset*(channel: int) =
+proc reset*(channel: AudioChannelId) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
   audioChannels[channel].kind = channelNone
@@ -1412,7 +1408,7 @@ proc reset*(channel: int) =
   audioChannels[channel].loop = 0
   audioChannels[channel].musicIndex = 0
 
-proc synth*(channel: int, shape: SynthShape, freq: Pfloat, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
+proc synth*(channel: AudioChannelId, shape: SynthShape, freq: Pfloat, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
   audioChannels[channel].kind = channelSynth
@@ -1434,11 +1430,11 @@ proc synth*(channel: int, shape: SynthShape, freq: Pfloat, init: range[0..15], e
   #if shape == synNoise:
   #  audioChannels[channel].lfsr = 0xfeed
 
-proc arp*(channel: int, arp: uint16, speed: uint8 = 1) =
+proc arp*(channel: AudioChannelId, arp: uint16, speed: uint8 = 1) =
   audioChannels[channel].arp = arp
   audioChannels[channel].arpSpeed = max(1.uint8, speed)
 
-proc synthUpdate*(channel: int, shape: SynthShape, freq: Pfloat) =
+proc synthUpdate*(channel: AudioChannelId, shape: SynthShape, freq: Pfloat) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
   if shape != synSame:
@@ -1458,7 +1454,7 @@ proc isTextInput*(): bool =
   return sdl.isTextInputActive()
 
 # sets the audio callback for the channel
-proc setAudioCallback*(channel: int, callback: proc(input: float32): float32, stereo: bool) =
+proc setAudioCallback*(channel: AudioChannelId, callback: proc(input: float32): float32, stereo: bool) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
   audioChannels[channel].kind = channelCallback

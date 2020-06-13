@@ -57,7 +57,8 @@ type
   MusicId* = range[-1..63]
   SfxId* = range[-1..63]
 
-type AudioChannelId* = range[-2..nAudioChannels.high]
+type AudioChannelId* = range[-1..nAudioChannels.high]
+const audioChannelAuto* = -1.AudioChannelId
 
 type
   ChannelKind* = enum

@@ -505,7 +505,7 @@ proc getMusic*(channel: int): int =
   ## returns the id of the music currently being played on `channel` or -1 if no music is playing
   return -1
 
-proc music*(musicId: MusicId, channel: AudioChannelId, loop: int = -1) =
+proc music*(channel: AudioChannelId, musicId: MusicId, loop: int = -1) =
   if audioChannels[channel].source != nil:
     audioChannels[channel].source.stop()
     audioChannels[channel].source = nil

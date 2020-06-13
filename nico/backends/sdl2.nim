@@ -90,8 +90,8 @@ type
     pchange: range[-127..127]
 
     trigger: bool
-    lfsr: uint
-    lfsr2: uint
+    lfsr: uint32
+    lfsr2: uint32
     nextClick: int
     outvalue: float32
 
@@ -948,31 +948,35 @@ proc process(self: var Channel): float32 =
       o = ((abs((self.phase mod TAU) / TAU * 2.0 - 1.0)*2.0 - 1.0) * 0.7).float32
     of synSaw:
       o = ((((self.phase mod TAU) - PI) / PI) * 0.5).float32
+
     of synNoise:
       if self.freq != 0.0:
         if self.nextClick <= 0:
-          let lsb: uint = (self.lfsr and 1).uint
+          let lsb: uint32 = (self.lfsr and 1).uint32
           self.lfsr = self.lfsr shr 1
           if lsb == 1:
             self.lfsr = self.lfsr xor 0xb400
           self.outvalue = if lsb == 1: 1.0 else: -1.0
-          self.nextClick = (self.freq * invSampleRate).int
+          self.nextClick = ((1.0'f / self.freq) * sampleRate).int
         self.nextClick -= 1
       o = self.outvalue
+
     of synNoise2:
       if self.freq != 0.0:
         if self.nextClick <= 0:
-          let lsb: uint = (self.lfsr2 and 1)
+          let lsb: uint32 = (self.lfsr2 and 1).uint32
           self.lfsr2 = self.lfsr2 shr 1
           if lsb == 1:
             self.lfsr2 = self.lfsr2 xor 0x0043
           self.outvalue = if lsb == 1: 1.0 else: -1.0
-          self.nextClick = (self.freq * invSampleRate).int
+          self.nextClick = ((1.0'f / self.freq) * sampleRate).int
         self.nextClick -= 1
       o = self.outvalue
+
     of synWav:
       if self.freq != 0.0:
         o = self.wavData[(self.phase mod 1.0 * 32.0).int].float32 / 16.0
+
     else:
       o = 0.0
     o = o * self.gain
@@ -1427,11 +1431,8 @@ proc synth*(channel: AudioChannelId, shape: SynthShape, freq: Pfloat, init: rang
   audioChannels[channel].length = length
   audioChannels[channel].arp = 0x0000
   audioChannels[channel].arpSpeed = 1
-  audioChannels[channel].nextClick = 0
   audioChannels[channel].vibamount = 0
   audioChannels[channel].vibspeed = 1
-  #if shape == synNoise:
-  #  audioChannels[channel].lfsr = 0xfeed
 
 proc arp*(channel: AudioChannelId, arp: uint16, speed: uint8 = 1) =
   audioChannels[channel].arp = arp

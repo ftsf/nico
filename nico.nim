@@ -2654,12 +2654,11 @@ proc rad2deg*[T](x: T): T =
 proc invLerp*(a,b,v: Pfloat): Pfloat =
   (v - a) / (b - a)
 
+proc modSign*[T](a,n: T): T =
+  return (a mod n + n) mod n
+
 proc angleDiff*(a,b: Pfloat): Pfloat =
-  result = (b - a) mod TAU
-  if result < -PI:
-    result += TAU
-  elif result >= PI:
-    result -= TAU
+  return modSign((a - b) + PI, TAU) - PI
 
 converter toPint*(x: uint8): Pint =
   x.Pint

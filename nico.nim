@@ -181,6 +181,9 @@ proc stencilMode*(mode: StencilMode) =
 proc stencilClear*() =
   for i in 0..<screenWidth*screenHeight:
     stencilBuffer.data[i] = 0
+proc stencilClear*(v: Pint) =
+  for i in 0..<screenWidth*screenHeight:
+    stencilBuffer.data[i] = v.uint8
 proc stencilTest(x,y: int, nv: uint8): bool =
   if common.stencilMode == stencilAlways:
     return true

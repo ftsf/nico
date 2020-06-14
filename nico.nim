@@ -7,7 +7,6 @@ export keycodes
 
 when defined(js):
   import nico/backends/js as backend
-  export convertToConsoleLoggable
 
   proc joinPath(a,b: string): string =
     if a[a.high] == '/':

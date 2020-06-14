@@ -8,12 +8,17 @@ import common
 import nico/controller
 import json
 
+import tables
+
 import webaudio
+
 var ctx: CanvasRenderingContext2d
 var swCanvas32: ImageData
 var canvas: Canvas
 var interval: ref Interval
+
 var audioContext: AudioContext
+
 var noiseBuffer: AudioBuffer
 var noiseBuffer2: AudioBuffer
 
@@ -61,6 +66,11 @@ var audioChannels: array[nAudioChannels, Channel]
 
 var tickFunc: proc() = nil
 
+proc toNicoKeycode(x: int): Keycode =
+  var x = x
+  if x >= 65 and x <= 90:
+    x += 32
+  return (Keycode)(x)
 
 var currentBpm: Natural = 128
 var currentTpb: Natural = 4
@@ -77,10 +87,10 @@ keymap = [
   @[38, 87], # up = arrow, w
   @[40, 83], # down = arrow, s
 
-  @[90, 89, 72], # A = z, y, h
-  @[88, 85, 74], # B = x, u, j
-  @[67, 79, 75], # X = c, o, k
-  @[86, 80, 76], # Y = v, p, l
+  @[90], # A = z
+  @[88], # B = x
+  @[67], # X = c
+  @[86], # Y = v
 
   @[70], # L1, F
   @[71], # L2, G
@@ -94,8 +104,6 @@ keymap = [
   @[27, 8], # Back
 ]
 
-export convertToConsoleLoggable
-
 template debug*(args: varargs[untyped]) =
   console.log(args)
 
@@ -104,11 +112,10 @@ proc setKeyMap*(newmap: string) =
 
 proc present*() =
   # copy swCanvas to canvas
-  for i,v in swCanvas.data:
-    let c = currentPalette.data[paletteMapDisplay[v]]
-    swCanvas32.data[i*4] = c[0]
-    swCanvas32.data[i*4+1] = c[1]
-    swCanvas32.data[i*4+2] = c[2]
+  for i,v in swCanvas.data.mpairs:
+    swCanvas32.data[i*4] = currentPalette.data[paletteMapDisplay[v]][0]
+    swCanvas32.data[i*4+1] = currentPalette.data[paletteMapDisplay[v]][1]
+    swCanvas32.data[i*4+2] = currentPalette.data[paletteMapDisplay[v]][2]
     swCanvas32.data[i*4+3] = 255
   ctx.putImageData(swCanvas32,0,0)
 
@@ -175,19 +182,25 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
 
   dom.window.onkeydown = proc(event: dom.Event) =
     let event = event.KeyboardEvent
+    if event.repeat:
+      return
     for btn,keys in keymap:
       for key in keys:
         if event.keyCode == key:
           controllers[0].setButtonState(btn, true)
           event.preventDefault()
+    keysDown[toNicoKeycode(event.keyCode)] = 1.uint32
 
   dom.window.onkeyup = proc(event: dom.Event) =
     let event = event.KeyboardEvent
+    if event.repeat:
+      return
     for btn,keys in keymap:
       for key in keys:
         if event.keyCode == key:
           controllers[0].setButtonState(btn, false)
           event.preventDefault()
+    keysDown[toNicoKeycode(event.keyCode)] = 0.uint32
 
 type FileMode = enum
   fmRead
@@ -369,6 +382,10 @@ proc step() =
   if drawFunc != nil:
     drawFunc()
 
+  for k,v in keysDown:
+    if v > 0:
+      keysDown[k] += 1
+
   present()
 
   audioClock()
@@ -407,8 +424,11 @@ proc init*(org, app: string) =
 
   audioContext = newAudioContext()
   sfxGain = audioContext.createGain();
+  sfxGain.gain.value = 1.0
   musicGain = audioContext.createGain();
+  musicGain.gain.value = 1.0
   masterGain = audioContext.createGain();
+  masterGain.gain.value = 1.0
 
   connect(sfxGain, masterGain)
   connect(musicGain, masterGain)
@@ -417,8 +437,6 @@ proc init*(org, app: string) =
   for c in mitems(audioChannels):
     c.gain = audioContext.createGain()
     c.gain.gain.value = 1.0
-
-
 
 proc flip*() =
   present()
@@ -487,19 +505,22 @@ proc loadMusic*(musicId: MusicId, filename: string) =
 
 proc mute*() {.exportc:"mute".} =
   if masterGain.gain.value != 0.0:
+    echo "muting audio"
     masterGain.gain.value = 0.0
   else:
+    echo "unmuting audio"
     masterGain.gain.value = 1.0
 
-proc sfx*(sfxId: SfxId, channel: range[-1..15] = -1, loop: int = 0) =
+proc sfx*(channel: AudioChannelId = audioChannelAuto, sfxId: SfxId, loop: int = 0) =
   if sfxData[sfxId] != nil:
     if audioChannels[channel].source != nil:
       audioChannels[channel].stop()
-      var source = audioContext.createBufferSource()
-      source.buffer = sfxData[sfxId]
-      source.connect(sfxGain)
-      source.start()
-      audioChannels[channel].source = source
+
+    var source = audioContext.createBufferSource()
+    source.buffer = sfxData[sfxId]
+    source.connect(sfxGain)
+    source.start()
+    audioChannels[channel].source = source
 
 proc getMusic*(channel: int): int =
   ## returns the id of the music currently being played on `channel` or -1 if no music is playing

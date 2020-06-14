@@ -342,7 +342,19 @@ proc mapRGB*(r,g,b: uint8): ColorId =
   for i,v in currentPalette.data:
     if v[0] == r and v[1] == g and v[2] == b:
       return i
-  return 0
+  # try and find nearest color in palette
+  var bestIndex = 0
+  var smallestDiff = 99999
+  for i,v in currentPalette.data:
+    let rdiff = abs(v.r.int - r.int)
+    let gdiff = abs(v.g.int - g.int)
+    let bdiff = abs(v.b.int - b.int)
+    let diff = rdiff + gdiff + bdiff
+    if diff < smallestDiff:
+      smallestDiff = diff
+      bestIndex = i
+  echo "invalid color: ", r.int, " ", g.int," ",b.int
+  return bestIndex
 
 proc mapRGBA*(r,g,b,a: uint8): ColorId =
   for i,v in currentPalette.data:
@@ -350,11 +362,26 @@ proc mapRGBA*(r,g,b,a: uint8): ColorId =
       return i
     elif i != 0 and v[0] == r and v[1] == g and v[2] == b:
       return i
-  return 0
+  # try and find nearest color in palette
+  var bestIndex = 0
+  var smallestDiff = 99999
+  for i,v in currentPalette.data:
+    let rdiff = abs(v.r.int - r.int)
+    let gdiff = abs(v.g.int - g.int)
+    let bdiff = abs(v.b.int - b.int)
+    let diff = rdiff + gdiff + bdiff
+    if diff < smallestDiff:
+      smallestDiff = diff
+      bestIndex = i
+  echo "invalid color: ", r.int, " ", g.int," ",b.int
+  return bestIndex
 
 proc convertToIndexed*(surface: Surface): Surface =
+  assert(surface != nil)
   if surface.channels > 4 or surface.channels < 3:
     raise newException(Exception, "Converting non RGBA surface to indexed")
+  echo "channels: ", surface.channels
+  result = new(Surface)
   result.data = newSeq[uint8](surface.w*surface.h)
   result.w = surface.w
   result.h = surface.h

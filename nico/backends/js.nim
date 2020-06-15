@@ -182,8 +182,6 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
 
   dom.window.onkeydown = proc(event: dom.Event) =
     let event = event.KeyboardEvent
-    if event.repeat:
-      return
     for btn,keys in keymap:
       for key in keys:
         if event.keyCode == key:
@@ -193,8 +191,6 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
 
   dom.window.onkeyup = proc(event: dom.Event) =
     let event = event.KeyboardEvent
-    if event.repeat:
-      return
     for btn,keys in keymap:
       for key in keys:
         if event.keyCode == key:

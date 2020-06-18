@@ -245,6 +245,8 @@ proc rrect*(x1,y1,x2,y2: Pint, r: Pint = 1)
 proc rrectfill*(x1,y1,x2,y2: Pint, r: Pint = 1)
 proc rectCorner*(x1,y1,x2,y2: Pint)
 proc rrectCorner*(x1,y1,x2,y2: Pint)
+proc box*(x,y,w,h: Pint)
+proc boxfill*(x,y,w,h: Pint)
 
 # line drawing
 proc line*(x0,y0,x1,y1: Pint)
@@ -701,6 +703,16 @@ proc rrectfill*(x1,y1,x2,y2: Pint, r: Pint = 1) =
   rectfill(minx, miny + r, maxx, maxy - r)
   rectfill(minx + r, miny, maxx - r, miny + r)
   rectfill(minx + r, maxy - r, maxx - r, maxy)
+
+proc box*(x,y,w,h: Pint) =
+  hline(x,y,x+w-1)
+  vline(x,y,y+h-1)
+  vline(x+w-1,y,y+h-1)
+  hline(x,y+h-1,x+w-1)
+
+proc boxfill*(x,y,w,h: Pint) =
+  for y in y..<y+h:
+    hline(x,y,x+w-1)
 
 proc innerLineLow(x0,y0,x1,y1: int) =
   var dx = x1 - x0

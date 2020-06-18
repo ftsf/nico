@@ -1113,7 +1113,7 @@ proc queueMixerAudio*() =
     for j in 0..<audioChannels.len:
       let s = audioChannels[j].process()
       audioChannels[j].outputBuffer.add(s)
-      outputSamples[i] += s
+      outputSamples[i] += s * masterVolume
 
     audioSampleId += 1
 

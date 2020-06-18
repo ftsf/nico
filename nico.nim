@@ -315,7 +315,7 @@ proc mget*(tx,ty: Pint): uint8
 proc mapDraw*(tx,ty, tw,th, dx,dy: Pint, dw,dh: Pint = -1, loop: bool = false, ox,oy: Pint = 0)
 proc setMap*(index: int)
 proc loadMap*(index: int, filename: string)
-proc newMap*(index: int, w,h: Pint, tw,th: Pint)
+proc newMap*(index: int, w,h: Pint, tw,th: Pint = 8)
 proc pixelToMap*(px,py: Pint): (Pint,Pint) # returns the tile coordinates at pixel position
 proc mapToPixel*(tx,ty: Pint): (Pint,Pint) # returns the pixel position of the tile coordinates
 proc saveMap*(index: int, filename: string)
@@ -2422,7 +2422,7 @@ proc loadMap*(index: int, filename: string) =
     when not defined(js):
       loadMapBinary(index, filename)
 
-proc newMap*(index: int, w,h: Pint, tw,th: Pint) =
+proc newMap*(index: int, w,h: Pint, tw,th: Pint = 8) =
   var tm = tilemaps[index].addr
   tm[].w = w
   tm[].h = h

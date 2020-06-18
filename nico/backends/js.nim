@@ -185,9 +185,11 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
     for btn,keys in keymap:
       for key in keys:
         if event.keyCode == key:
-          controllers[0].setButtonState(btn, true)
+          if controllers[0].buttons[btn] <= 0:
+            controllers[0].setButtonState(btn, true)
           event.preventDefault()
-    keysDown[toNicoKeycode(event.keyCode)] = 1.uint32
+    if keysDown[toNicoKeycode(event.keyCode)] == 0.uint32:
+      keysDown[toNicoKeycode(event.keyCode)] = 1.uint32
 
   dom.window.onkeyup = proc(event: dom.Event) =
     let event = event.KeyboardEvent

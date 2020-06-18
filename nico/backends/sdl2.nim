@@ -31,7 +31,6 @@ when defined(gif):
 
 import os
 import osproc
-import ospaths
 
 import parseCfg
 

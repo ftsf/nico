@@ -1,0 +1,28 @@
+<html>
+	<head>
+		<style>
+			body {
+				background: #111111;
+				width: 100%;
+				margin: auto 0;
+				overflow: hidden;
+			}
+			canvas {
+				display: block;
+				margin: 2em auto;
+				image-rendering: -moz-crisp-edges;
+				image-rendering: -webkit-crisp-edges;
+				image-rendering: pixelated;
+			}
+		</style>
+		<title>Nico Example App</title>
+	</head>
+	<body>
+	<div id="nicogame"></div>
+		<script type="text/javascript">
+		function handleMouseDown(evt) { window.focus(); evt.preventDefault(); evt.stopPropagation(); evt.target.style.cursor = 'default'; }
+		document.getElementById('nicogame').addEventListener('mousedown', handleMouseDown, false);
+		</script>
+		<script type="text/javascript" src="main.js"></script>
+	</body>
+</html>

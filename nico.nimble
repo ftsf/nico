@@ -17,6 +17,9 @@ requires "sndfile >= 0.1.0"
 requires "nimPNG"
 
 skipDirs = @["examples","tests","android"]
+installDirs = @["exampleApp"]
+
+bin = @["nicoboot"]
 
 task test, "run tests":
   exec "nim c -p:. -d:debug -r tests/copymem.nim"

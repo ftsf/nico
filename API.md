@@ -1,5 +1,27 @@
 # Nico API
 
+ * [System](#system)
+ * [Input](#input)
+   * [Buttons](#buttons)
+   * [Joysticks](#joysticks)
+   * [Mouse](#mouse)
+ * [Graphics](#graphics)
+   * [Colors](#colors)
+   * [Drawing](#drawing)
+   * [Sprites](#sprites)
+   * [Text](#text)
+   * [Tilemap](#tilemap)
+   * [Palettes](#palettes)
+   * [Dithering](#dithering)
+   * [Camera](#camera)
+   * [Misc Graphics](#misc-graphics)
+ * [Audio](#audio)
+ * [Math](#math)
+   
+## Overview
+
+Many functions in Nico take `Pfloat` or `Pint` arguments, these are automatically converted types so you don't have to think too much about types when you don't care.
+
 ## System
 `init(org: string, app: string)`
 Initialises Nico, must be called before any other Nico operation.
@@ -166,7 +188,14 @@ Gets the current drawing color
 
 ---
 
-### Pixels
+### Drawing
+`cls()`
+Sets all pixels to 0, clear the screen.
+
+---
+
+#### Pixels
+
 `pset(x,y: int)`
 Sets pixel to current color, no effect if out of bounds
 
@@ -177,7 +206,7 @@ Gets the pixel color at `x,y`, returns `0` if out of bounds
 
 ---
 
-### Circles and Ellipses
+#### Circles and Ellipses
 `circ(cx,cy,r: int)`
 Draws a circle centered at `cx,cy` with radius `r`
 
@@ -193,7 +222,7 @@ Draws a filled ellipse centered at `cx,cy` with radius `rx,ry`
 
 ---
 
-### Lines
+#### Lines
 `line(x0,y0,x1,y1: int)`
 Draws a line between `x0,y0` and `x1,y1`
 
@@ -209,7 +238,7 @@ Draws a vertical line between `y0` and `y1` on `x`
 
 ---
 
-### Rectangles
+#### Rectangles
 `rect(x0,y0,x1,y1: int)`
 Draws a rectangle from `x0,y0` to `x1,y1`
 
@@ -258,13 +287,13 @@ Draws only the corners of a rounded rectangle
 
 ---
 
-### Triangles
+#### Triangles
 `trifill(ax,ay,bx,by,cx,cy: int)`
 Draws a filled triangle between points `(ax,ay),(bx,by),(cx,cy)`
 
 ---
 
-### Quads
+#### Quads
 `quadfill(ax,ay,bx,by,cx,cy,dx,dy: int)`
 Draws a filled quad between points `(ax,ay),(bx,by),(cx,cy),(dx,dy)`
 
@@ -475,8 +504,173 @@ Copy a region of the canvas from source `sx,sy` to dest `dx,dy` of size `w,h`
 
 ## Audio
 
-To be completed
+There are 16 audio channels each channel can either be silent, play a sound sample (sfx), play a generated tone (synth), or play streaming music (music)
+All audio commands other than loading and volume commands take the channel ID as the first argument
+
+`masterVol(0..255)`
+Sets the master volume level.
+
+`masterVol(): int`
+Returns the master volume level.
+
+### SFX
+
+`loadSfx(index: 0..63, filename: string)`
+Load audio file into sfx slot `index`. The entire file will be decoded and loaded into RAM.
+
+---
+
+`sfx(channel: 0..15, index: 0..63)`
+Play sfx in `index` on `channel`.
+
+---
+
+`sfxVol(newVol: 0..255)`
+Sets the volume for all sfx and synths.
+
+---
+
+`sfxVol(): int`
+Gets the volume for all sfx and synths.
+
+### Synth
+
+`synth(channel: 0..15, shape: SynthShape, freq: Pfloat, init: 0..15, env: -7..7, length: 0..255)`
+Plays a synthesised tone on `channel` at pitch of `freq`.
+`init` is the initial volume of the sound.
+`env` is the change in volume over time. Positive numbers decay over time, Negative numbers increase in amplitude over time.
+`length` is the clocks before the note is cut off.
+
+```
+type SynthShape = enum
+  synSame # no change
+  synSin # Sine wave
+  synSqr # Square wave
+  synP12 # 12.5% Pulse wave
+  synP25 # 25.0% Pulse wave
+  synSaw # Sawtooth wave
+  synTri # Triangle wave
+  synNoise # Noise
+  synNoise2 # Metallic Noise
+  synWav # Use custom waveform
+```
+
+### Music
+
+`loadMusic(index: 0..63, filename: string)`
+Load audio file into music slot `index`. The file will be decoded and streamed on demand.
 
 ## Math
 
-To be completed
+`wrap(x,t: int): int`
+Wraps an integer `x` by `t` similar to `mod` but more practically handling negative `x`.
+```
+wrap(0,4) == 0
+wrap(1,4) == 1
+wrap(2,4) == 2
+wrap(3,4) == 3
+wrap(4,4) == 0
+wrap(-1,4) == 3
+wrap(-2,4) == 2
+wrap(-3,4) == 1
+wrap(-4,4) == 0
+```
+
+---
+
+`clamp[T](x: T): T` or `clamp01[T](x: T): T`
+clamps a number to between 0 and 1
+
+--
+
+`mid[T](a,b,c: T): T`
+returns the middle of 3 numbers.
+
+eg.
+```
+mid(1,2,3) == 2
+mid(3,2,1) == 2
+mid(2,3,1) == 2
+```
+
+---
+
+`flr(x: Pfloat): Pfloat`
+returns `x` rounded down
+
+---
+
+`ceil(x: Pfloat): Pfloat
+returns `x` rounded up
+
+---
+
+`lerp[T](a,b: T, t: Pfloat): T`
+linearly interpolates between `a` and `b` where `t == 0` will return `a` and `t == 1` will return `b`.
+
+eg.
+
+```
+lerp(50.0f, 100.0f, 0.5f) == 75.0f
+lerp(50.0f, 100.0f, 0.0f) == 50.0f
+lerp(50.0f, 100.0f, 0.0f) == 100.0f
+```
+
+---
+
+`invLerp(a,b,v: Pfloat): Pfloat`
+returns where `v` is in the range `a..b`.
+
+```
+invLerp(50f,100f,75f) == 0.5f
+```
+
+---
+
+`rnd[T: Natural](x: T): T`
+returns a random integer in range `0..<x`. Will never return `x` but will return `0`.
+
+---
+
+`rnd(a: openArray[T]): T`
+returns a random item from input
+
+---
+
+`rnd(x: Pfloat): Pfloat`
+returns a random float between `0..<x`
+
+---
+
+`shuffle[T](a: var seq[T])`
+shuffles `a` inplace.
+
+---
+
+`sgn(x: Pint): Pint`
+returns the sign of `x`.
+```
+sgn(-10) == -1
+sgn(100) == 1
+sgn(0) == 0
+```
+
+---
+
+`deg2rad(x: Pfloat): Pfloat`
+converts degrees to radians
+
+---
+
+`rad2deg(x: Pfloat): Pfloat`
+converts radians to degrees
+
+---
+
+`angleDiff(a,b: Pfloat): Pfloat`
+returns the difference between two angles in radians
+
+```
+angleDiff(deg2rad(-10), deg2rad(10)) == rad2deg(-20)
+angleDiff(deg2rad(-180), deg2rad(180)) == rad2deg(0)
+```

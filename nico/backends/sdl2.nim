@@ -10,6 +10,8 @@ import nico/ringbuffer
 
 import math
 
+when defined(opengl):
+  import opengl
 import sdl2/sdl except Keycode, Scancode
 from sdl2/sdl import nil
 
@@ -126,6 +128,8 @@ else:
 
 # Globals
 
+var useCRTFilter = true
+
 var keyListeners = newSeq[KeyListener]()
 
 var audioDeviceId: AudioDeviceID
@@ -142,8 +146,16 @@ var nextTick = 0
 var clock: bool
 var nextClock = 0
 
-var render: Renderer
-var hwCanvas: Texture
+when defined(opengl):
+  var glContext: GLContext
+  var hwCanvas: GLuint
+  var quadVAO: GLuint
+  var quadVBO: GLuint
+  var shaderProgram: GLuint
+else:
+  var render: Renderer
+  var hwCanvas: Texture
+
 var swCanvas32: sdl.Surface
 var srcRect: sdl.Rect
 var dstRect: sdl.Rect
@@ -211,19 +223,49 @@ proc createRecordBuffer(forceClear: bool = false) =
 
 
 proc resize*(w,h: int) =
-  debug "sdl resize", w, h
+  debug "sdl resize display: ", w, h
   if w == 0 or h == 0:
     return
   # calculate screenScale based on size
 
-  if render != nil:
-    destroyRenderer(render)
+  when defined(opengl):
+    discard
+  else:
+    if render != nil:
+      destroyRenderer(render)
 
   if window == nil:
     echo "window is null, cannot resize"
     return
 
-  render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync)
+
+  when defined(opengl):
+    glViewport(0,0,w,h)
+
+    glGenVertexArrays(1, quadVAO.addr)
+    glBindVertexArray(quadVAO)
+    glGenBuffers(1, quadVBO.addr)
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO)
+
+    var hw = 1.0'f
+    var hh = 1.0'f
+
+    var vertices = [
+      -hw,  hh, 0'f, 0'f,
+       hw,  hh, 1'f, 0'f,
+      -hw, -hh, 0'f, 1'f,
+       hw, -hh, 1'f, 1'f,
+    ]
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float32) * vertices.len, vertices[0].addr, GL_STATIC_DRAW)
+    glVertexAttribPointer(0.GLuint, 4.GLint, cGL_FLOAT, false, (4 * sizeof(float32)).GLsizei, cast[pointer](0))
+    glEnableVertexAttribArray(0)
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0)
+    glBindVertexArray(0)
+
+  else:
+    render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync)
 
   if integerScreenScale:
     screenScale = max(1.0, min(
@@ -273,16 +315,42 @@ proc resize*(w,h: int) =
   clipMaxX = screenWidth - 1
   clipMaxY = screenHeight - 1
 
-  hwCanvas = render.createTexture(PIXELFORMAT_RGBA8888, TEXTUREACCESS_STREAMING, screenWidth, screenHeight)
   swCanvas = newSurface(screenWidth,screenHeight)
-
   swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
   if swCanvas32 == nil:
     raise newException(Exception, "error creating RGB surface")
 
   stencilBuffer = newSurface(screenWidth, screenHeight)
 
-  discard render.setRenderTarget(hwCanvas)
+  when defined(opengl):
+    if hwCanvas != 0:
+      glDeleteTextures(1, hwCanvas.addr)
+
+    glGenTextures(1, hwCanvas.addr)
+    glBindTexture(GL_TEXTURE_2D, hwCanvas)
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA.GLint, screenWidth.GLsizei, screenHeight.GLsizei, 0, GL_RGBA, GL_UNSIGNED_BYTE, nil)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE.GLint)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE.GLint)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR.GLint)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR.GLint)
+
+    let crtID = glGetUniformLocation(shaderProgram, "useCRT")
+    if crtID != -1:
+      glUniform1i(crtID, useCRTFilter.int)
+
+    let canvasResID = glGetUniformLocation(shaderProgram, "canvasResolution")
+    if canvasResID != -1:
+      glUniform2f(canvasResID, screenWidth.float32, screenHeight.float32)
+    let displayResID = glGetUniformLocation(shaderProgram, "displayResolution")
+    if displayResID != -1:
+      glUniform2f(canvasResID, w.float32, h.float32)
+    let scaleID = glGetUniformLocation(shaderProgram, "scale")
+    if scaleID != -1:
+      glUniform2f(scaleID, screenScale.float32, screenScale.float32)
+
+  else:
+    hwCanvas = render.createTexture(PIXELFORMAT_RGBA8888, TEXTUREACCESS_STREAMING, screenWidth, screenHeight)
+    discard render.setRenderTarget(hwCanvas)
   createRecordBuffer(true)
 
   for rf in resizeFuncs:
@@ -295,12 +363,170 @@ proc resize*() =
   window.getWindowSize(windowW.addr, windowH.addr)
   resize(windowW,windowH)
 
+when defined(opengl):
+  proc compileShader(shaderString: string, shaderType: GLenum): GLuint =
+    result = glCreateShader(shaderType)
+
+    var shaderSource = allocCStringArray([
+      shaderString
+    ])
+    glShaderSource(result, 1, shaderSource, nil)
+    glCompileShader(result)
+
+    var res: GLint = 0
+    var logLength: GLint
+
+    glGetShaderiv(result, GL_COMPILE_STATUS, res.addr)
+    glGetShaderiv(result, GL_INFO_LOG_LENGTH, logLength.addr)
+    if logLength > 0:
+      var i = 1
+      for line in shaderString.splitLines:
+        echo i, ": ", line
+        i += 1
+      var log = newString(logLength+1)
+      glGetShaderInfoLog(result, logLength, nil, log[0].addr)
+      echo log
+
+    if res != GL_TRUE.GLint:
+      raise newException(Exception, "Error compling shader")
+
+  proc linkShader(vertexShader, fragmentShader: GLuint): GLuint =
+    result = glCreateProgram()
+
+    glAttachShader(result, vertexShader)
+    glAttachShader(result, fragmentShader)
+    glBindAttribLocation(result, 0, "position")
+    glLinkProgram(result)
+
+    var res: GLint = 0
+    var logLength: GLint
+    glGetProgramiv(result, GL_LINK_STATUS, res.addr)
+
+    glGetProgramiv(result, GL_INFO_LOG_LENGTH, logLength.addr)
+    if logLength > 0:
+      var log = newString(logLength+1)
+      glGetProgramInfoLog(result, logLength, nil, log[0].addr)
+      echo log
+
+    if res != GL_TRUE.GLint:
+      raise newException(Exception, "Error linking shader")
+
+    glDetachShader(result, vertexShader)
+    glDetachShader(result, fragmentShader)
+
+    glDeleteShader(vertexShader)
+    glDeleteShader(fragmentShader)
+
+    assert(glIsProgram(result) == true)
+
 proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = false) =
-  when defined(android):
-    window = createWindow(title.cstring, WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, (w * scale).cint, (h * scale).cint, WINDOW_FULLSCREEN)
-  else:
+  when defined(opengl):
     window = createWindow(title.cstring, WINDOWPOS_CENTERED, WINDOWPOS_CENTERED, (w * scale).cint, (h * scale).cint, 
-      (WINDOW_RESIZABLE or (if fullscreen: WINDOW_FULLSCREEN_DESKTOP else: 0)).uint32)
+      (WINDOW_RESIZABLE or (if fullscreen: WINDOW_FULLSCREEN_DESKTOP else: 0) or WINDOW_OPENGL.cint).uint32)
+
+    discard glSetAttribute(GLattr.GL_CONTEXT_PROFILE_MASK, GL_CONTEXT_PROFILE_CORE)
+    discard glSetAttribute(GL_CONTEXT_MAJOR_VERSION, 3)
+    discard glSetAttribute(GL_CONTEXT_MINOR_VERSION, 3)
+    glContext = window.glCreateContext()
+    discard glSetSwapInterval(1)
+    loadExtensions()
+
+    glDisable(GL_POLYGON_SMOOTH)
+    glHint(GL_POLYGON_SMOOTH_HINT, GL_FASTEST)
+
+    var fragSrc: string
+    if existsFile(joinPath(assetPath, "frag.glsl")):
+      fragSrc = readFile(joinPath(assetPath, "frag.glsl"))
+      echo "using custom fragment shader"
+    else:
+      echo "using built in fragment shader"
+      fragSrc = """
+#version 330 core
+out vec4 FragColor;
+in vec2 TexCoords;
+
+uniform bool useCRT;
+uniform sampler2D tex;
+uniform vec2 canvasResolution;
+uniform vec2 displayResolution;
+uniform vec2 scale;
+
+const float darkAmount = 0.8;
+const float brightAmount = 1.0;
+const float scanlineColor = 0.5;
+const float sharpness = 2.0;
+
+const vec4 mask1 = vec4(brightAmount, darkAmount, darkAmount, 1);
+const vec4 mask2 = vec4(darkAmount, brightAmount, darkAmount , 1);
+const vec4 mask3 = vec4(darkAmount, darkAmount, brightAmount, 1);
+
+float sharpen(float pix_coord) {
+    float norm = (fract(pix_coord) - 0.5) * 2.0;
+    float norm2 = norm * norm;
+    return floor(pix_coord) + norm * pow(norm2, sharpness) / 2.0 + 0.5;
+}
+
+vec4 ContrastSaturationBrightness(vec4 color, float brt, float sat, float con)
+{
+    // Increase or decrease theese values to adjust r, g and b color channels seperately
+    const float AvgLumR = 0.5;
+    const float AvgLumG = 0.5;
+    const float AvgLumB = 0.5;
+
+    const vec3 LumCoeff = vec3(0.2125, 0.7154, 0.0721);
+
+    vec3 AvgLumin = vec3(AvgLumR, AvgLumG, AvgLumB);
+    vec3 intensity = vec3(dot(color.rgb, LumCoeff));
+    vec3 satColor = mix(intensity, color.rgb, sat);
+    vec3 conColor = mix(AvgLumin, satColor, con);
+    vec3 brtColor = conColor * brt;
+    return vec4(brtColor.rgb,color.a);
+}
+
+void main() {
+     vec2 uv = TexCoords;
+     vec4 color = texture(tex, vec2(sharpen(uv.x * canvasResolution.x) / canvasResolution.x, sharpen(uv.y * canvasResolution.y) / canvasResolution.y));
+
+     if(useCRT) {
+       vec2 pixel = gl_FragCoord.xy / int(ceil(scale)) * 3;
+       color = ContrastSaturationBrightness(color, 1.5, 1.2, 1.0);
+
+       int pp = int(pixel.x) % 3;
+       if(pp == 1) FragColor = color * mask1;
+       else if(pp == 2) FragColor = color * mask2;
+       else FragColor = color * mask3;
+       if(int(pixel.y) % 3 == 0) FragColor.rgb *= scanlineColor;
+    } else {
+        FragColor = color;
+    }
+}
+"""
+    let fs = compileShader(fragSrc, GL_FRAGMENT_SHADER)
+
+    let vertSrc = """
+#version 330 core
+
+layout (location = 0) in vec4 posUV;
+
+out vec2 TexCoords;
+
+void main() {
+    gl_Position = vec4(posUV.xy, 0, 1);
+    TexCoords = posUV.zw;
+}
+"""
+
+    let vs = compileShader(vertSrc, GL_VERTEX_SHADER)
+    shaderProgram = linkShader(vs, fs)
+
+    glUseProgram(shaderProgram)
+
+  else:
+    when defined(android):
+      window = createWindow(title.cstring, WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, (w * scale).cint, (h * scale).cint, WINDOW_FULLSCREEN)
+    else:
+      window = createWindow(title.cstring, WINDOWPOS_CENTERED, WINDOWPOS_CENTERED, (w * scale).cint, (h * scale).cint, 
+        (WINDOW_RESIZABLE or (if fullscreen: WINDOW_FULLSCREEN_DESKTOP else: 0)).uint32)
 
   if window == nil:
     raise newException(Exception, "Could not create window")
@@ -384,20 +610,37 @@ proc saveJsonFile*(filename: string, data: JsonNode) =
   fp.close()
 
 proc present*() =
-  discard render.setRenderTarget(nil)
-  # copy swCanvas to hwCanvas
 
-  convertToABGR(swCanvas, swCanvas32.pixels, swCanvas32.pitch, screenWidth, screenHeight)
+  when defined(opengl):
+    convertToRGBA(swCanvas, swCanvas32.pixels, swCanvas32.pitch, screenWidth, screenHeight)
+    var w,h: cint
+    getWindowSize(window, w.addr, h.addr)
+    #glClearColor(1,1,1,1)
+    #glClear(GL_COLOR_BUFFER_BIT)
 
-  if updateTexture(hwCanvas, nil, swCanvas32.pixels, swCanvas32.pitch) != 0:
-    debug(sdl.getError())
+    # copy swCanvas32 to texture
+    glBindTexture(GL_TEXTURE_2D, hwCanvas)
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, swCanvas32.w, swCanvas32.h, GL_RGBA, GL_UNSIGNED_BYTE, swCanvas32.pixels)
 
-  # copy hwCanvas to screen
-  discard render.setRenderDrawColor(5,5,10,255)
-  discard render.renderClear()
-  if render.renderCopy(hwCanvas, srcRect.addr, dstRect.addr) != 0:
-    debug(sdl.getError())
-  render.renderPresent()
+    # draw to screen
+    glBindVertexArray(quadVAO)
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
+
+    window.glSwapWindow()
+  else:
+    convertToABGR(swCanvas, swCanvas32.pixels, swCanvas32.pitch, screenWidth, screenHeight)
+    discard render.setRenderTarget(nil)
+    # copy swCanvas to hwCanvas
+
+    if updateTexture(hwCanvas, nil, swCanvas32.pixels, swCanvas32.pitch) != 0:
+      debug(sdl.getError())
+
+    # copy hwCanvas to screen
+    discard render.setRenderDrawColor(5,5,10,255)
+    discard render.renderClear()
+    if render.renderCopy(hwCanvas, srcRect.addr, dstRect.addr) != 0:
+      debug(sdl.getError())
+    render.renderPresent()
 
 proc flip*() =
   present()
@@ -646,9 +889,10 @@ proc appHandleEvent(evt: sdl.Event) =
   elif evt.kind == WindowEvent:
     if evt.window.event == WindowEvent_Resized:
       resize(evt.window.data1, evt.window.data2)
-      discard render.setRenderTarget(nil)
-      discard render.setRenderDrawColor(0,0,0,255)
-      discard render.renderClear()
+      when not defined(opengl):
+        discard render.setRenderTarget(nil)
+        discard render.setRenderDrawColor(0,0,0,255)
+        discard render.renderClear()
     elif evt.window.event == WindowEvent_Size_Changed:
       discard
     elif evt.window.event == WindowEvent_FocusLost:
@@ -695,6 +939,10 @@ proc appHandleEvent(evt: sdl.Event) =
     elif sym == ((sdl.Keycode)K_F8) and down:
       # restart recording from here
       createRecordBuffer(true)
+
+    elif sym == ((sdl.Keycode)K_F4) and down:
+      useCRTFilter = not useCRTFilter
+      resize()
 
     elif sym == ((sdl.Keycode)K_F9) and down:
       saveRecording()
@@ -1476,3 +1724,6 @@ proc hideMouse*() =
 proc showMouse*() =
   discard showCursor(1)
 
+proc crtFilter(on: bool) =
+  when defined(opengl):
+    useCRTFilter = on

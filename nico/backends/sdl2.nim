@@ -1130,7 +1130,7 @@ proc initMixer*(wantsAudioIn = false) =
 
     var audioSpec: AudioSpec
     audioSpec.freq = sampleRate.cint
-    audioSpec.format = AUDIO_S8
+    audioSpec.format = AUDIO_F32
     audioSpec.channels = 2
     audioSpec.samples = audioBufferSize.uint16
     audioSpec.padding = 0
@@ -1138,11 +1138,11 @@ proc initMixer*(wantsAudioIn = false) =
     audioSpec.userdata = nil
 
     var obtained: AudioSpec
-    audioDeviceId = openAudioDevice(nil, 0, audioSpec.addr, obtained.addr, AUDIO_ALLOW_FORMAT_CHANGE)
+    audioDeviceId = openAudioDevice(nil, 0, audioSpec.addr, obtained.addr, 0)
     if audioDeviceId == 0:
       raise newException(Exception, "Unable to open audio device: " & $getError())
     else:
-      echo "opened audio output ", obtained.freq.int, " channels: ", obtained.channels.int, " format: ", $obtained.format
+      echo "opened audio output ", obtained.freq.int, " channels: ", obtained.channels.int, " format: ", obtained.format.toHex()
 
     sampleRate = obtained.freq.float32
     invSampleRate = 1.0 / obtained.freq.float32
@@ -1150,7 +1150,7 @@ proc initMixer*(wantsAudioIn = false) =
     if wantsAudioIn:
       var audioInSpec: AudioSpec
       audioInSpec.freq = 44100.cint
-      audioInSpec.format = AUDIO_S8
+      audioInSpec.format = AUDIO_F32
       audioInSpec.channels = 2
       audioInSpec.samples = 1024
       audioInSpec.padding = 0
@@ -1164,11 +1164,11 @@ proc initMixer*(wantsAudioIn = false) =
         echo "id: ", i, " = ", getAudioDeviceName(i, 1)
 
       if nAudioInDevices > 0:
-        audioInDeviceId = openAudioDevice(nil, 1, audioInSpec.addr, obtained.addr, AUDIO_ALLOW_FORMAT_CHANGE)
+        audioInDeviceId = openAudioDevice(nil, 1, audioInSpec.addr, obtained.addr, 0)
         if audioInDeviceId == 0:
           raise newException(Exception, "Unable to open audio input device: " & $getError())
         else:
-          echo "opened audio input  ", obtained.freq.int, " channels: ", obtained.channels.int
+          echo "opened audio input  ", obtained.freq.int, " channels: ", obtained.channels.int, " format: ", obtained.format.toHex()
         inputSamples = newSeq[float32](audioBufferSize)
         pauseAudioDevice(audioInDeviceId, 0)
 

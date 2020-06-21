@@ -58,7 +58,8 @@ jobs:
           # nimble paintout
           nimble platformer
           nimble audio
-          nimble vertex
+          # FIXME:
+          # nimble vertex
 
       - name: Build exampleApp
         run: |

@@ -5,6 +5,9 @@ import unicode
 import nico/keycodes
 export keycodes
 
+import nico/spritedraw
+export spritedraw
+
 when defined(js):
   import nico/backends/js as backend
 
@@ -267,6 +270,10 @@ proc spr*(spr: Pint, x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false)
 proc sprs*(spr: Pint, x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip, vflip: bool = false)
 proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = false)
 proc sprshift*(spr: Pint, x,y: Pint, w,h: Pint = 1, ox,oy: Pint = 0, hflip, vflip: bool = false)
+proc spr*(drawer : SpriteDraw)
+proc spr*(drawer : SpriteDraw, x,y : Pint)
+
+proc sprOverlap*(a, b : SpriteDraw): bool
 
 # misc
 proc copy*(sx,sy,dx,dy,w,h: Pint) # copy one area of the screen to another
@@ -1248,6 +1255,7 @@ type Bresenham = object
   e2: float32
   finished: bool
 
+
 proc initBresenham(x0,y0,x1,y1: int): Bresenham =
   result.x = x0
   result.y = y0
@@ -2172,6 +2180,74 @@ proc sprBlitStretch*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
   let src = getSprRect(spr, w, h)
   let dst: Rect = ((x-cameraX).int,(y-cameraY).int,src.w,src.h)
   blitStretch(spritesheet, src, dst)
+
+proc spr*(drawer: SpriteDraw)=
+  setSpritesheet(drawer.spriteSheet)
+  spr(drawer.spriteIndex, drawer.x, drawer.y, drawer.w, drawer.h, drawer.flipX, drawer.flipY)
+
+proc spr*(drawer: SpriteDraw, x,y:Pint)=
+  setSpritesheet(drawer.spriteSheet)
+  spr(drawer.spriteIndex, x, y, drawer.w, drawer.h, drawer.flipX, drawer.flipY)
+
+proc sprOverlap*(a,b : SpriteDraw): bool=
+  ##Will return true if the sprites overlap
+  setSpritesheet(a.spriteSheet)
+  let 
+    aSprRect = getSprRect(a.spriteIndex,a.w,a.h)
+    aRect: Rect = (a.x, a.y, aSprRect.w, aSprRect.h)
+
+  if(a.spritesheet != b.spritesheet): setSpritesheet(b.spriteSheet)
+  let 
+    bSprRect = getSprRect(b.spriteIndex,b.w,b.h)
+    bRect: Rect = (b.x, b.y, bSprRect.w, bSprRect.h)
+
+  if(overlap(aRect,bRect)):
+    let
+      xOverlap = max(aRect.x, bRect.x)
+      yOverlap = max(aRect.y, bRect.y)
+      wOverlap = min(aRect.x + aRect.w, bRect.x + bRect.w) - xOverlap
+      hOverlap = min(aRect.y + aRect.h, bRect.y + bRect.h) - yOverlap
+      aXRelative = xOverlap - a.x
+      aYRelative = yOverlap - a.y
+      bXRelative = xOverlap - b.x
+      bYRelative = yOverlap - b.y
+
+    var 
+      surfA = spritesheets[a.spriteSheet]
+      surfB = spritesheets[b.spriteSheet]
+      indA = 0
+      indB = 0
+
+    #Foreach pixel in the overlap check the colour there
+    for xSamp in 0..<wOverlap:
+      for ySamp in 0..<hOverlap:
+        var 
+          aX = aSprRect.x + xSamp + aXRelative
+          aY = aSprRect.y + ySamp + aYRelative
+          bX = bSprRect.x + xSamp + bxRelative
+          bY = bSprRect.y + ySamp + bYRelative
+
+        #Logic to flip the coord samples for generating an index
+        #Subtract 1 cause of size being 1 with 1 pixel not 0
+        if(a.flipX):
+          aX = aSprRect.x + (aSprRect.w - (xSamp + aXRelative)) - 1
+        if(a.flipY):
+          aY = aSprRect.y + (aSprRect.h - (ySamp + aYRelative)) - 1 
+
+        if(b.flipX):
+          bX = bSprRect.x + (aSprRect.w - (xSamp + bXRelative)) - 1
+        if(b.flipY):
+          bY = bSprRect.y + (aSprRect.h - (ySamp + bYRelative)) - 1
+
+
+        indA = aX + aY * surfA.w
+        indB = bX + bY * surfB.w
+        if(indA < surfA.data.len and indB < surfB.data.len):#Shouldnt ever happen but errors must be checked
+          if(surfA.data[indA] > 0 and surfB.data[indB] > 0): #Using 0 as of now for alpha check
+            return true 
+
+  return false
+
 
 proc sprs*(spr: Pint, x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip, vflip: bool = false) =
   # draw an integer scaled sprite

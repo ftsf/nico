@@ -1245,15 +1245,14 @@ proc flr*(x: Pfloat): Pfloat =
 proc lerp[T](a, b: T, t: Pfloat): T =
   return a + (b - a) * t
 
-type 
-  Bresenham = object
-    x,y: int
-    x1,y1: int
-    dx,sx: int
-    dy,sy: int
-    err: float32
-    e2: float32
-    finished: bool
+type Bresenham = object
+  x,y: int
+  x1,y1: int
+  dx,sx: int
+  dy,sy: int
+  err: float32
+  e2: float32
+  finished: bool
 
 
 proc initBresenham(x0,y0,x1,y1: int): Bresenham =

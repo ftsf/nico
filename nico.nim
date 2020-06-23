@@ -272,7 +272,7 @@ proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = fal
 proc sprshift*(spr: Pint, x,y: Pint, w,h: Pint = 1, ox,oy: Pint = 0, hflip, vflip: bool = false)
 proc spr*(drawer : SpriteDraw)
 
-proc sprCol*(a, b : SpriteDraw): bool
+proc sprOverlap*(a, b : SpriteDraw): bool
 
 # misc
 proc copy*(sx,sy,dx,dy,w,h: Pint) # copy one area of the screen to another
@@ -2184,7 +2184,7 @@ proc spr*(drawer: SpriteDraw)=
   setSpritesheet(drawer.spriteSheet)
   spr(drawer.spriteIndex, drawer.x, drawer.y, drawer.w, drawer.h, drawer.flipX, drawer.flipY)
 
-proc sprCol*(a,b : SpriteDraw): bool=
+proc sprOverlap*(a,b : SpriteDraw): bool=
   ##Will return true if the sprites overlap
   setSpritesheet(a.spriteSheet)
   let 

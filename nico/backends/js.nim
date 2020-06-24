@@ -3,6 +3,7 @@ import jsconsole
 import ajax
 import html5_canvas
 import math
+import sequtils
 
 import common
 import nico/controller
@@ -21,6 +22,8 @@ var audioContext: AudioContext
 
 var noiseBuffer: AudioBuffer
 var noiseBuffer2: AudioBuffer
+
+const touchMouseEmulation = false
 
 type Channel = object
   kind: ChannelKind
@@ -119,6 +122,10 @@ proc present*() =
     swCanvas32.data[i*4+3] = 255
   ctx.putImageData(swCanvas32,0,0)
 
+proc requestPointerLock(e: Element) {.importjs:"#.requestPointerLock(@)".}
+proc requestFullscreen(e: Element) {.importjs:"#.requestFullscreen(@)".}
+var requestedFullscreen = false
+
 proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = false) =
   swCanvas = newSurface(w,h)
   screenWidth = w
@@ -132,9 +139,11 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   canvas.onmousemove = proc(e: dom.Event) =
     let e = e.MouseEvent
     mouseDetected = true
-    let scale = canvas.clientWidth.float / screenWidth.float
-    mouseX = (e.offsetX.float / scale).int
-    mouseY = (e.offsetY.float / scale).int
+    let scale = canvas.clientWidth.float32 / screenWidth.float32
+    mouseX = (e.offsetX.float32 / scale).int
+    mouseY = (e.offsetY.float32 / scale).int
+    mouseRawX = e.offsetX
+    mouseRawY = e.offsetY
 
   canvas.onmousedown = proc(e: dom.Event) =
     let e = e.MouseEvent
@@ -149,26 +158,104 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   canvas.addEventListener("contextmenu") do(e: dom.Event):
     e.preventDefault()
 
-  canvas.addEventListener("touchstart") do(e: dom.Event):
-    let e = e.TouchEvent
-    mouseButtonsDown[0] = true
-    let scale = canvas.clientWidth.float / screenWidth.float
-    mouseX = ((e.touches[0].pageX - e.target.offsetLeft).float / scale).int
-    mouseY = ((e.touches[0].pageY - e.target.offsetTop).float / scale).int
 
+  canvas.addEventListener("touchstart") do(e: dom.Event):
+    if fullscreen and not requestedFullscreen:
+      canvas.requestFullscreen()
+
+    let e = e.TouchEvent
     e.preventDefault()
+    let scale = canvas.clientWidth.float32 / screenWidth.float32
+    if touchMouseEmulation:
+      mouseButtonsDown[0] = true
+      mouseX = ((e.touches[0].pageX - e.target.offsetLeft).float32 / scale).int
+      mouseY = ((e.touches[0].pageY - e.target.offsetTop).float32 / scale).int
+
+    for t in e.changedTouches:
+      let sx = (t.pageX - e.target.offsetLeft).float32
+      let sy = (t.pageY - e.target.offsetTop).float32
+
+      touches.add(common.Touch(
+        state: tsStarted,
+        id: t.identifier,
+        sx: sx,
+        sy: sy,
+        x: (sx / scale).int,
+        y: (sy / scale).int,
+        xrel: 0'f,
+        yrel: 0'f,
+        xrelraw: 0'f,
+        yrelraw: 0'f,
+      ))
 
   canvas.addEventListener("touchmove") do(e: dom.Event):
     let e = e.TouchEvent
-    let scale = canvas.clientWidth.float / screenWidth.float
-    mouseX = ((e.touches[0].pageX - e.target.offsetLeft).float / scale).int
-    mouseY = ((e.touches[0].pageY - e.target.offsetTop).float / scale).int
     e.preventDefault()
+    let scale = canvas.clientWidth.float32 / screenWidth.float32
+    if touchMouseEmulation:
+      mouseX = ((e.touches[0].pageX - e.target.offsetLeft).float32 / scale).int
+      mouseY = ((e.touches[0].pageY - e.target.offsetTop).float32 / scale).int
+
+    for t in e.changedTouches:
+      for et in touches.mitems:
+        if et.id == t.identifier:
+          if et.state notin [tsStarted,tsEnded,tsCancelled]:
+            et.state = tsMoved
+          let sx = (t.pageX - e.target.offsetLeft).float32
+          let sy = (t.pageY - e.target.offsetTop).float32
+          et.xrelraw = sx - et.sx
+          et.yrelraw = sy - et.sy
+          et.xrel = (sx - et.sx) / scale
+          et.yrel = (sy - et.sy) / scale
+          et.sx = sx
+          et.sy = sy
+          et.x = (sx / scale).int
+          et.y = (sy / scale).int
+          break
 
   canvas.addEventListener("touchend") do(e: dom.Event):
-    mouseButtonsDown[0] = false
+    let e = e.TouchEvent
+    let scale = canvas.clientWidth.float32 / screenWidth.float32
     e.preventDefault()
+    if touchMouseEmulation:
+      mouseButtonsDown[0] = false
 
+    for t in e.changedTouches:
+      for et in touches.mitems:
+        if et.id == t.identifier:
+          et.state = tsEnded
+          let sx = (t.pageX - e.target.offsetLeft).float32
+          let sy = (t.pageY - e.target.offsetTop).float32
+          et.sx = sx
+          et.sy = sy
+          et.xrelraw = sx - et.sx
+          et.yrelraw = sy - et.sy
+          et.xrel = (sx - et.sx) / scale
+          et.yrel = (sy - et.sy) / scale
+          et.x = (sx / scale).int
+          et.y = (sy / scale).int
+          break
+
+  canvas.addEventListener("touchcancel") do(e: dom.Event):
+    let e = e.TouchEvent
+    e.preventDefault()
+    let scale = canvas.clientWidth.float32 / screenWidth.float32
+    if touchMouseEmulation:
+      mouseButtonsDown[0] = false
+
+    for t in e.changedTouches:
+      for et in touches.mitems:
+        if et.id == t.identifier:
+          et.state = tsCancelled
+          let sx = t.pageX - e.target.offsetLeft
+          let sy = t.pageY - e.target.offsetTop
+          et.xrelraw = (sx - et.sx).float32
+          et.yrelraw = (sy - et.sy).float32
+          et.xrel = (sx - et.sx).float32 / scale
+          et.yrel = (sy - et.sy).float32 / scale
+          et.x = (sx.float32 / scale).int
+          et.y = (sy.float32 / scale).int
+          break
 
   var holder = dom.document.getElementById("nicogame")
   if holder != nil:
@@ -188,7 +275,7 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
           if controllers[0].buttons[btn] <= 0:
             controllers[0].setButtonState(btn, true)
           event.preventDefault()
-    if keysDown[toNicoKeycode(event.keyCode)] == 0.uint32:
+    if not keysDown.hasKey(toNicoKeycode(event.keyCode)) or keysDown[toNicoKeycode(event.keyCode)] == 0.uint32:
       keysDown[toNicoKeycode(event.keyCode)] = 1.uint32
 
   dom.window.onkeyup = proc(event: dom.Event) =
@@ -365,11 +452,17 @@ proc step() =
     frame += 1
     return
 
+  mouseRelX = (mouseRawX - lastMouseRawX).float32 / screenScale.float32
+  mouseRelY = (mouseRawY - lastMouseRawY).float32 / screenScale.float32
+
   for i,b in mouseButtonsDown:
     if b:
       mouseButtons[i] += 1
     else:
-      mouseButtons[i] = 0
+      if mouseButtons[i] > 0:
+        mouseButtons[i] = -1
+      else:
+        mouseButtons[i] = 0
 
   for controller in controllers:
     controller.update()
@@ -381,8 +474,17 @@ proc step() =
     drawFunc()
 
   for k,v in keysDown:
-    if v > 0:
+    if v.int > 0:
       keysDown[k] += 1
+
+  lastMouseRawX = mouseRawX
+  lastMouseRawY = mouseRawY
+
+  for touch in touches.mitems:
+    if touch.state == tsStarted or touch.state == tsMoved:
+      touch.state = tsHeld
+
+  touches.keepItIf(it.state notin [tsEnded, tsCancelled])
 
   present()
 
@@ -715,3 +817,9 @@ proc addKeyListener*(f: KeyListener) =
 
 proc removeKeyListener*(f: KeyListener) =
   return
+
+proc hideMouse*() =
+  canvas.style.cursor = "none"
+
+proc showMouse*() =
+  canvas.style.cursor = "default"

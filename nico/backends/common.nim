@@ -22,6 +22,21 @@ const musicBufferSize* = 4096
 
 # TYPES
 
+type TouchState* = enum
+  tsStarted
+  tsHeld
+  tsMoved
+  tsEnded
+  tsCancelled
+
+type Touch* = object
+  id*: int
+  x*,y*: int
+  sx*,sy*: float32
+  xrel*,yrel*: float32
+  xrelraw*,yrelraw*: float32
+  state*: TouchState
+
 type Palette* = tuple
   size: int
   data: array[maxPaletteSize, tuple[r,g,b: uint8]]
@@ -165,6 +180,8 @@ converter toPfloat*(x: float): Pfloat {.inline.} =
 ##
 
 var currentPalette*: Palette
+
+var touches*: seq[Touch]
 
 var masterVolume* = 1.0
 var sfxVolume* = 1.0

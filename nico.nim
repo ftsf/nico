@@ -85,6 +85,9 @@ export btnup
 export axis
 export axisp
 
+export TouchState
+export Touch
+
 import nico/ringbuffer
 import math
 export pow
@@ -210,7 +213,7 @@ proc stencilTest(x,y: int, nv: uint8): bool =
 proc setCamera*(x,y: Pint = 0)
 proc getCamera*(): (Pint,Pint)
 
-# Input
+# Input Gamepad
 proc btn*(b: NicoButton): bool
 proc btnp*(b: NicoButton): bool
 proc btnup*(b: NicoButton): bool
@@ -223,15 +226,23 @@ proc btnup*(b: NicoButton, player: range[0..maxPlayers]): bool
 proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool
 proc btnRaw*(b: NicoButton, player: range[0..maxPlayers]): int
 proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): Pfloat
+
+# Input / Mouse
 proc mouse*(): (int,int)
 proc mouserel*(): (float32,float32)
 proc mousebtn*(b: range[0..2]): bool
+proc mousebtnup*(b: range[0..2]): bool
 proc mousebtnp*(b: range[0..2]): bool
 proc mousebtnpr*(b: range[0..2], r: Pint = 48): bool
 
-when not defined(js):
-  export hideMouse
-  export showMouse
+# Input / Touch
+proc getTouches*(): seq[Touch] =
+  return touches
+proc getTouchCount*(): int =
+  return touches.len
+
+export hideMouse
+export showMouse
 
 ## Drawing API
 

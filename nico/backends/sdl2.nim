@@ -1314,7 +1314,9 @@ proc process(self: var Channel): float32 =
     if self.phase >= musicBufferSize:
       # end of buffer, switch buffers and fill
       self.phase = 0.0
-      let read = stb_vorbis_get_samples_float_interleaved(self.musicFile, if self.musicStereo: 2 else: 1, self.musicBuffers[self.musicBuffer][0].addr, musicBufferSize)
+      var read = stb_vorbis_get_samples_float_interleaved(self.musicFile, if self.musicStereo: 2 else: 1, self.musicBuffers[self.musicBuffer][0].addr, musicBufferSize)
+      if self.musicStereo:
+        read *= 2
       self.musicBuffer = (self.musicBuffer + 1) mod 2
       if read != musicBufferSize:
         if self.loop != 0:
@@ -1528,19 +1530,22 @@ proc newSfxBuffer(filename: string): SfxBuffer =
 
   let nSamples = stb_vorbis_stream_length_in_samples(v).int
 
-  result.data = newSeq[float32](nSamples)
+  result.data = newSeq[float32](nSamples * info.channels.int)
   result.rate = info.samplerate.float32
   result.channels = info.channels
   result.length = nSamples
 
-  let count = stb_vorbis_get_samples_float_interleaved(v, info.channels, result.data[0].addr, nSamples)
+  let count = stb_vorbis_get_samples_float_interleaved(v, info.channels, result.data[0].addr, nSamples * info.channels.int)
   if count < nSamples:
-    echo "didn't load enough samples"
+    echo "only loaded ", count, " samples from ", filename, " expected: ", nSamples
 
   stb_vorbis_close(v)
 
 proc reset*(channel: var Channel) =
   channel.kind = channelNone
+  if channel.musicFile != nil:
+    stb_vorbis_close(channel.musicFile)
+    channel.musicFile = nil
 
 proc loadSfx*(index: SfxId, filename: string) =
   if index < 0 or index > 63:
@@ -1612,6 +1617,9 @@ proc music*(channel: AudioChannelId, index: int, loop: int = -1) =
   if musicFileLibrary[index] == "":
     raise newException(Exception, "no music loaded into index: " & $index)
 
+  if audioChannels[channel].musicFile != nil:
+    stb_vorbis_close(audioChannels[channel].musicFile)
+    audioChannels[channel].musicFile = nil
 
   var v = stb_vorbis_open_filename(musicFileLibrary[index], nil, nil)
   if v == nil:

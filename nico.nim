@@ -266,6 +266,7 @@ proc boxfill*(x,y,w,h: Pint)
 # line drawing
 proc line*(x0,y0,x1,y1: Pint)
 proc hline*(x0,y,x1: Pint)
+proc hlineFast(x0,y,x1: Pint)
 proc vline*(x,y0,y1: Pint)
 
 # triangles
@@ -1048,7 +1049,7 @@ proc innerLineDashed(x0,y0,x1,y1: int, pattern: uint8) =
     else:
       innerLineDashedHigh(x0,y0,x1,y1,pattern)
 
-proc hlineFast(x0,x1,y: Pint) =
+proc hlineFast(x0,y,x1: Pint) =
   if y < clipMinY or y > clipMaxY:
     return
   for x in max(x0,clipMinX)..min(x1,clipMaxX):

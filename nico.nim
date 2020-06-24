@@ -485,9 +485,9 @@ proc clip*() =
 
 proc clip*(x,y,w,h: Pint) =
   clipMinX = max(x, 0)
-  clipMaxX = min(x+w, screenWidth-1)
+  clipMaxX = min(x+w-1, screenWidth-1)
   clipMinY = max(y, 0)
-  clipMaxY = min(y+h, screenHeight-1)
+  clipMaxY = min(y+h-1, screenHeight-1)
   clippingRect.x = max(x, 0)
   clippingRect.y = max(y, 0)
   clippingRect.w = min(w, screenWidth - x)

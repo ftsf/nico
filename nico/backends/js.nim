@@ -35,12 +35,12 @@ type Channel = object
   arpSpeed: uint8
 
   loop: int
-  phase: float # or position
-  freq: float # or speed
-  basefreq: float
-  targetFreq: float
-  width: float
-  pan: float
+  phase: float32 # or position
+  freq: float32 # or speed
+  basefreq: float32
+  targetFreq: float32
+  width: float32
+  pan: float32
   shape: SynthShape
   gain: GainNode
 
@@ -61,7 +61,7 @@ type Channel = object
   nextClick: int
   outvalue: float32
 
-  priority: float
+  priority: float32
 
   wavData: array[32, uint8]
 
@@ -373,7 +373,7 @@ proc process(self: var Channel) =
     self.envPhase += 1
 
     if self.pchange != 0:
-      self.targetFreq = self.targetFreq + self.targetFreq * self.pchange.float / 128.0
+      self.targetFreq = self.targetFreq + self.targetFreq * self.pchange.float32 / 128.0
 
       if self.targetFreq > sampleRate / 2.0:
         self.targetFreq = sampleRate / 2.0
@@ -383,7 +383,7 @@ proc process(self: var Channel) =
 
 
     if self.vibamount > 0:
-      self.targetFreq = self.basefreq + sin(self.envPhase.float / self.vibspeed.float) * self.basefreq * 0.03 * self.vibamount.float
+      self.targetFreq = self.basefreq + sin(self.envPhase.float32 / self.vibspeed.float32) * self.basefreq * 0.03'f * self.vibamount.float32
 
     if self.arp != 0:
       let a0 = (self.arp and 0x000f)
@@ -404,13 +404,13 @@ proc process(self: var Channel) =
 
       if arpSteps > 0:
         if (self.envPhase / self.arpSpeed.int) mod arpSteps == 1:
-          self.targetFreq = self.basefreq + self.basefreq * 0.06 * a0.float
+          self.targetFreq = self.basefreq + self.basefreq * 0.06'f * a0.float32
         elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 2:
-          self.targetFreq = self.basefreq + self.basefreq * 0.06 * a1.float
+          self.targetFreq = self.basefreq + self.basefreq * 0.06'f * a1.float32
         elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 3:
-          self.targetFreq = self.basefreq + self.basefreq * 0.06 * a2.float
+          self.targetFreq = self.basefreq + self.basefreq * 0.06'f * a2.float32
         elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 4:
-          self.targetFreq = self.basefreq + self.basefreq * 0.06 * a3.float
+          self.targetFreq = self.basefreq + self.basefreq * 0.06'f * a3.float32
         else:
           self.targetFreq = self.basefreq
 
@@ -419,19 +419,19 @@ proc process(self: var Channel) =
         OscillatorNode(self.source).frequency.value = self.freq
       except:
         try:
-          AudioBufferSourceNode(self.source).playbackRate.value = self.freq / 1000.0
+          AudioBufferSourceNode(self.source).playbackRate.value = self.freq / 1000.0'f
         except:
           discard
     if self.env < 0:
-      self.envValue = clamp(lerp(self.init.float / 15.0, 0, self.envPhase / (-self.env * 4)), 0.0, 1.0)
+      self.envValue = clamp(lerp(self.init.float32 / 15.0'f, 0, self.envPhase / (-self.env * 4)), 0.0'f, 1.0'f)
       if self.envValue <= 0:
         self.stop()
         return
     elif self.env > 0:
       # attack
-      self.envValue = clamp(lerp(self.init.float / 15.0, 1.0, self.envPhase / (self.env * 4)), 0.0, 1.0)
+      self.envValue = clamp(lerp(self.init.float32 / 15.0'f, 1.0'f, self.envPhase / (self.env * 4)), 0.0'f, 1.0'f)
     elif self.env == 0:
-      self.envValue = self.init.float / 15.0
+      self.envValue = self.init.float32 / 15.0'f
 
     self.gain.gain.value = clamp(lerp(self.gain.gain.value, self.envValue, 0.9), 0.0, 1.0)
   else:
@@ -576,7 +576,7 @@ proc resizeCanvas(w,h: int, scale: int) =
 
   stencilBuffer = newSurface(w, h)
 
-proc initNoiseBuffer(samples: int, freq: float): AudioBuffer =
+proc initNoiseBuffer(samples: int, freq: float32): AudioBuffer =
   var b = audioContext.createBuffer(1, samples, sampleRate.int)
   var data = b.getChannelData(0)
 
@@ -670,7 +670,7 @@ proc music*(channel: AudioChannelId, musicId: MusicId, loop: int = -1) =
     audioChannels[channel].musicId = musicId
 
 proc volume*(channel: AudioChannelId, volume: int) =
-  audioChannels[channel].gain.gain.value = (volume.float / 255.0)
+  audioChannels[channel].gain.gain.value = (volume.float32 / 255.0)
 
 proc pitchbend*(channel: AudioChannelId, changeSpeed: range[-128..128]) =
   audioChannels[channel].pchange = changeSpeed
@@ -688,13 +688,13 @@ proc wavData*(channel: AudioChannelId): array[32, uint8] =
 proc wavData*(channel: AudioChannelId, data: array[32, uint8]) =
   audioChannels[channel].wavData = data
 
-proc pitch*(channel: AudioChannelId, freq: float) =
+proc pitch*(channel: AudioChannelId, freq: float32) =
   audioChannels[channel].targetFreq = freq
 
 proc synthShape*(channel: AudioChannelId, newShape: SynthShape) =
   audioChannels[channel].shape = newShape
 
-proc synth*(channel: int, shape: SynthShape, freq: float, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
+proc synth*(channel: int, shape: SynthShape, freq: float32, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
 
@@ -810,7 +810,7 @@ proc arp*(channel: int, arp: uint16, speed: uint8 = 1) =
   audioChannels[channel].arp = arp
   audioChannels[channel].arpSpeed = max(1.uint8, speed)
 
-proc synthUpdate*(channel: int, shape: SynthShape, freq: float) =
+proc synthUpdate*(channel: int, shape: SynthShape, freq: float32) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
   if shape != synSame:

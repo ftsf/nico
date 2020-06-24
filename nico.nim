@@ -2059,8 +2059,11 @@ proc mousebtn*(b: range[0..2]): bool =
 proc mousebtnp*(b: range[0..2]): bool =
   return mouseButtons[b] == 1
 
+proc mousebtnup*(b: range[0..2]): bool =
+  return mouseButtons[b] == -1
+
 proc mousebtnpr*(b: range[0..2], r: Pint): bool =
-  return mouseButtons[b] mod r == 1
+  return mouseButtons[b] > 0 and mouseButtons[b] mod r == 1
 
 proc mousewheel*(): int =
   # return the mousewheel status, 0 normal, -1 or 1

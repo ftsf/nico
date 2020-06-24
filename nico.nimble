@@ -13,7 +13,6 @@ requires "gifenc >= 0.1.0"
 requires "webaudio >= 0.2.0"
 requires "html5_canvas >= 0.1.0"
 requires "ajax >= 0.1.0"
-requires "sndfile >= 0.1.0"
 requires "nimPNG"
 
 skipDirs = @["examples","tests","android"]

@@ -7,6 +7,7 @@ import strutils
 import times
 
 import nico/ringbuffer
+import nico/stb_vorbis
 
 import math
 
@@ -40,7 +41,6 @@ export Scancode
 import streams
 import strutils
 
-import sndfile
 import math
 import random
 
@@ -59,7 +59,7 @@ type
     buffer: SfxBuffer
     callback: proc(input: float32): float32
     callbackStereo: bool
-    musicFile: ptr TSNDFILE
+    musicFile: Vorbis
     musicIndex: int
     musicBuffer: int
     musicStereo: bool
@@ -1314,13 +1314,13 @@ proc process(self: var Channel): float32 =
     if self.phase >= musicBufferSize:
       # end of buffer, switch buffers and fill
       self.phase = 0.0
-      let read = self.musicFile.read_float(self.musicBuffers[self.musicBuffer][0].addr, musicBufferSize)
+      let read = stb_vorbis_get_samples_float_interleaved(self.musicFile, if self.musicStereo: 2 else: 1, self.musicBuffers[self.musicBuffer][0].addr, musicBufferSize)
       self.musicBuffer = (self.musicBuffer + 1) mod 2
       if read != musicBufferSize:
         if self.loop != 0:
           if self.loop > 0:
             self.loop -= 1
-          discard self.musicFile.seek(0, SEEK_SET)
+          discard stb_vorbis_seek_frame(self.musicFile, 0)
         else:
           self.reset()
 
@@ -1520,26 +1520,24 @@ proc loadMapBinary*(index: int, filename: string) =
 
 proc newSfxBuffer(filename: string): SfxBuffer =
   result = new(SfxBuffer)
-  var info: Tinfo
-  when defined(js):
-    discard
-  else:
-    zeroMem(info.addr, sizeof(Tinfo))
-  var fp = sndfile.open(filename.cstring, READ, info.addr)
-  if fp == nil:
-    raise newException(IOError, "unable to open file for reading: " & filename)
+  var v = stb_vorbis_open_filename(filename, nil, nil)
+  if v == nil:
+    raise newException(IOError, "unable to open sfx file for reading: " & filename)
 
-  result.data = newSeq[float32](info.frames * info.channels)
+  let info = stb_vorbis_get_info(v)
+
+  let nSamples = stb_vorbis_stream_length_in_samples(v).int
+
+  result.data = newSeq[float32](nSamples)
   result.rate = info.samplerate.float32
   result.channels = info.channels
-  result.length = info.frames.int * info.channels.int
+  result.length = nSamples
 
-  var loaded = 0
-  while loaded < result.length:
-    let count = fp.read_float(result.data[loaded].addr, min(result.length - loaded,1024))
-    loaded += count.int
+  let count = stb_vorbis_get_samples_float_interleaved(v, info.channels, result.data[0].addr, nSamples)
+  if count < nSamples:
+    echo "didn't load enough samples"
 
-  discard fp.close()
+  stb_vorbis_close(v)
 
 proc reset*(channel: var Channel) =
   channel.kind = channelNone
@@ -1614,16 +1612,15 @@ proc music*(channel: AudioChannelId, index: int, loop: int = -1) =
   if musicFileLibrary[index] == "":
     raise newException(Exception, "no music loaded into index: " & $index)
 
-  var info: Tinfo
-  info.channels = 2
-  info.samplerate = sampleRate.int
 
-  var snd = sndfile.open(musicFileLibrary[index], READ, info.addr)
-  if snd == nil:
-    raise newException(IOError, "unable to open file for reading: " & musicFileLibrary[index])
+  var v = stb_vorbis_open_filename(musicFileLibrary[index], nil, nil)
+  if v == nil:
+    raise newException(IOError, "unable to open music file for reading: " & musicFileLibrary[index])
+
+  let info = stb_vorbis_get_info(v)
 
   audioChannels[channel].kind = channelMusic
-  audioChannels[channel].musicFile = snd
+  audioChannels[channel].musicFile = v
   audioChannels[channel].musicIndex = index
   audioChannels[channel].phase = 0.0
   audioChannels[channel].freq = 1.0

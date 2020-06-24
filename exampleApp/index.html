@@ -15,14 +15,14 @@
 				image-rendering: pixelated;
 			}
 		</style>
-		<title>Nico Example App</title>
+		<title>exampleApp</title>
 	</head>
 	<body>
 	<div id="nicogame"></div>
 		<script type="text/javascript">
-		function handleMouseDown(evt) { window.focus(); evt.preventDefault(); evt.stopPropagation(); evt.target.style.cursor = 'default'; }
+		function handleMouseDown(evt) { window.focus(); evt.preventDefault(); evt.stopPropagation(); }
 		document.getElementById('nicogame').addEventListener('mousedown', handleMouseDown, false);
 		</script>
-		<script type="text/javascript" src="main.js"></script>
+		<script type="text/javascript" src="exampleApp.js"></script>
 	</body>
 </html>

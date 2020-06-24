@@ -1,4 +1,4 @@
-APPNAME = app
+APPNAME = exampleApp
 NIMC=nim c
 NIMJS=nim js
 SOURCES = $(shell ls src/*.nim)

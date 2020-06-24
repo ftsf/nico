@@ -1,5 +1,6 @@
 # tool to set up a new nico project
 import os
+import osproc
 import parseopt
 
 var params = initOptParser(commandLineParams(), shortNoVal = {'f'})
@@ -28,5 +29,8 @@ if overwrite == false and (dirExists(targetPath) or fileExists(targetPath) or sy
   quit(1)
 echo "copying ", sourcePath, " to ", targetPath
 copyDir(sourcePath, targetPath)
+# search and replace
+moveFile(joinPath(targetPath, "exampleApp.nimble"), joinPath(targetPath, targetPath & ".nimble"))
+echo execProcess("nimgrep", "", ["-!","exampleApp",targetPath,"-r",targetPath], nil, {poUsePath})
 echo "nico project ", targetPath, " created"
 quit(0)

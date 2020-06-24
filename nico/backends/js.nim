@@ -113,6 +113,9 @@ template debug*(args: varargs[untyped]) =
 proc setKeyMap*(newmap: string) =
   discard
 
+proc resize*(displayW,displayH: int)
+proc resizeCanvas(w,h: int, scale: int)
+
 proc present*() =
   # copy swCanvas to canvas
   for i,v in swCanvas.data.mpairs:
@@ -127,14 +130,18 @@ proc requestFullscreen(e: Element) {.importjs:"#.requestFullscreen(@)".}
 var requestedFullscreen = false
 
 proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = false) =
-  swCanvas = newSurface(w,h)
-  screenWidth = w
-  screenHeight = h
-  canvas = dom.document.createElement("canvas").Canvas
-  canvas.width = w
-  canvas.height = h
-  canvas.style.width = $(w * scale) & "px"
-  canvas.style.height = $(h * scale) & "px"
+  targetScreenWidth = w
+  targetScreenHeight = h
+
+  document.title = title
+
+  if fixedScreenSize:
+    resizeCanvas(w,h,scale)
+  else:
+    resize(dom.window.innerWidth,dom.window.innerHeight)
+
+  dom.window.addEventListener("resize") do(e: dom.Event):
+    resize(dom.window.innerWidth, dom.window.innerHeight)
 
   canvas.onmousemove = proc(e: dom.Event) =
     let e = e.MouseEvent
@@ -260,11 +267,6 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   var holder = dom.document.getElementById("nicogame")
   if holder != nil:
     holder.appendChild(canvas)
-  ctx = canvas.getContext2D()
-  swCanvas32 = ctx.getImageData(0,0,w.float,h.float)
-
-  stencilBuffer = newSurface(w, h)
-
   frame = 0
 
   dom.window.onkeydown = proc(event: dom.Event) =
@@ -331,7 +333,7 @@ proc loadSurfaceRGBA*(filename: string, callback: proc(surface: Surface)) =
     canvas.width = w
     canvas.height = h
     ctx.drawImage(target, 0, 0)
-    var imgData = ctx.getImageData(0,0, w.float,h.float)
+    var imgData = ctx.getImageData(0,0, w.float32,h.float32)
     var surface = newSurfaceRGBA(w,h)
     surface.filename = filename
     surface.data = imgData.data
@@ -541,12 +543,38 @@ proc init*(org, app: string) =
 proc flip*() =
   present()
 
-proc resize*() =
-  discard
+proc resize*(displayW,displayH: int) =
+  echo "display ", displayW, " x ", displayH
+  echo "canvas target size ", targetScreenWidth, " x ", targetScreenHeight
+  screenScale = max(1'f, min((displayW.float32 / targetScreenWidth.float32).floor, (displayH.float32 / targetScreenHeight.float32).floor))
+  echo "scale ", screenScale
+  screenPaddingX = 0
+  screenPaddingY = 0
+  screenWidth = displayW div screenScale.int
+  screenHeight = displayH div screenScale.int
+  echo "canvas ", screenWidth, " x ", screenHeight
+  resizeCanvas(screenWidth,screenHeight,screenScale.int)
 
-proc resize*(w,h: int) =
-  # TODO adjust canvas size
-  discard
+proc resize*() =
+  resize(dom.window.innerWidth,dom.window.innerHeight)
+
+proc resizeCanvas(w,h: int, scale: int) =
+  echo "resizing canvas to ", w, " x ", h, " at scale ", scale
+  swCanvas = newSurface(w,h)
+  screenWidth = w
+  screenHeight = h
+  screenScale = scale.float32
+  if canvas == nil:
+    canvas = dom.document.createElement("canvas").Canvas
+  canvas.width = w
+  canvas.height = h
+  canvas.style.width = $(w * scale) & "px"
+  canvas.style.height = $(h * scale) & "px"
+
+  ctx = canvas.getContext2D()
+  swCanvas32 = ctx.getImageData(0,0,w.float32,h.float32)
+
+  stencilBuffer = newSurface(w, h)
 
 proc initNoiseBuffer(samples: int, freq: float): AudioBuffer =
   var b = audioContext.createBuffer(1, samples, sampleRate.int)
@@ -804,7 +832,7 @@ proc setScreenSize*(w,h: int) =
   discard
 
 proc setWindowTitle*(title: string) =
-  discard
+  document.title = title
 
 proc setFullscreen*(fullscreen: bool) =
   discard

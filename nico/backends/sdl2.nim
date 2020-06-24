@@ -1543,7 +1543,7 @@ proc newSfxBuffer(filename: string): SfxBuffer =
 proc reset*(channel: var Channel) =
   channel.kind = channelNone
 
-proc loadSfx*(index: int, filename: string) =
+proc loadSfx*(index: SfxId, filename: string) =
   if index < 0 or index > 63:
     return
   sfxBufferLibrary[index] = newSfxBuffer(joinPath(assetPath, filename))
@@ -1572,7 +1572,7 @@ proc findFreeChannel(priority: float32): AudioChannelId =
     return audioChannelAuto
   return bestChannel
 
-proc sfx*(channel: AudioChannelId = -1, index: int, loop: int = 1, gain: Pfloat = 1.0, pitch: Pfloat = 1.0, priority: Pfloat = Inf) =
+proc sfx*(channel: AudioChannelId = -1, index: SfxId, loop: int = 1, gain: Pfloat = 1.0, pitch: Pfloat = 1.0, priority: Pfloat = Inf) =
   if index == -1 and channel == audioChannelAuto:
     echo "resetting all audio channels"
     # stop all audio

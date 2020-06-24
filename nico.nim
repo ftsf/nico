@@ -44,6 +44,7 @@ export sfx
 export music
 export getMusic
 export synth
+export SfxId
 
 when not defined(js):
   export setAudioCallback

@@ -35,8 +35,8 @@ type SfxName = enum
   sfxHitWall
   sfxDrop
 
-converter toInt(x: SfxName): int =
-  x.int
+converter toInt(x: SfxName): SfxId =
+  x.SfxId
 
 proc gameInit() =
   # load all our assets

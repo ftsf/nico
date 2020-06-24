@@ -792,6 +792,7 @@ proc appHandleEvent(evt: sdl.Event) =
     if evt.button.button < 4:
       discard captureMouse(false)
       mouseButtonsDown[evt.button.button-1] = false
+      mouseButtons[evt.button.button-1] = -1
 
   elif evt.kind == MouseMotion:
     if evt.motion.which != TOUCH_MOUSEID:

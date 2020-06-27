@@ -1522,9 +1522,14 @@ proc loadMapBinary*(index: int, filename: string) =
 
 proc newSfxBuffer(filename: string): SfxBuffer =
   result = new(SfxBuffer)
-  var v = stb_vorbis_open_filename(filename, nil, nil)
-  if v == nil:
+  var fp = open(filename, fmRead)
+  if fp == nil:
     raise newException(IOError, "unable to open sfx file for reading: " & filename)
+
+  var v = stb_vorbis_open_file(fp, 0, nil, nil)
+  if v == nil:
+    fp.close()
+    raise newException(IOError, "error opening vorbis file: " & filename)
 
   let info = stb_vorbis_get_info(v)
 
@@ -1540,6 +1545,8 @@ proc newSfxBuffer(filename: string): SfxBuffer =
     echo "only loaded ", count, " samples from ", filename, " expected: ", nSamples
 
   stb_vorbis_close(v)
+
+  fp.close()
 
 proc reset*(channel: var Channel) =
   channel.kind = channelNone
@@ -1621,9 +1628,14 @@ proc music*(channel: AudioChannelId, index: int, loop: int = -1) =
     stb_vorbis_close(audioChannels[channel].musicFile)
     audioChannels[channel].musicFile = nil
 
-  var v = stb_vorbis_open_filename(musicFileLibrary[index], nil, nil)
-  if v == nil:
+  var fp = open(musicFileLibrary[index], fmRead)
+  if fp == nil:
     raise newException(IOError, "unable to open music file for reading: " & musicFileLibrary[index])
+
+  var v = stb_vorbis_open_file(fp, 1, nil, nil)
+  if v == nil:
+    fp.close()
+    raise newException(IOError, "unable to open vorbis file: " & musicFileLibrary[index])
 
   let info = stb_vorbis_get_info(v)
 

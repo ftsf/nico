@@ -13,6 +13,7 @@ type
 
         max_frame_size*: cint
 
+proc stb_vorbis_open_file*(fp: FILE, close_handle_on_close: cint, error: ptr cint, alloc_buffer: pointer): Vorbis {.importc, noconv.}
 proc stb_vorbis_open_filename*(filename: cstring, error: ptr cint, alloc_buffer: pointer): Vorbis {.importc, noconv.}
 proc stb_vorbis_open_memory*(data: pointer, len: cint, error: ptr cint, alloc_buffer: pointer): Vorbis {.importc, noconv.}
 proc stb_vorbis_get_info*(f: Vorbis): VorbisInfo {.importc, noconv.}

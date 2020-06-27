@@ -267,7 +267,7 @@ proc label*(G: Gui, text: string, x,y,w,h: int, box: bool = false) =
     richPrint(text, x + (if G.center: w div 2 else: 0), y + (if G.center: h div 2 - (fontHeight() * nLines) div 2 else: 0), if G.center: taCenter else: taLeft)
 
   if G.e.kind == gMouseMove:
-    if pointInRect(G.e.x, G.e.y, x, y, w, h):
+    if G.downElement == 0 and pointInRect(G.e.x, G.e.y, x, y, w, h):
       G.hoverElement = G.element
       G.activeHoverElement = 0
 
@@ -302,7 +302,7 @@ proc labelStep*(G: Gui, text: string, x,y,w,h: int, step: int, box: bool = false
     richPrint(text, x + (if G.center: w div 2 else: 0), y + (if G.center: h div 2 - (fontHeight() * nLines) div 2 else: 0), if G.center: taCenter else: taLeft, false, step)
 
   if G.e.kind == gMouseMove:
-    if pointInRect(G.e.x, G.e.y, x, y, w, h):
+    if G.downElement == 0 and pointInRect(G.e.x, G.e.y, x, y, w, h):
       G.hoverElement = G.element
       G.activeHoverElement = 0
 
@@ -558,7 +558,7 @@ proc drag*[T](G: Gui, text: string, value: var T, min: T, max: T,sensitivity: fl
         value = G.dragIntTmp.T
       value = clamp(value, min, max)
 
-    if pointInRect(G.e.x, G.e.y, x, y, w, h):
+    if G.downElement == 0 and pointInRect(G.e.x, G.e.y, x, y, w, h):
       G.hoverElement = G.element
       G.activeHoverElement = if enabled and not hintBlocked: G.element else: 0
 
@@ -637,7 +637,7 @@ proc slider*[T](G: Gui, text: string, value: var T, min: T, max: T, x,y,w,h: Pin
         value = flr(lerp(min.float32,max.float32,invLerp((x+1).float32,(x+w-2).float32,G.e.x.float32)) + 0.5'f).T
       value = clamp(value, min, max)
 
-    if pointInRect(G.e.x, G.e.y, x, y, w, h):
+    if G.downElement == 0 and pointInRect(G.e.x, G.e.y, x, y, w, h):
       G.hoverElement = G.element
       G.activeHoverElement = if enabled and not hintBlocked: G.element else: 0
 
@@ -717,7 +717,7 @@ proc box*(G: Gui, x,y,w,h: int, style: GuiStyle = gInert) =
     )
     rrect(x,y,x+w-1,y+h-1)
   elif G.e.kind == gMouseMove:
-    if pointInRect(G.e.x, G.e.y, x,y,w,h):
+    if G.downElement == 0 and pointInRect(G.e.x, G.e.y, x,y,w,h):
       G.hoverElement = G.element
       G.activeHoverElement = 0
 
@@ -947,8 +947,8 @@ proc update*(G: Gui, onGui: proc(), dt: float32) =
     G.e.kind = gMouseMove
     G.e.x = mx
     G.e.y = my
-    G.e.xrel = mxrel
-    G.e.yrel = myrel
+    G.e.xrel = (mx - lastMouseX).float32
+    G.e.yrel = (my - lastMouseY).float32
     G.element = 0
     onGui()
     lastCount = G.element

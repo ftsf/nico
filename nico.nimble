@@ -41,11 +41,16 @@ task vertex, "compile vertex example":
   exec "nim c -p:. -d:debug -o:examples/vertex examples/vertex.nim"
   exec "nim js -p:. -d:release -o:examples/vertex.js examples/vertex.nim"
 
+task gui, "compile gui example":
+  exec "nim c -p:. -d:debug -o:examples/gui examples/gui.nim"
+  exec "nim js -p:. -d:release -o:examples/gui.js examples/gui.nim"
+
 task examples, "compile all examples":
   exec "nimble paintout"
   exec "nimble platformer"
   exec "nimble audio"
   exec "nimble vertex"
+  exec "nimble gui"
 
 task runplatformer, "runs platformer":
   exec "nim c -r -p:. -d:release -o:examples/platformer examples/platformer.nim"

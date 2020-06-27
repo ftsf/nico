@@ -26,6 +26,10 @@ type
 
   GuiColorSet* = tuple
     modalOutline: int
+    windowTitleFillFocused: int
+    windowTitleTextFocused: int
+    windowTitleFill: int
+    windowTitleText: int
     text: int
     textInteractable: int
     textHover: int
@@ -69,6 +73,13 @@ type
     # colors
     colorSets*: array[GuiOutcome, GuiColorSet]
 
+    moveWindow: bool
+    resizeWindow: bool
+    moveWindowOffsetX*: int
+    moveWindowOffsetY*: int
+    resizeWindowStartW*: int
+    resizeWindowStartH*: int
+
     hoverElement*: int
     activeHoverElement*: int
     activeElement*: int
@@ -96,6 +107,10 @@ var G*: Gui = new(Gui)
 # default color theme
 var colorSetLight*: array[GuiOutcome, GuiColorSet]
 colorSetLight[gDefault].modalOutline = 0
+colorSetLight[gDefault].windowTitleFillFocused = 12
+colorSetLight[gDefault].windowTitleTextFocused = 7
+colorSetLight[gDefault].windowTitleFill = 1
+colorSetLight[gDefault].windowTitleText = 6
 
 colorSetLight[gDefault].text = 1
 colorSetLight[gDefault].textInteractable = 1
@@ -147,6 +162,10 @@ colorSetLight[gDanger].outlineDisabled = 2
 var colorSetDark*: array[GuiOutcome, GuiColorSet]
 
 colorSetDark[gDefault].modalOutline = 0
+colorSetDark[gDefault].windowTitleFillFocused = 12
+colorSetDark[gDefault].windowTitleTextFocused = 7
+colorSetDark[gDefault].windowTitleFill = 13
+colorSetDark[gDefault].windowTitleText = 1
 
 colorSetDark[gDefault].text = 6
 colorSetDark[gDefault].textInteractable = 6
@@ -782,6 +801,104 @@ proc beginArea*(G: Gui, x,y,w,h: Pint, direction: GuiDirection = gTopToBottom, b
       rrectfill(x-1,y-1,x+w,y+h)
     G.box(x,y,w,h)
 
+proc beginWindow*(G: Gui, title: string, x,y,w,h: var Pint, show: var bool, direction: GuiDirection = gTopToBottom, modal: bool = false): bool =
+  let titlebarH = fontHeight() + 4
+  let showH = if show: h else: titlebarH
+
+  G.element += 1
+  if modal:
+    setColor(G.colorSets[gDefault].modalOutline)
+    rrectfill(x-1,y-1,x+w,y+showH)
+  G.box(x,y,w,showH)
+
+  if G.e.kind == gMouseDown:
+    if pointInRect(G.e.x, G.e.y, x + w - 7, y + 3, 5, 5):
+      show = not show
+    elif pointInRect(G.e.x, G.e.y, x, y, w, titlebarH):
+      G.downElement = G.element
+      G.moveWindow = true
+      G.resizeWindow = false
+      G.moveWindowOffsetX = G.e.x - x
+      G.moveWindowOffsetY = G.e.y - y
+    elif pointInRect(G.e.x, G.e.y, x, y + showH - 4, w, 3):
+      G.downElement = G.element
+      G.moveWindow = false
+      G.resizeWindow = true
+      G.moveWindowOffsetX = G.e.x
+      G.moveWindowOffsetY = G.e.y
+      G.resizeWindowStartW = w
+      G.resizeWindowStartH = h
+
+  if G.e.kind == gMouseMove and G.downElement == G.element:
+    if G.moveWindow:
+      x = G.e.x - G.moveWindowOffsetX
+      y = G.e.y - G.moveWindowOffsetY
+    elif G.resizeWindow:
+      w = G.resizeWindowStartW + G.e.x - G.moveWindowOffsetX
+      h = G.resizeWindowStartH + G.e.y - G.moveWindowOffsetY
+
+  if G.e.kind == gRepaint:
+    # draw titlebar
+    setColor(G.colorSets[gDefault].windowTitleFill)
+    rectfill(x+1,y+1,x+1+w-3,y+1+fontHeight()+1)
+    if show:
+      setColor(G.colorSets[gDefault].outline)
+      hline(x,y+1+fontHeight()+2,x+w-1)
+    setColor(G.colorSets[gDefault].windowTitleText)
+    print(title,x+3,y+3)
+
+    # draw shade button
+    setColor(G.colorSets[gDefault].outline)
+    box(x+w-8, y+3, 5, 5)
+    setColor(G.colorSets[gDefault].fill)
+    box(x+w-8+1, y+3+1, 3, 3)
+    setColor(G.colorSets[gDefault].outline)
+    if show:
+      box(x+w-8+1, y+3+2, 3, 1)
+    else:
+      box(x+w-8+2, y+3+2, 1, 1)
+
+    # draw resizebar
+    if show:
+      setColor(G.colorSets[gDefault].outline)
+      hline(x,y+h-3,x+w-1)
+
+  result = show
+  if show:
+    G.area = new(GuiArea)
+    G.area.id = G.nextAreaId
+    G.area.modal = modal
+    G.currentAreaId = G.area.id
+    G.area.minX = x + G.hPadding
+    G.area.minY = y + titlebarH + G.vPadding
+    G.area.maxX = x + w - 1 - G.hPadding
+    G.area.maxY = y + h - 1 - G.vPadding
+    G.area.cursorX = x
+    G.area.cursorY = y
+
+    G.nextAreaId += 1
+
+    G.area.direction = direction
+    case G.area.direction:
+    of gLeftToRight:
+      G.area.cursorX = G.area.minX + G.hSpacing
+      G.area.cursorY = G.area.minY
+    of gRightoLeft:
+      G.area.cursorX = G.area.maxX - G.hSpacing
+      G.area.cursorY = G.area.minY
+    of gTopToBottom:
+      G.area.cursorX = G.area.minX
+      G.area.cursorY = G.area.minY + G.vSpacing
+    of gBottomToTop:
+      G.area.cursorY = G.area.maxY - G.vSpacing
+      G.area.cursorX = G.area.minX
+
+    if modal:
+      G.modalArea = G.currentAreaId
+
+    G.areas.add(G.area)
+
+
 proc endArea*(G: Gui) =
   if G.areas.len > 0:
     var lastArea = G.area
@@ -843,6 +960,8 @@ proc update*(G: Gui, onGui: proc(), dt: float32) =
     G.e.kind = gMouseDown
     G.e.x = mx
     G.e.y = my
+    G.e.xrel = 0
+    G.e.yrel = 0
     G.element = 0
     onGui()
     G.wasMouseDown = true
@@ -850,6 +969,8 @@ proc update*(G: Gui, onGui: proc(), dt: float32) =
     G.currentAreaId = 0
     G.nextAreaId = 1
     G.e.kind = gMouseUp
+    G.e.xrel = 0
+    G.e.yrel = 0
     G.element = 0
     onGui()
     G.wasMouseDown = false

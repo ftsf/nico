@@ -1874,7 +1874,7 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
   let transparentColor = 0.uint8
 
   if surface.channels == 4:
-    debug "loading font from RGBA", surface.filename
+    debug "loading font from RGBA", surface.filename, "chars", chars.runeLen
     let borderColorRGBA = (surface.data[0],surface.data[1],surface.data[2],surface.data[3])
     let transparentColorRGBA = (surface.data[4],surface.data[5],surface.data[6],surface.data[7])
 
@@ -1885,10 +1885,10 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
         surface.data[i*surface.channels+2],
         surface.data[i*surface.channels+3]
       )
-      if col == borderColorRGBA:
-        font.data[i] = borderColor
-      elif col == transparentColorRGBA:
+      if col[3] == 0:
         font.data[i] = transparentColor
+      elif col[0] > 127:
+        font.data[i] = borderColor
       else:
         font.data[i] = solidColor
 

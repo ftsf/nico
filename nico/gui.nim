@@ -537,7 +537,7 @@ proc drag*[T](G: Gui, text: string, value: var T, min: T, max: T,sensitivity: fl
 
     G.box(x,y,w,h,style)
 
-    G.drawGuiString(text & ": ", x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taLeft)
+    G.drawGuiString(text, x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taLeft)
     G.drawGuiString(getValueStr(value), x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taRight)
 
   if G.modalArea != 0:
@@ -616,7 +616,7 @@ proc drag*[T](G: Gui, text: string, value: var T, min, max: T, sensitivity: floa
 
 proc drag*[T](G: Gui, text: string, value: var T, min, max: T, sensitivity: float32, enabled: bool = true): bool =
   assert(G.area != nil)
-  let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text & ": " & getValueStr(value) & "  ") +  + G.hPadding * 2
+  let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text & ":" & getValueStr(value) & "  ") +  + G.hPadding * 2
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
   return G.drag(text, value, min, max, sensitivity, w, h, enabled)
 
@@ -642,7 +642,7 @@ proc slider*[T](G: Gui, text: string, value: var T, min: T, max: T, x,y,w,h: Pin
       setColor(G.colorSets[G.outcome].sliderHandle)
       rectfill(max(minx + range.float32 * fillAmount - 1, minx), y+1, min(minx + range.float32 * fillAmount + 1, maxx), y+h-2)
 
-    G.drawGuiString(text & ": ", x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taLeft)
+    G.drawGuiString(text, x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taLeft)
     G.drawGuiString(getValueStr(value), x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taRight)
 
   if G.modalArea != 0:
@@ -703,7 +703,7 @@ proc slider*[T](G: Gui, text: string, value: var T, min, max: T, w, h: int, enab
 
 proc slider*[T](G: Gui, text: string, value: var T, min, max: T, enabled: bool = true): bool =
   assert(G.area != nil)
-  let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text & ": " & getValueStr(value) & "  ") +  + G.hPadding * 2
+  let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text & ":" & getValueStr(value) & "  ") +  + G.hPadding * 2
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
   return G.slider(text, value, min, max, w, h, enabled)
 

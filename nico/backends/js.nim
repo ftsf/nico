@@ -137,7 +137,7 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   document.title = title
 
   if fixedScreenSize:
-    resizeCanvas(w,h,scale)
+    resizeCanvas(targetScreenWidth,targetScreenHeight,scale)
   else:
     resize(dom.window.innerWidth,dom.window.innerHeight)
 
@@ -558,12 +558,15 @@ proc resize*(displayW,displayH: int) =
   echo "canvas target size ", targetScreenWidth, " x ", targetScreenHeight
   screenScale = max(1'f, min((displayW.float32 / targetScreenWidth.float32).floor, (displayH.float32 / targetScreenHeight.float32).floor))
   echo "scale ", screenScale
-  screenPaddingX = 0
-  screenPaddingY = 0
-  screenWidth = displayW div screenScale.int
-  screenHeight = displayH div screenScale.int
-  echo "canvas ", screenWidth, " x ", screenHeight
-  resizeCanvas(screenWidth,screenHeight,screenScale.int)
+
+  if fixedScreenSize:
+    var canvasW = targetScreenWidth
+    var canvasH = targetScreenHeight
+    resizeCanvas(canvasW,canvasH,screenScale.int)
+  else:
+    screenWidth = displayW div screenScale.int
+    screenHeight = displayH div screenScale.int
+    resizeCanvas(screenWidth,screenHeight,screenScale.int)
 
 proc resize*() =
   resize(dom.window.innerWidth,dom.window.innerHeight)

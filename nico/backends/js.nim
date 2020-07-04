@@ -4,6 +4,7 @@ import ajax
 import html5_canvas
 import math
 import sequtils
+import jsffi
 
 import common
 import nico/controller
@@ -438,12 +439,13 @@ proc process(self: var Channel) =
     discard
 
 proc audioClock() =
-  sfxGain.gain.value = sfxVolume
-  musicGain.gain.value = musicVolume
-  masterGain.gain.value = masterVolume
+  if audioContext != nil:
+    sfxGain.gain.value = sfxVolume
+    musicGain.gain.value = musicVolume
+    masterGain.gain.value = masterVolume
 
-  for channel in mitems(audioChannels):
-    channel.process()
+    for channel in mitems(audioChannels):
+      channel.process()
 
 proc step() =
   if loading > 0:
@@ -524,21 +526,29 @@ proc init*(org, app: string) =
   controllers = newSeq[NicoController]()
   controllers.add(newNicoController(-1))
 
-  audioContext = newAudioContext()
-  sfxGain = audioContext.createGain();
-  sfxGain.gain.value = 1.0
-  musicGain = audioContext.createGain();
-  musicGain.gain.value = 1.0
-  masterGain = audioContext.createGain();
-  masterGain.gain.value = 1.0
+  try:
+    audioContext = newAudioContext()
+  except JsTypeError:
+    audioContext = nil
 
-  connect(sfxGain, masterGain)
-  connect(musicGain, masterGain)
-  connect(masterGain, audioContext.destination)
+  if audioContext != nil:
+    echo "audioContext established"
+    sfxGain = audioContext.createGain();
+    sfxGain.gain.value = 1.0
+    musicGain = audioContext.createGain();
+    musicGain.gain.value = 1.0
+    masterGain = audioContext.createGain();
+    masterGain.gain.value = 1.0
 
-  for c in mitems(audioChannels):
-    c.gain = audioContext.createGain()
-    c.gain.gain.value = 1.0
+    connect(sfxGain, masterGain)
+    connect(musicGain, masterGain)
+    connect(masterGain, audioContext.destination)
+
+    for c in mitems(audioChannels):
+      c.gain = audioContext.createGain()
+      c.gain.gain.value = 1.0
+  else:
+    echo "no audioContext"
 
 proc flip*() =
   present()
@@ -600,6 +610,8 @@ proc initNoiseBuffer(samples: int, freq: float32): AudioBuffer =
   return b
 
 proc loadSfx*(sfxId: SfxId, filename: string) =
+  if audioContext == nil:
+    return
   loading += 1
   var xhr = newXMLHttpRequest()
   xhr.open("GET", assetPath & filename, true)
@@ -616,6 +628,8 @@ proc loadSfx*(sfxId: SfxId, filename: string) =
   xhr.send()
 
 proc loadMusic*(musicId: MusicId, filename: string) =
+  if audioContext == nil:
+    return
   loading += 1
   var xhr = newXMLHttpRequest()
   xhr.open("GET", assetPath & filename, true)
@@ -632,6 +646,8 @@ proc loadMusic*(musicId: MusicId, filename: string) =
   xhr.send()
 
 proc mute*() {.exportc:"mute".} =
+  if audioContext == nil:
+    return
   if masterGain.gain.value != 0.0:
     echo "muting audio"
     masterGain.gain.value = 0.0
@@ -640,6 +656,8 @@ proc mute*() {.exportc:"mute".} =
     masterGain.gain.value = 1.0
 
 proc sfx*(channel: AudioChannelId = audioChannelAuto, sfxId: SfxId, loop: int = 0) =
+  if audioContext == nil:
+    return
   if sfxData[sfxId] != nil:
     if audioChannels[channel].source != nil:
       audioChannels[channel].stop()
@@ -655,6 +673,9 @@ proc getMusic*(channel: int): int =
   return -1
 
 proc music*(channel: AudioChannelId, musicId: MusicId, loop: int = -1) =
+  if audioContext == nil:
+    return
+
   if audioChannels[channel].source != nil:
     audioChannels[channel].source.stop()
     audioChannels[channel].source = nil
@@ -670,31 +691,58 @@ proc music*(channel: AudioChannelId, musicId: MusicId, loop: int = -1) =
     audioChannels[channel].musicId = musicId
 
 proc volume*(channel: AudioChannelId, volume: int) =
+  if audioContext == nil:
+    return
+
   audioChannels[channel].gain.gain.value = (volume.float32 / 255.0)
 
 proc pitchbend*(channel: AudioChannelId, changeSpeed: range[-128..128]) =
+  if audioContext == nil:
+    return
+
   audioChannels[channel].pchange = changeSpeed
 
 proc vibrato*(channel: AudioChannelId, speed: range[1..15], amount: range[0..15]) =
+  if audioContext == nil:
+    return
+
   audioChannels[channel].vibspeed = speed
   audioChannels[channel].vibamount = amount
 
 proc glide*(channel: AudioChannelId, glide: range[0..15]) =
+  if audioContext == nil:
+    return
+
   audioChannels[channel].glide = glide
 
 proc wavData*(channel: AudioChannelId): array[32, uint8] =
+  if audioContext == nil:
+    return
+
   return audioChannels[channel].wavData
 
 proc wavData*(channel: AudioChannelId, data: array[32, uint8]) =
+  if audioContext == nil:
+    return
+
   audioChannels[channel].wavData = data
 
 proc pitch*(channel: AudioChannelId, freq: float32) =
+  if audioContext == nil:
+    return
+
   audioChannels[channel].targetFreq = freq
 
 proc synthShape*(channel: AudioChannelId, newShape: SynthShape) =
+  if audioContext == nil:
+    return
+
   audioChannels[channel].shape = newShape
 
 proc synth*(channel: int, shape: SynthShape, freq: float32, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
+  if audioContext == nil:
+    return
+
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
 
@@ -807,10 +855,16 @@ proc synth*(channel: int, shape: SynthShape, freq: float32, init: range[0..15], 
 
 
 proc arp*(channel: int, arp: uint16, speed: uint8 = 1) =
+  if audioContext == nil:
+    return
+
   audioChannels[channel].arp = arp
   audioChannels[channel].arpSpeed = max(1.uint8, speed)
 
 proc synthUpdate*(channel: int, shape: SynthShape, freq: float32) =
+  if audioContext == nil:
+    return
+
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
   if shape != synSame:

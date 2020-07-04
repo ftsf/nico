@@ -168,6 +168,20 @@ proc palCol*(c: Pint, r,g,b: uint8) =
   ## sets the palette color to rgb value
   currentPalette.data[c.uint8] = (r,g,b)
 
+proc palIndex*(r,g,b: uint8): int =
+  ## gets the closest color in the palette to given r,g,b
+  var bestIndex = 0
+  var smallestDiff = 99999
+  for i,v in currentPalette.data:
+    let rdiff = abs(v.r.int - r.int)
+    let gdiff = abs(v.g.int - g.int)
+    let bdiff = abs(v.b.int - b.int)
+    let diff = rdiff + gdiff + bdiff
+    if diff < smallestDiff:
+      smallestDiff = diff
+      bestIndex = i
+  return bestIndex
+
 # Clipping
 proc clip*(x,y,w,h: Pint)
 proc clip*()

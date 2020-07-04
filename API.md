@@ -461,6 +461,11 @@ Resets transparent colors such that only color 0 is transparent.
 
 ---
 
+`palIndex(r,g,b: uint8): int`
+Returns the closest color index in the palette to color `r,g,b`
+
+---
+
 ### Dithering
 `ditherPattern(pattern: uint16 = 0b1111_1111_1111_1111)`
 Sets the current dither pattern for subsequent draw calls, default pattern is no dithering.

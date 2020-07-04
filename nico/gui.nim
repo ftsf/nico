@@ -510,6 +510,15 @@ proc toggle*(G: Gui, text: string, val: var bool, enabled: bool = true, keycode:
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
   return G.toggle(text, val, w, h, enabled, keycode)
 
+proc radio*[T: Ordinal](G: Gui, text: string, radioGroup: var T, index: T, enabled: bool = true): bool =
+  assert(G.area != nil)
+  let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text) + G.hPadding * 2
+  let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
+  var radioGroupIsIndex = radioGroup == index
+  let ret = G.toggle(text, radioGroupIsIndex, w, h, enabled)
+  if ret:
+    radioGroup = index
+
 proc getValueStr[T](value: T): string =
   when T is SomeFloat:
     result = value.formatFloat(ffDecimal, 2)

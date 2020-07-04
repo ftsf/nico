@@ -249,6 +249,7 @@ proc mousebtn*(b: range[0..2]): bool
 proc mousebtnup*(b: range[0..2]): bool
 proc mousebtnp*(b: range[0..2]): bool
 proc mousebtnpr*(b: range[0..2], r: Pint = 48): bool
+proc mousewheel*(): int
 
 # Input / Touch
 proc getTouches*(): seq[Touch] =

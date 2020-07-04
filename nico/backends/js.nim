@@ -130,6 +130,9 @@ proc requestPointerLock(e: Element) {.importjs:"#.requestPointerLock(@)".}
 proc requestFullscreen(e: Element) {.importjs:"#.requestFullscreen(@)".}
 var requestedFullscreen = false
 
+type WheelEvent = ref object of MouseEvent
+  deltaY: int
+
 proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = false) =
   targetScreenWidth = w
   targetScreenHeight = h
@@ -157,6 +160,12 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
     let e = e.MouseEvent
     mouseButtonsDown[e.button] = true
     e.preventDefault()
+
+  canvas.addEventListener("wheel", proc(e: dom.Event) =
+    let e = WheelEvent(e)
+    mouseWheelState = sgn(e.deltaY)
+    e.preventDefault()
+  )
 
   canvas.onmouseup = proc(e: dom.Event) =
     let e = e.MouseEvent
@@ -493,6 +502,8 @@ proc step() =
   present()
 
   audioClock()
+
+  mouseWheelState = 0
 
   frame += 1
 

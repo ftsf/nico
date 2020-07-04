@@ -51,6 +51,7 @@ type
     gMouseDown
     gMouseUp
     gMouseMove
+    gMouseWheel
     gKeyDown
 
   GuiEvent = object
@@ -578,6 +579,24 @@ proc drag*[T](G: Gui, text: string, value: var T, min: T, max: T,sensitivity: fl
         G.downElement = 0
         return
 
+  elif G.e.kind == gMouseWheel:
+    if pointInRect(G.e.x, G.e.y, x, y, w, h):
+      var sensitivity = sensitivity
+      if key(K_LCTRL) and key(K_LSHIFT):
+        sensitivity *= 0.01'f
+      elif key(K_LSHIFT):
+        sensitivity *= 0.1'f
+      elif key(K_LCTRL):
+        sensitivity *= 10'f
+
+      when T is SomeFloat:
+        value += sensitivity * G.e.yrel
+      else:
+        value += G.e.yrel.int
+
+      value = clamp(value, min, max)
+      return true
+
   return
 
 proc drag*[T](G: Gui, text: string, value: var T, min, max: T, sensitivity: float32, w, h: int, enabled: bool = true): bool =
@@ -657,6 +676,14 @@ proc slider*[T](G: Gui, text: string, value: var T, min: T, max: T, x,y,w,h: Pin
         G.downElement = 0
         return
 
+  elif G.e.kind == gMouseWheel:
+    if pointInRect(G.e.x, G.e.y, x, y, w, h):
+      when T is SomeFloat:
+        value += ((max - min) / w.float32) * G.e.yrel.float32
+      else:
+        value += G.e.yrel.int
+      value = clamp(value, min, max)
+      return true
   return
 
 proc slider*[T](G: Gui, text: string, value: var T, min, max: T, w, h: int, enabled: bool = true): bool =
@@ -939,42 +966,96 @@ proc update*(G: Gui, onGui: proc(), dt: float32) =
   let (mx,my) = mouse()
   let (mxrel,myrel) = mouseRel()
   var lastCount = 0
-  if mx != lastMouseX or my != lastMouseY:
+  var nTouches = getTouchCount()
+  if nTouches == 1:
+    let t = getTouches()[0]
+
+    if t.state == tsStarted:
+      G.currentAreaId = 0
+      G.nextAreaId = 1
+      G.e.kind = gMouseDown
+      G.e.x = t.x
+      G.e.y = t.y
+      G.e.xrel = 0
+      G.e.yrel = 0
+      G.element = 0
+      onGui()
+      G.wasMouseDown = true
+
+    elif t.state == tsMoved:
+      G.currentAreaId = 0
+      G.nextAreaId = 1
+      G.hoverElement = 0
+      G.activeHoverElement = 0
+      G.e.kind = gMouseMove
+      G.e.x = t.x
+      G.e.y = t.y
+      G.e.xrel = (t.x - lastMouseX).float32
+      G.e.yrel = (t.y - lastMouseY).float32
+      G.element = 0
+      onGui()
+      lastCount = G.element
+
+    elif t.state == tsEnded:
+      G.currentAreaId = 0
+      G.nextAreaId = 1
+      G.e.kind = gMouseUp
+      G.e.xrel = 0
+      G.e.yrel = 0
+      G.element = 0
+      onGui()
+      G.wasMouseDown = false
+      G.downElement = 0
+
+    lastMouseX = t.x
+    lastMouseY = t.y
+
+  else:
+    if mx != lastMouseX or my != lastMouseY:
+      G.currentAreaId = 0
+      G.nextAreaId = 1
+      G.hoverElement = 0
+      G.activeHoverElement = 0
+      G.e.kind = gMouseMove
+      G.e.x = mx
+      G.e.y = my
+      G.e.xrel = (mx - lastMouseX).float32
+      G.e.yrel = (my - lastMouseY).float32
+      G.element = 0
+      onGui()
+      lastCount = G.element
+    lastMouseX = mx
+    lastMouseY = my
+    if mousebtnp(0):
+      G.currentAreaId = 0
+      G.nextAreaId = 1
+      G.e.kind = gMouseDown
+      G.e.x = mx
+      G.e.y = my
+      G.e.xrel = 0
+      G.e.yrel = 0
+      G.element = 0
+      onGui()
+      G.wasMouseDown = true
+    if mousebtnup(0):
+      G.currentAreaId = 0
+      G.nextAreaId = 1
+      G.e.kind = gMouseUp
+      G.e.xrel = 0
+      G.e.yrel = 0
+      G.element = 0
+      onGui()
+      G.wasMouseDown = false
+      G.downElement = 0
+
+  if mousewheel() != 0:
     G.currentAreaId = 0
     G.nextAreaId = 1
-    G.hoverElement = 0
-    G.activeHoverElement = 0
-    G.e.kind = gMouseMove
-    G.e.x = mx
-    G.e.y = my
-    G.e.xrel = (mx - lastMouseX).float32
-    G.e.yrel = (my - lastMouseY).float32
-    G.element = 0
-    onGui()
-    lastCount = G.element
-  lastMouseX = mx
-  lastMouseY = my
-  if mousebtnp(0):
-    G.currentAreaId = 0
-    G.nextAreaId = 1
-    G.e.kind = gMouseDown
-    G.e.x = mx
-    G.e.y = my
+    G.e.kind = gMouseWheel
     G.e.xrel = 0
-    G.e.yrel = 0
+    G.e.yrel = mousewheel().float32
     G.element = 0
     onGui()
-    G.wasMouseDown = true
-  if mousebtnup(0):
-    G.currentAreaId = 0
-    G.nextAreaId = 1
-    G.e.kind = gMouseUp
-    G.e.xrel = 0
-    G.e.yrel = 0
-    G.element = 0
-    onGui()
-    G.wasMouseDown = false
-    G.downElement = 0
   if anyKeyp():
     G.currentAreaId = 0
     G.nextAreaId = 1

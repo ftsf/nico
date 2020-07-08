@@ -921,4 +921,4 @@ proc showMouse*() =
 
 proc errorPopup*(title: string, message: string) =
   echo "ERROR: ", title," : ", message
-  discard dom.window.alert(title & "\n" & message)
+  dom.window.alert(title & "\n" & message)

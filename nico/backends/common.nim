@@ -182,6 +182,7 @@ converter toPfloat*(x: float): Pfloat {.inline.} =
 var currentPalette*: Palette
 
 var touches*: seq[Touch]
+var touchMouseEmulation* = false
 
 var masterVolume* = 1.0
 var sfxVolume* = 1.0

@@ -4,6 +4,7 @@ import tables
 import hashes
 
 import strutils
+import sequtils
 import times
 
 import nico/ringbuffer
@@ -137,6 +138,8 @@ var audioInDeviceId: AudioDeviceID
 var audioInSample*: float32
 var audioBufferSize = 1024*2
 
+var displayWidth,displayHeight: int
+
 var inputSamples: seq[float32]
 var outputSamples: seq[float32]
 
@@ -228,6 +231,9 @@ proc resize*(w,h: int) =
     return
   # calculate screenScale based on size
 
+  displayWidth = w
+  displayHeight = h
+
   when defined(opengl):
     discard
   else:
@@ -235,7 +241,7 @@ proc resize*(w,h: int) =
       destroyRenderer(render)
 
   if window == nil:
-    echo "window is null, cannot resize"
+    debug "window is null, cannot resize"
     return
 
 
@@ -266,6 +272,7 @@ proc resize*(w,h: int) =
 
   else:
     render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync)
+    debug "created renderer"
 
   if integerScreenScale:
     screenScale = max(1.0, min(
@@ -305,7 +312,7 @@ proc resize*(w,h: int) =
       screenHeight = (displayH.float32 / screenScale).int
 
   # resize the buffers
-  debug screenPaddingX, screenPaddingY
+  debug "screenPadding ", screenPaddingX, screenPaddingY
 
   srcRect = sdl.Rect(x:0,y:0,w:screenWidth,h:screenHeight)
   dstRect = sdl.Rect(x:screenPaddingX,y:screenPaddingY,w:displayW, h:displayH)
@@ -318,6 +325,7 @@ proc resize*(w,h: int) =
   swCanvas = newSurface(screenWidth,screenHeight)
   swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
   if swCanvas32 == nil:
+    debug "error creating swCanvas32"
     raise newException(Exception, "error creating RGB surface")
 
   stencilBuffer = newSurface(screenWidth, screenHeight)
@@ -355,6 +363,8 @@ proc resize*(w,h: int) =
 
   for rf in resizeFuncs:
     rf(screenWidth,screenHeight)
+
+  debug "resize done"
 
 proc resize*() =
   if window == nil:
@@ -523,7 +533,10 @@ void main() {
 
   else:
     when defined(android):
-      window = createWindow(title.cstring, WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, (w * scale).cint, (h * scale).cint, WINDOW_FULLSCREEN)
+      var dm: DisplayMode
+      discard getCurrentDisplayMode(0, dm.addr)
+      window = createWindow(title.cstring, WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, dm.w, dm.h, WINDOW_FULLSCREEN)
+      debug "created window ", dm.w, dm.h
     else:
       window = createWindow(title.cstring, WINDOWPOS_CENTERED, WINDOWPOS_CENTERED, (w * scale).cint, (h * scale).cint, 
         (WINDOW_RESIZABLE or (if fullscreen: WINDOW_FULLSCREEN_DESKTOP else: 0)).uint32)
@@ -544,8 +557,11 @@ void main() {
 
   window.raiseWindow()
 
+  debug "nico.createWindow finished"
+
 proc readFile*(filename: string): string =
-  var fp = rwFromFile(filename, "r")
+  debug "readFile ", filename
+  var fp = rwFromFile(filename, "rb")
 
   if fp == nil:
     raise newException(IOError, "Unable to open file: " & filename)
@@ -605,9 +621,10 @@ proc readJsonFile*(filename: string): JsonNode =
   return parseJson(readFile(filename))
 
 proc saveJsonFile*(filename: string, data: JsonNode) =
-  var fp = open(filename, fmWrite)
-  fp.write(data.pretty())
-  fp.close()
+  var fp = rwFromFile(filename, "w")
+  var str = data.pretty()
+  discard rwWrite(fp, str[0].addr, 1.csize_t, str.len.csize_t)
+  discard fp.close(fp)
 
 proc present*() =
 
@@ -652,7 +669,7 @@ proc flip*() =
         recordFrames.add([recordFrame])
         recordFrame = newSurface(swCanvas.w, swCanvas.h)
 
-  #delay(0)
+  delay(0)
 
 proc saveScreenshot*() =
   createDir(writePath & "/screenshots")
@@ -779,24 +796,97 @@ proc appHandleEvent(evt: sdl.Event) =
     current_time = getTicks()
     focused = true
 
+  elif evt.kind == FingerDown:
+    if evt.tfinger.touchId == MOUSE_TOUCHID:
+      return
+    let sx = evt.tfinger.x.float32 * displayWidth.float32
+    let sy = evt.tfinger.y.float32 * displayHeight.float32
+    let scale = displayWidth.float32 / screenWidth.float32
+
+    touches.add(common.Touch(
+      state: tsStarted,
+      id: evt.tfinger.fingerId.int,
+      sx: sx,
+      sy: sy,
+      x: (sx / scale).int,
+      y: (sy / scale).int,
+      xrel: evt.tfinger.dx,
+      yrel: evt.tfinger.dy,
+      xrelraw: evt.tfinger.dx,
+      yrelraw: evt.tfinger.dy,
+    ))
+    return
+
+  elif evt.kind == FingerUp:
+    if evt.tfinger.touchId == MOUSE_TOUCHID:
+      return
+
+    let sx = evt.tfinger.x.float32 * displayWidth.float32
+    let sy = evt.tfinger.y.float32 * displayHeight.float32
+    let scale = displayWidth.float32 / screenWidth.float32
+
+    for t in touches.mitems:
+      if t.id == evt.tfinger.fingerId.int:
+        t.state = tsEnded
+        t.xrel = (sx - t.sx) / scale
+        t.yrel = (sy - t.sy) / scale
+        t.xrelraw = sx - t.sx
+        t.yrelraw = sy - t.sy
+        t.sx = sx
+        t.sy = sy
+        t.x = (sx / scale).int
+        t.y = (sy / scale).int
+        return
+
+  elif evt.kind == FingerMotion:
+    if evt.tfinger.touchId == MOUSE_TOUCHID:
+      return
+
+    let sx = evt.tfinger.x.float32 * displayWidth.float32
+    let sy = evt.tfinger.y.float32 * displayHeight.float32
+    let scale = displayWidth.float32 / screenWidth.float32
+
+    for t in touches.mitems:
+      if t.id == evt.tfinger.fingerId.int:
+        t.state = tsMoved
+        t.xrel = (sx - t.sx) / scale
+        t.yrel = (sy - t.sy) / scale
+        t.xrelraw = sx - t.sx
+        t.yrelraw = sy - t.sy
+        t.sx = sx
+        t.sy = sy
+        t.x = (sx / scale).int
+        t.y = (sy / scale).int
+        return
+
   elif evt.kind == MouseWheel:
     mouseWheelState = evt.wheel.y
 
   elif evt.kind == MouseButtonDown:
+    if touchMouseEmulation == false and evt.motion.which == TOUCH_MOUSEID:
+      return
+
     discard captureMouse(true)
     if evt.button.button < 4:
       mouseButtonsDown[evt.button.button-1] = true
       mouseButtons[evt.button.button-1] = 1
 
   elif evt.kind == MouseButtonUp:
+    if touchMouseEmulation == false and evt.motion.which == TOUCH_MOUSEID:
+      return
+
     if evt.button.button < 4:
       discard captureMouse(false)
       mouseButtonsDown[evt.button.button-1] = false
       mouseButtons[evt.button.button-1] = -1
 
   elif evt.kind == MouseMotion:
+    if touchMouseEmulation == false and evt.motion.which == TOUCH_MOUSEID:
+      return
+
     if evt.motion.which != TOUCH_MOUSEID:
       mouseDetected = true
+
     mouseRawX = evt.motion.x - screenPaddingX
     mouseRawY = evt.motion.y - screenPaddingY
     mouseX = (mouseRawX.float32 / screenScale.float32).int
@@ -1076,6 +1166,12 @@ proc step*() {.cdecl.} =
 
     for controller in mitems(controllers):
       controller.postUpdate()
+
+    for touch in touches.mitems:
+      if touch.state == tsStarted or touch.state == tsMoved:
+        touch.state = tsHeld
+
+    touches.keepItIf(it.state notin [tsEnded, tsCancelled])
 
     frame += 1
     if acc > timeStep and acc < timeStep+timeStep:
@@ -1522,13 +1618,9 @@ proc loadMapBinary*(index: int, filename: string) =
 
 proc newSfxBuffer(filename: string): SfxBuffer =
   result = new(SfxBuffer)
-  var fp = open(filename, fmRead)
-  if fp == nil:
-    raise newException(IOError, "unable to open sfx file for reading: " & filename)
-
-  var v = stb_vorbis_open_file(fp, 0, nil, nil)
+  var data = readFile(filename)
+  var v = stb_vorbis_open_memory(data[0].addr, data.len, nil, nil)
   if v == nil:
-    fp.close()
     raise newException(IOError, "error opening vorbis file: " & filename)
 
   let info = stb_vorbis_get_info(v)
@@ -1545,8 +1637,6 @@ proc newSfxBuffer(filename: string): SfxBuffer =
     echo "only loaded ", count, " samples from ", filename, " expected: ", nSamples
 
   stb_vorbis_close(v)
-
-  fp.close()
 
 proc reset*(channel: var Channel) =
   channel.kind = channelNone
@@ -1742,6 +1832,12 @@ proc hideMouse*() =
 proc showMouse*() =
   discard showCursor(1)
 
-proc crtFilter(on: bool) =
+proc crtFilter*(on: bool) =
   when defined(opengl):
     useCRTFilter = on
+    if window != nil:
+      resize()
+
+proc errorPopup*(title: string, message: string) =
+  echo "ERROR: ", title," : ", message
+  discard showSimpleMessageBox(MessageBoxError, title, message, window)

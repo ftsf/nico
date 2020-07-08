@@ -4,6 +4,7 @@ import ajax
 import html5_canvas
 import math
 import sequtils
+import strformat
 import jsffi
 
 import common
@@ -23,8 +24,6 @@ var audioContext: AudioContext
 
 var noiseBuffer: AudioBuffer
 var noiseBuffer2: AudioBuffer
-
-const touchMouseEmulation = false
 
 type Channel = object
   kind: ChannelKind
@@ -919,3 +918,7 @@ proc hideMouse*() =
 
 proc showMouse*() =
   canvas.style.cursor = "default"
+
+proc errorPopup*(title: string, message: string) =
+  echo "ERROR: ", title," : ", message
+  discard dom.window.alert(title & "\n" & message)

@@ -36,6 +36,8 @@ export profileEnd
 export ProfilerNode
 export profileHistory
 
+export errorPopup
+
 # Audio
 export joinPath
 export loadSfx
@@ -2826,7 +2828,6 @@ iterator all*[T](a: var openarray[T]): T {.inline.} =
 
 when defined(android):
   {.emit: """
-  #include <SDL_main.h>
 
   extern int cmdCount;
   extern char** cmdLine;
@@ -2834,7 +2835,7 @@ when defined(android):
 
   N_CDECL(void, NimMain)(void);
 
-  int main(int argc, char** args) {
+  int SDL_main(int argc, char** args) {
       cmdLine = args;
       cmdCount = argc;
       gEnv = NULL;

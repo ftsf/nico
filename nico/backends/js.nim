@@ -690,15 +690,13 @@ proc getMusic*(channel: int): int =
   return -1
 
 proc music*(channel: AudioChannelId, musicId: MusicId, loop: int = -1) =
-  if audioContext == nil:
-    return
-
   if audioChannels[channel].source != nil:
     audioChannels[channel].source.stop()
     audioChannels[channel].source = nil
     audioChannels[channel].musicId = -1
 
-  if musicData[musicId] != nil:
+
+  if musicId != -1 and musicData[musicId] != nil:
     var source = audioContext.createBufferSource()
     source.buffer = musicData[musicId]
     source.loop = true

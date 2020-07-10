@@ -54,12 +54,11 @@ jobs:
 
       - name: Build examples
         run: |
-          # FIXME:
-          # nimble paintout
+          nimble paintout
           nimble platformer
           nimble audio
-          # FIXME:
-          # nimble vertex
+          nimble vertex
+          nimble gui
 
       - name: Build exampleApp
         run: |

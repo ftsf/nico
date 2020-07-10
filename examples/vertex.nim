@@ -1,13 +1,9 @@
 import nico
 import nico/vec
 import nico/console
-import nico/tweaks
 import sets
 import hashes
-import deques
 import sequtils
-
-{.this:self.}
 
 type Bullet = object
   pos: Vec2f
@@ -79,7 +75,7 @@ proc seek(self: Boid, target: Vec2f, weight = 1.0'f) =
     self.steering += (target - self.pos).normalized * self.maxSpeed * weight
 
 proc arrive(self: Boid, target: Vec2f, stoppingDistance = 1.0, weight = 1.0) =
-  steering += (target - pos).normalized * maxSpeed * weight
+  self.steering += (target - self.pos).normalized * self.maxSpeed * weight
 
 
 var boids: seq[Boid]
@@ -107,8 +103,6 @@ const shipMaxForce = 100.0
 const shipAttackRadius = 12.0
 
 proc gameInit() =
-  reloadTweaks()
-
   setConsoleBG(24)
   setConsoleFG(21)
 

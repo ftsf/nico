@@ -1948,10 +1948,21 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
       newChar = true
       currentRect.x = x + 1
 
+  echo "loaded font with ", font.rects.len, " chars"
+
   if font.rects.len != chars.runeLen:
     raise newException(Exception, "didn't load all characters from font, loaded: " & $font.rects.len & " bitmaps of specified chars " & $chars.runeLen)
 
   return font
+
+import nico/fontdata
+
+proc loadDefaultFont*(index: int) =
+  let shouldReplace = currentFont == fonts[index]
+  fonts[index] = createFontFromSurface(defaultFontSurface, defaultFontChars)
+  if shouldReplace:
+    debug "updating current font ", index
+    setFont(index)
 
 proc loadFont*(index: int, filename: string) =
   let shouldReplace = currentFont == fonts[index]
@@ -2719,6 +2730,8 @@ proc init*(org, app: string) =
   spritesheets[0].tw = 8
   spritesheets[0].th = 8
   setSpritesheet(0)
+
+  loadDefaultFont(0)
 
   clip()
 

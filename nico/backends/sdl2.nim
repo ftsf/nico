@@ -67,9 +67,6 @@ type
     musicSampleRate: float32
     musicBuffers: array[2,array[musicBufferSize,float32]]
 
-    arp: uint16
-    arpSpeed: uint8
-
     loop: int
     phase: float32 # or position
     freq: float32 # or speed
@@ -80,6 +77,8 @@ type
     shape: SynthShape
     gain: float32
 
+    synthData: SynthData
+    synthDataIndex: int
     init: range[0..15]
     env: range[-7..7]
     envValue: float32
@@ -146,8 +145,8 @@ var outputSamples: seq[float32]
 var window: Window
 
 var nextTick = 0
-var clock: bool
-var nextClock = 0
+var audioClock: bool
+var nextAudioClock = 0
 
 when defined(opengl):
   var glContext: GLContext
@@ -210,6 +209,8 @@ keymap = [
   @[SCANCODE_RETURN.int], # Start
   @[SCANCODE_ESCAPE.int, SCANCODE_BACKSPACE.int], # Back
 ]
+
+proc resetChannel*(channel: var Channel)
 
 proc createRecordBuffer(forceClear: bool = false) =
   if window == nil:
@@ -1266,129 +1267,130 @@ proc queueAudio*(samples: var seq[float32]) =
   if ret != 0:
     raise newException(Exception, "error queueing audio: " & $getError())
 
+proc processSynth(self: var Channel): float32 =
+  if audioSampleId mod 2 == 0:
+    if audioClock:
+      if self.synthDataIndex >= 0:
+        let i = self.synthDataIndex div (self.synthData.speed.int + 1)
+        if i < self.synthData.length.int:
+          self.shape = self.synthData.steps[i].shape
+          self.basefreq = note(self.synthData.steps[i].note)
+          self.targetFreq = self.basefreq
+          self.freq = self.basefreq
+          self.trigger = true
+          self.init = self.synthData.steps[i].volume
+          self.env = 0
+          self.envPhase = 0
+          self.pchange = 0
+          self.synthDataIndex += 1
+        else:
+          # reached end of data
+          if self.synthData.loop > 0:
+            if self.synthData.loop != 15:
+              # if not looping forever
+              self.synthData.loop.dec()
+            if self.synthData.loop > 0:
+              self.synthDataIndex = 0
+          else:
+            self.resetChannel()
+
+    if self.glide == 0:
+      self.freq = self.targetFreq
+    elif audioClock:
+      self.freq = lerp(self.freq, self.targetFreq, 1.0 - (self.glide.float32 / 16.0))
+    self.phase += (self.freq * invSampleRate) * TAU
+    self.phase = self.phase mod TAU
+
+  var o: float32 = 0.0
+  case self.shape:
+  of synSin:
+    o = sin(self.phase)
+  of synSqr:
+    o = ((if self.phase mod TAU < (TAU * 0.5): 1.0 else: -1.0) * 0.577).float32
+  of synP12:
+    o = ((if self.phase mod TAU < (TAU * 0.125): 1.0 else: -1.0) * 0.577).float32
+  of synP25:
+    o = ((if self.phase mod TAU < (TAU * 0.25): 1.0 else: -1.0) * 0.577).float32
+  of synTri:
+    o = ((abs((self.phase mod TAU) / TAU * 2.0 - 1.0)*2.0 - 1.0) * 0.7).float32
+  of synSaw:
+    o = ((((self.phase mod TAU) - PI) / PI) * 0.5).float32
+
+  of synNoise:
+    if self.freq != 0.0:
+      if self.nextClick <= 0:
+        let lsb: uint32 = (self.lfsr and 1).uint32
+        self.lfsr = self.lfsr shr 1
+        if lsb == 1:
+          self.lfsr = self.lfsr xor 0xb400
+        self.outvalue = if lsb == 1: 1.0 else: -1.0
+        self.nextClick = ((1.0'f / self.freq) * sampleRate).int
+      self.nextClick -= 1
+    o = self.outvalue
+
+  of synNoise2:
+    if self.freq != 0.0:
+      if self.nextClick <= 0:
+        let lsb: uint32 = (self.lfsr2 and 1).uint32
+        self.lfsr2 = self.lfsr2 shr 1
+        if lsb == 1:
+          self.lfsr2 = self.lfsr2 xor 0x0043
+        self.outvalue = if lsb == 1: 1.0 else: -1.0
+        self.nextClick = ((1.0'f / self.freq) * sampleRate).int
+      self.nextClick -= 1
+    o = self.outvalue
+
+  of synWav:
+    if self.freq != 0.0:
+      o = self.wavData[(self.phase mod 1.0 * 32.0).int].float32 / 16.0
+
+  else:
+    o = 0.0
+  o = o * self.gain
+
+  if audioSampleId mod 2 == 0:
+    if audioClock:
+      if self.length > 0:
+        self.length -= 1
+        if self.length == 0:
+          self.kind = channelNone
+
+      self.envPhase += 1
+
+      if self.vibamount > 0:
+        self.freq = self.basefreq + sin(self.envPhase.float32 / self.vibspeed.float32) * self.basefreq * 0.03 * self.vibamount.float32
+
+      if self.pchange != 0:
+        self.targetFreq = self.targetFreq + self.targetFreq * self.pchange.float32 / 128.0
+        self.basefreq = self.targetFreq
+        self.freq = self.targetFreq
+        if self.targetFreq > sampleRate * 0.5'f:
+          self.targetFreq = sampleRate * 0.5'f
+
+      # determine the env value
+      if self.env < 0:
+        # decay
+        self.envValue = clamp(lerp(self.init.float32 / 15.0, 0, self.envPhase / (-self.env * 4)), 0.0, 1.0)
+        if self.envValue <= 0:
+          self.kind = channelNone
+      elif self.env > 0:
+        # attack
+        self.envValue = clamp(lerp(self.init.float32 / 15.0, 1.0, self.envPhase / (self.env * 4)), 0.0, 1.0)
+      elif self.env == 0:
+        self.envValue = self.init.float32 / 15.0
+
+      self.gain = clamp(lerp(self.gain, self.envValue, 0.9), 0.0, 1.0)
+
+  return o * sfxVolume
+
+
+
 proc process(self: var Channel): float32 =
   case self.kind:
   of channelNone:
     return 0.0
   of channelSynth:
-    if audioSampleId mod 2 == 0:
-      if self.glide == 0:
-        self.freq = self.targetFreq
-      elif clock:
-        self.freq = lerp(self.freq, self.targetFreq, 1.0 - (self.glide.float32 / 16.0))
-      self.phase += (self.freq * invSampleRate) * TAU
-      self.phase = self.phase mod TAU
-    var o: float32 = 0.0
-    case self.shape:
-    of synSin:
-      o = sin(self.phase)
-    of synSqr:
-      o = ((if self.phase mod TAU < (TAU * 0.5): 1.0 else: -1.0) * 0.577).float32
-    of synP12:
-      o = ((if self.phase mod TAU < (TAU * 0.125): 1.0 else: -1.0) * 0.577).float32
-    of synP25:
-      o = ((if self.phase mod TAU < (TAU * 0.25): 1.0 else: -1.0) * 0.577).float32
-    of synTri:
-      o = ((abs((self.phase mod TAU) / TAU * 2.0 - 1.0)*2.0 - 1.0) * 0.7).float32
-    of synSaw:
-      o = ((((self.phase mod TAU) - PI) / PI) * 0.5).float32
-
-    of synNoise:
-      if self.freq != 0.0:
-        if self.nextClick <= 0:
-          let lsb: uint32 = (self.lfsr and 1).uint32
-          self.lfsr = self.lfsr shr 1
-          if lsb == 1:
-            self.lfsr = self.lfsr xor 0xb400
-          self.outvalue = if lsb == 1: 1.0 else: -1.0
-          self.nextClick = ((1.0'f / self.freq) * sampleRate).int
-        self.nextClick -= 1
-      o = self.outvalue
-
-    of synNoise2:
-      if self.freq != 0.0:
-        if self.nextClick <= 0:
-          let lsb: uint32 = (self.lfsr2 and 1).uint32
-          self.lfsr2 = self.lfsr2 shr 1
-          if lsb == 1:
-            self.lfsr2 = self.lfsr2 xor 0x0043
-          self.outvalue = if lsb == 1: 1.0 else: -1.0
-          self.nextClick = ((1.0'f / self.freq) * sampleRate).int
-        self.nextClick -= 1
-      o = self.outvalue
-
-    of synWav:
-      if self.freq != 0.0:
-        o = self.wavData[(self.phase mod 1.0 * 32.0).int].float32 / 16.0
-
-    else:
-      o = 0.0
-    o = o * self.gain
-
-    if audioSampleId mod 2 == 0:
-      if clock:
-        if self.length > 0:
-          self.length -= 1
-          if self.length == 0:
-            self.kind = channelNone
-
-        self.envPhase += 1
-
-        if self.vibamount > 0:
-          self.freq = self.basefreq + sin(self.envPhase.float32 / self.vibspeed.float32) * self.basefreq * 0.03 * self.vibamount.float32
-
-        if self.pchange != 0:
-          self.targetFreq = self.targetFreq + self.targetFreq * self.pchange.float32 / 128.0
-          self.basefreq = self.targetFreq
-          self.freq = self.targetFreq
-          if self.targetFreq > sampleRate * 0.5'f:
-            self.targetFreq = sampleRate * 0.5'f
-
-        if self.arp != 0:
-          let a0 = (self.arp and 0x000f)
-          let a1 = (self.arp and 0x00f0) shr 4
-          let a2 = (self.arp and 0x0f00) shr 8
-          let a3 = (self.arp and 0xf000) shr 12
-          var arpSteps = 0
-          if a3 != 0:
-            arpSteps = 5
-          elif a2 != 0:
-            arpSteps = 4
-          elif a1 != 0:
-            arpSteps = 3
-          elif a0 != 0:
-            arpSteps = 2
-          else:
-            arpSteps = 1
-
-          if arpSteps > 0:
-            if (self.envPhase / self.arpSpeed.int) mod arpSteps == 1:
-              self.targetFreq = self.basefreq + self.basefreq * 0.06 * a0.float32
-            elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 2:
-              self.targetFreq = self.basefreq + self.basefreq * 0.06 * a1.float32
-            elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 3:
-              self.targetFreq = self.basefreq + self.basefreq * 0.06 * a2.float32
-            elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 4:
-              self.targetFreq = self.basefreq + self.basefreq * 0.06 * a3.float32
-            else:
-              self.targetFreq = self.basefreq
-
-        # determine the env value
-        if self.env < 0:
-          # decay
-          self.envValue = clamp(lerp(self.init.float32 / 15.0, 0, self.envPhase / (-self.env * 4)), 0.0, 1.0)
-          if self.envValue <= 0:
-            self.kind = channelNone
-        elif self.env > 0:
-          # attack
-          self.envValue = clamp(lerp(self.init.float32 / 15.0, 1.0, self.envPhase / (self.env * 4)), 0.0, 1.0)
-        elif self.env == 0:
-          self.envValue = self.init.float32 / 15.0
-
-        self.gain = clamp(lerp(self.gain, self.envValue, 0.9), 0.0, 1.0)
-
-    return o * sfxVolume
-
+    return self.processSynth()
   of channelWave:
     var o: float32 = 0.0
     o = self.buffer.data.interpolatedLookup(self.phase) * self.gain
@@ -1420,7 +1422,7 @@ proc process(self: var Channel): float32 =
             self.loop -= 1
           discard stb_vorbis_seek_frame(self.musicFile, 0)
         else:
-          self.reset()
+          self.resetChannel()
 
     return o * musicVolume
   of channelCallback:
@@ -1444,12 +1446,12 @@ proc queueMixerAudio*() =
       audioInSample = 0'f
 
     if i mod 2 == 0:
-      nextClock -= 1
-      if nextClock <= 0:
-        clock = true
-        nextClock = (sampleRate div 60)
+      nextAudioClock -= 1
+      if nextAudioClock <= 0:
+        audioClock = true
+        nextAudioClock = (sampleRate div 60)
       else:
-        clock = false
+        audioClock = false
 
       nextTick -= 1
       if nextTick <= 0 and tickFunc != nil:
@@ -1489,7 +1491,7 @@ proc initMixer*(wantsAudioIn = false) =
     if audioDeviceId == 0:
       raise newException(Exception, "Unable to open audio device: " & $getError())
     else:
-      echo "opened audio output ", obtained.freq.int, " channels: ", obtained.channels.int, " format: ", obtained.format.toHex()
+      debug "opened audio output ", obtained.freq.int, " channels: ", obtained.channels.int, " format: ", obtained.format.toHex()
 
     sampleRate = obtained.freq.float32
     invSampleRate = 1.0 / obtained.freq.float32
@@ -1506,16 +1508,16 @@ proc initMixer*(wantsAudioIn = false) =
 
       let nAudioInDevices = getNumAudioDevices(1)
 
-      echo "nAudioInDevices: ", nAudioInDevices
+      debug "nAudioInDevices: ", nAudioInDevices
       for i in 0..<nAudioInDevices:
-        echo "id: ", i, " = ", getAudioDeviceName(i, 1)
+        debug "id: ", i, " = ", getAudioDeviceName(i, 1)
 
       if nAudioInDevices > 0:
         audioInDeviceId = openAudioDevice(nil, 1, audioInSpec.addr, obtained.addr, 0)
         if audioInDeviceId == 0:
           raise newException(Exception, "Unable to open audio input device: " & $getError())
         else:
-          echo "opened audio input  ", obtained.freq.int, " channels: ", obtained.channels.int, " format: ", obtained.format.toHex()
+          debug "opened audio input  ", obtained.freq.int, " channels: ", obtained.channels.int, " format: ", obtained.format.toHex()
         inputSamples = newSeq[float32](audioBufferSize)
         pauseAudioDevice(audioInDeviceId, 0)
 
@@ -1634,12 +1636,13 @@ proc newSfxBuffer(filename: string): SfxBuffer =
 
   let count = stb_vorbis_get_samples_float_interleaved(v, info.channels, result.data[0].addr, nSamples * info.channels.int)
   if count < nSamples:
-    echo "only loaded ", count, " samples from ", filename, " expected: ", nSamples
+    debug "only loaded ", count, " samples from ", filename, " expected: ", nSamples
 
   stb_vorbis_close(v)
 
-proc reset*(channel: var Channel) =
+proc resetChannel*(channel: var Channel) =
   channel.kind = channelNone
+  channel.synthDataIndex = -1
   if channel.musicFile != nil:
     stb_vorbis_close(channel.musicFile)
     channel.musicFile = nil
@@ -1675,10 +1678,10 @@ proc findFreeChannel(priority: float32): AudioChannelId =
 
 proc sfx*(channel: AudioChannelId = -1, index: SfxId, loop: int = 1, gain: Pfloat = 1.0, pitch: Pfloat = 1.0, priority: Pfloat = Inf) =
   if index == -1 and channel == audioChannelAuto:
-    echo "resetting all audio channels"
+    debug "resetting all audio channels"
     # stop all audio
     for i in 0..<nAudioChannels:
-      audioChannels[i].reset()
+      audioChannels[i].resetChannel()
     return
 
   let channel = if channel == audioChannelAuto: findFreeChannel(priority) else: channel
@@ -1686,7 +1689,7 @@ proc sfx*(channel: AudioChannelId = -1, index: SfxId, loop: int = 1, gain: Pfloa
     return
 
   if index < 0:
-    audioChannels[channel].reset()
+    audioChannels[channel].resetChannel()
     return
 
   if index > 63:
@@ -1705,7 +1708,7 @@ proc sfx*(channel: AudioChannelId = -1, index: SfxId, loop: int = 1, gain: Pfloa
 proc music*(channel: AudioChannelId, index: int, loop: int = -1) =
   if index == -1:
     # stop music
-    audioChannels[channel].reset()
+    audioChannels[channel].resetChannel()
     return
 
   if index < 0 or index >= 64:
@@ -1784,14 +1787,25 @@ proc synth*(channel: AudioChannelId, shape: SynthShape, freq: Pfloat, init: rang
   audioChannels[channel].pchange = 0
   audioChannels[channel].loop = -1
   audioChannels[channel].length = length
-  audioChannels[channel].arp = 0x0000
-  audioChannels[channel].arpSpeed = 1
   audioChannels[channel].vibamount = 0
   audioChannels[channel].vibspeed = 1
+  audioChannels[channel].synthDataIndex = -1
 
-proc arp*(channel: AudioChannelId, arp: uint16, speed: uint8 = 1) =
-  audioChannels[channel].arp = arp
-  audioChannels[channel].arpSpeed = max(1.uint8, speed)
+proc synth*(channel: AudioChannelId, synthData: SynthData) =
+  if channel > audioChannels.high:
+    raise newException(KeyError, "invalid channel: " & $channel)
+  audioChannels[channel].kind = channelSynth
+  audioChannels[channel].synthData = synthData
+  audioChannels[channel].synthDataIndex = 0
+  audioChannels[channel].loop = synthData.loop
+  audioChannels[channel].trigger = true
+
+proc synth*(channel: AudioChannelId, synthString: string) =
+  let sd = synthDataFromString(synthString)
+  synth(channel, sd)
+
+proc synthIndex*(channel: AudioChannelId): int =
+  return audioChannels[channel].synthDataIndex div (audioChannels[channel].synthData.speed.int+1)
 
 proc synthUpdate*(channel: AudioChannelId, shape: SynthShape, freq: Pfloat) =
   if channel > audioChannels.high:

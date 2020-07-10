@@ -31,9 +31,6 @@ type Channel = object
   callback: proc(samples: seq[float32])
   musicId: int
 
-  arp: uint16
-  arpSpeed: uint8
-
   loop: int
   phase: float32 # or position
   freq: float32 # or speed
@@ -44,6 +41,8 @@ type Channel = object
   shape: SynthShape
   gain: GainNode
 
+  synthData: SynthData
+  synthDataIndex: int
   init: range[0..15]
   env: range[-7..7]
   envValue: float32
@@ -68,6 +67,8 @@ type Channel = object
 var audioChannels: array[nAudioChannels, Channel]
 
 var tickFunc: proc() = nil
+
+proc synthSetOsc(self: var Channel)
 
 proc toNicoKeycode(x: int): Keycode =
   var x = x
@@ -357,7 +358,7 @@ proc loadSurfaceIndexed*(filename: string, callback: proc(surface: Surface)) =
   loadSurfaceRGBA(filename) do(surface: Surface):
     callback(surface.convertToIndexed())
 
-proc stop(self: var Channel) =
+proc resetChannel(self: var Channel) =
   if self.source != nil:
     self.source.disconnect()
     try:
@@ -367,7 +368,7 @@ proc stop(self: var Channel) =
     self.source = nil
   self.kind = channelNone
 
-proc process(self: var Channel) =
+proc audioClock(self: var Channel) =
   case self.kind:
   of channelNone:
     discard
@@ -375,8 +376,33 @@ proc process(self: var Channel) =
     if self.length > 0:
       self.length -= 1
       if self.length == 0:
-        self.stop()
+        self.resetChannel()
         return
+
+    if self.synthDataIndex >= 0:
+      let i = self.synthDataIndex div (self.synthData.speed.int + 1)
+      if i < self.synthData.length.int:
+        self.shape = self.synthData.steps[i].shape
+        self.basefreq = note(self.synthData.steps[i].note.int)
+        self.targetFreq = self.basefreq
+        self.freq = self.basefreq
+        self.trigger = true
+        self.init = self.synthData.steps[i].volume
+        self.env = 0
+        self.envPhase = 0
+        self.pchange = 0
+        self.synthDataIndex += 1
+        self.synthSetOsc()
+      else:
+        # reached end of data
+        if self.synthData.loop > 0:
+          if self.synthData.loop != 15:
+            # if not looping forever
+            self.synthData.loop.dec()
+          if self.synthData.loop > 0:
+            self.synthDataIndex = 0
+        else:
+          self.resetChannel()
 
     if self.glide == 0:
       self.freq = self.targetFreq
@@ -398,35 +424,6 @@ proc process(self: var Channel) =
     if self.vibamount > 0:
       self.targetFreq = self.basefreq + sin(self.envPhase.float32 / self.vibspeed.float32) * self.basefreq * 0.03'f * self.vibamount.float32
 
-    if self.arp != 0:
-      let a0 = (self.arp and 0x000f)
-      let a1 = (self.arp and 0x00f0) shr 4
-      let a2 = (self.arp and 0x0f00) shr 8
-      let a3 = (self.arp and 0xf000) shr 12
-      var arpSteps = 0
-      if a3 != 0:
-        arpSteps = 5
-      elif a2 != 0:
-        arpSteps = 4
-      elif a1 != 0:
-        arpSteps = 3
-      elif a0 != 0:
-        arpSteps = 2
-      else:
-        arpSteps = 1
-
-      if arpSteps > 0:
-        if (self.envPhase / self.arpSpeed.int) mod arpSteps == 1:
-          self.targetFreq = self.basefreq + self.basefreq * 0.06'f * a0.float32
-        elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 2:
-          self.targetFreq = self.basefreq + self.basefreq * 0.06'f * a1.float32
-        elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 3:
-          self.targetFreq = self.basefreq + self.basefreq * 0.06'f * a2.float32
-        elif (self.envPhase / self.arpSpeed.int) mod arpSteps == 4:
-          self.targetFreq = self.basefreq + self.basefreq * 0.06'f * a3.float32
-        else:
-          self.targetFreq = self.basefreq
-
     if self.source != nil:
       try:
         OscillatorNode(self.source).frequency.value = self.freq
@@ -438,7 +435,7 @@ proc process(self: var Channel) =
     if self.env < 0:
       self.envValue = clamp(lerp(self.init.float32 / 15.0'f, 0, self.envPhase / (-self.env * 4)), 0.0'f, 1.0'f)
       if self.envValue <= 0:
-        self.stop()
+        self.resetChannel()
         return
     elif self.env > 0:
       # attack
@@ -457,7 +454,7 @@ proc audioClock() =
     masterGain.gain.value = masterVolume
 
     for channel in mitems(audioChannels):
-      channel.process()
+      channel.audioClock()
 
 proc step() =
   if loading > 0:
@@ -678,7 +675,7 @@ proc sfx*(channel: AudioChannelId = audioChannelAuto, sfxId: SfxId, loop: int = 
     return
   if sfxData[sfxId] != nil:
     if audioChannels[channel].source != nil:
-      audioChannels[channel].stop()
+      audioChannels[channel].resetChannel()
 
     var source = audioContext.createBufferSource()
     source.buffer = sfxData[sfxId]
@@ -758,14 +755,80 @@ proc synthShape*(channel: AudioChannelId, newShape: SynthShape) =
 
   audioChannels[channel].shape = newShape
 
-proc synth*(channel: int, shape: SynthShape, freq: float32, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
+proc synthSetOsc(self: var Channel) =
+  if audioContext == nil:
+    return
+
+  if self.source != nil:
+    self.source.stop()
+
+  if self.shape == synNoise or self.shape == synNoise2:
+    when true:
+      var osc = audioContext.createBufferSource()
+
+      if self.shape == synNoise:
+        if noiseBuffer == nil:
+          noiseBuffer = initNoiseBuffer(4096, 1000.0)
+        osc.buffer = noiseBuffer
+      elif self.shape == synNoise2:
+        if noiseBuffer2 == nil:
+          noiseBuffer2 = initNoiseBuffer(128, 1000.0)
+        osc.buffer = noiseBuffer2
+
+      self.source = osc
+      osc.loop = true
+  else:
+    var osc = audioContext.createOscillator();
+    osc.`type` = case self.shape:
+    of synSin: "sine"
+    of synSqr: "square"
+    #of synP12: "custom"
+    #of synP25: "custom"
+    of synSaw: "sawtooth"
+    of synTri: "triangle"
+    else:
+      "sine"
+
+    osc.frequency.value = self.freq
+
+    if self.shape == synP12:
+      let d = 0.125
+      var real: array[32, float]
+      var imag: array[32, float]
+      real[0] = d
+      imag[0] = 0.0
+      for i in 1..<32:
+        real[i] = (2.0 / (i.float * PI)) * sin(i.float * PI * d)
+        imag[i] = 0.0
+      var p = audioContext.createPeriodicWave(real, imag)
+      osc.setPeriodicWave(p)
+
+    elif self.shape == synP25:
+      let d = 0.25
+      var real: array[32, float]
+      var imag: array[32, float]
+      real[0] = d
+      imag[0] = 0.0
+      for i in 1..<32:
+        real[i] = (2.0 / (i.float * PI)) * sin(i.float * PI * d)
+        imag[i] = 0.0
+      var p = audioContext.createPeriodicWave(real, imag)
+      osc.setPeriodicWave(p)
+
+    self.source = osc
+
+  self.source.start()
+  connect(self.source, self.gain)
+  connect(self.gain, sfxGain)
+
+proc synth*(channel: AudioChannelId, shape: SynthShape, freq: float32, init: range[0..15], env: range[-7..7], length: range[0..255] = 0) =
   if audioContext == nil:
     return
 
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
 
-  audioChannels[channel].stop()
+  audioChannels[channel].resetChannel()
 
   audioChannels[channel].kind = channelSynth
   audioChannels[channel].shape = shape
@@ -778,109 +841,33 @@ proc synth*(channel: int, shape: SynthShape, freq: float32, init: range[0..15], 
   audioChannels[channel].pchange = 0
   audioChannels[channel].loop = -1
   audioChannels[channel].length = length
-  audioChannels[channel].arp = 0x0000
-  audioChannels[channel].arpSpeed = 1
   audioChannels[channel].nextClick = 0
   audioChannels[channel].vibamount = 0
   audioChannels[channel].vibspeed = 1
+  audioChannels[channel].synthDataIndex = -1
 
-  if shape == synNoise or shape == synNoise2:
-    when true:
-      var n = audioContext.createBufferSource()
-
-      if shape == synNoise:
-        if noiseBuffer == nil:
-          noiseBuffer = initNoiseBuffer(4096, 1000.0)
-        n.buffer = noiseBuffer
-      elif shape == synNoise2:
-        if noiseBuffer2 == nil:
-          noiseBuffer2 = initNoiseBuffer(128, 1000.0)
-        n.buffer = noiseBuffer2
-
-      audioChannels[channel].source = n
-      n.loop = true
-      connect(n, audioChannels[channel].gain)
-      connect(audioChannels[channel].gain, sfxGain)
-      n.start()
-    when false:
-      var gen = audioContext.createScriptProcessor(16384, 0, 1);
-
-      var nextClick = 0
-      var outputValue = 0.0
-      var lfsr = 0xfeed
-
-      gen.onaudioprocess = proc(e: AudioProcessingEvent) =
-        console.log("audio process", nextClick)
-        var output = e.outputBuffer;
-        var data = output.getChannelData(0)
-        for i in 0..<output.length:
-          if nextClick <= 0:
-            nextClick = ((1.0 / freq) * sampleRate).int
-            let lsb: uint = (lfsr and 1)
-            lfsr = lfsr shr 1
-            if lsb == 1:
-              lfsr = lfsr xor 0xb400
-            outputValue = if lsb == 1: 1.0 else: -1.0
-          nextClick -= 1
-          data[i] = outputValue
-
-      audioChannels[channel].source = gen
-
-      connect(gen, audioChannels[channel].gain)
-      connect(audioChannels[channel].gain, sfxGain)
-  else:
-    var osc = audioContext.createOscillator();
-    osc.`type` = case shape:
-    of synSin: "sine"
-    of synSqr: "square"
-    #of synP12: "custom"
-    #of synP25: "custom"
-    of synSaw: "sawtooth"
-    of synTri: "triangle"
-    else:
-      "sine"
-
-    osc.frequency.value = freq
-
-    if shape == synP12:
-      let d = 0.125
-      var real: array[32, float]
-      var imag: array[32, float]
-      real[0] = d
-      imag[0] = 0.0
-      for i in 1..<32:
-        real[i] = (2.0 / (i.float * PI)) * sin(i.float * PI * d)
-        imag[i] = 0.0
-      var p = audioContext.createPeriodicWave(real, imag)
-      osc.setPeriodicWave(p)
-
-    elif shape == synP25:
-      let d = 0.25
-      var real: array[32, float]
-      var imag: array[32, float]
-      real[0] = d
-      imag[0] = 0.0
-      for i in 1..<32:
-        real[i] = (2.0 / (i.float * PI)) * sin(i.float * PI * d)
-        imag[i] = 0.0
-      var p = audioContext.createPeriodicWave(real, imag)
-      osc.setPeriodicWave(p)
-
-    osc.start()
-    audioChannels[channel].source = osc
-
-    connect(audioChannels[channel].source, audioChannels[channel].gain)
-    connect(audioChannels[channel].gain, sfxGain)
+  audioChannels[channel].synthSetOsc()
 
 
-proc arp*(channel: int, arp: uint16, speed: uint8 = 1) =
-  if audioContext == nil:
-    return
+proc synth*(channel: AudioChannelId, synthData: SynthData) =
+  if channel > audioChannels.high:
+    raise newException(KeyError, "invalid channel: " & $channel)
+  audioChannels[channel].kind = channelSynth
+  audioChannels[channel].synthData = synthData
+  audioChannels[channel].synthDataIndex = 0
+  audioChannels[channel].loop = synthData.loop.int
+  audioChannels[channel].trigger = true
+  audioChannels[channel].synthSetOsc()
 
-  audioChannels[channel].arp = arp
-  audioChannels[channel].arpSpeed = max(1.uint8, speed)
+proc synth*(channel: AudioChannelId, synthString: string) =
+  let sd = synthDataFromString(synthString)
+  synth(channel, sd)
+  audioChannels[channel].synthSetOsc()
 
-proc synthUpdate*(channel: int, shape: SynthShape, freq: float32) =
+proc synthIndex*(channel: AudioChannelId): int =
+  return audioChannels[channel].synthDataIndex div (audioChannels[channel].synthData.speed.int+1)
+
+proc synthUpdate*(channel: AudioChannelId, shape: SynthShape, freq: float32) =
   if audioContext == nil:
     return
 
@@ -935,7 +922,7 @@ when not declared(dom.window.document.ClipboardEvent):
   proc newClipboardEvent(kind: string, options: JsObject = nil): ClipboardEvent {.importjs:"new ClipboardEvent(@)".}
 
 proc setClipboardText*(text: string) =
-  var options: JsObject
+  var options = newJsObject()
   options["dataType"] = "text/plain"
   options["data"] = text
   let copyEvent = newClipboardEvent("copy", options)

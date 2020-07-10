@@ -18,7 +18,7 @@ requires "nimPNG"
 skipDirs = @["examples","tests","android"]
 installDirs = @["exampleApp"]
 
-bin = @["nicoboot"]
+bin = @["nicoboot","nicoSynth"]
 
 task test, "run tests":
   exec "nim c -p:. -r tests/copymem.nim"

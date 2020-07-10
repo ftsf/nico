@@ -3,6 +3,8 @@ import nico/utils
 import strutils
 import std/wordwrap
 
+export TextAlign
+
 type
   GuiDirection* = enum
     gTopToBottom
@@ -341,6 +343,56 @@ proc drawGuiString(G: Gui, text: string, x,y,w,h: int, style: GuiStyle = gInert,
     richPrint(text, x + G.hPadding, y + (if va == taCenter: h div 2 - (fontHeight() * nLines) div 2 else: G.vPadding), ta, false, -1)
   elif ta == taRight:
     richPrint(text, x + w - G.hPadding, y + (if va == taCenter: h div 2 - (fontHeight() * nLines) div 2 else: G.vPadding), ta, false, -1)
+
+proc xyarea*[T](G: Gui, xval,yval: var T, x,y,w,h: int, draw: GuiDrawProc): bool =
+  G.element += 1
+  if G.e.kind == gRepaint:
+
+    let hovered = G.activeHoverElement == G.element
+    let down = G.downElement == G.element
+    let active = G.activeElement == G.element
+
+    let style = gInteracted
+
+    G.box(x,y,w,h,style)
+
+    draw(G, x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taCenter, taCenter)
+
+  if G.modalArea != 0:
+    # check that we're underneath the modal G.area
+    var inModalArea = false
+    for a in G.areas:
+      if a.id == G.modalArea:
+        inModalArea = true
+        break
+    if not inModalArea:
+      return
+
+  if G.e.kind == gMouseMove:
+    if G.downElement == 0 and pointInRect(G.e.x, G.e.y, x, y, w, h):
+      G.hoverElement = G.element
+      G.activeHoverElement = G.element
+
+    if G.downElement == G.element:
+      xval = (G.e.x - x - G.hPadding).T
+      yval = (G.e.y - y - G.vPadding).T
+      return true
+
+  if G.e.kind == gMouseDown:
+    if pointInRect(G.e.x, G.e.y, x, y, w, h):
+      G.downElement = G.element
+      xval = (G.e.x - x - G.hPadding).T
+      yval = (G.e.y - y - G.vPadding).T
+      return true
+
+  elif G.e.kind == gMouseUp:
+    if pointInRect(G.e.x, G.e.y, x, y, w, h):
+      if G.downElement == G.element:
+        G.activeElement = G.element
+        G.downElement = 0
+
+  return false
+
 
 proc button*(G: Gui, x,y,w,h: int, enabled: bool = true, hotkey = K_UNKNOWN, draw: GuiDrawProc): bool =
   G.element += 1
@@ -690,7 +742,7 @@ proc slider*[T](G: Gui, text: string, value: var T, min: T, max: T, x,y,w,h: Pin
       when T is SomeFloat:
         value += ((max - min) / w.float32) * G.e.yrel.float32
       else:
-        value += G.e.yrel.int
+        value += G.e.yrel.T
       value = clamp(value, min, max)
       return true
   return
@@ -729,7 +781,6 @@ proc dropDown*(G: Gui, strings: openarray[string], value: int, enabled: bool = t
   let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(strings[value]) + G.hPadding * 2
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() + G.vPadding * 2
   return G.dropDown(strings, value, w, h, enabled, keycode)
-
 
 proc box*(G: Gui, x,y,w,h: int, style: GuiStyle = gInert) =
   if G.e.kind == gRepaint:

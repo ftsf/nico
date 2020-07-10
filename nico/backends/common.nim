@@ -95,6 +95,98 @@ type
     synNoise2 = "met"
     synWav = "wav" # use custom waveform
 
+  SynthDataStep* = tuple
+    note: uint8
+    volume: uint8
+    shape: SynthShape
+
+  SynthData* = tuple
+    speed: uint8
+    steps: array[32,SynthDataStep]
+    length: uint8
+    loop: uint8
+
+proc synthDataToString*(sd: SynthData): string =
+  var length = 0
+  for i in 0..<sd.steps.len:
+    if sd.steps[i].volume > 0:
+      length += 1
+  result &= sd.speed.int.toHex(1)
+  result &= sd.loop.int.toHex(1)
+  for i in 0..<length:
+    result &= sd.steps[i].note.int.toHex(2)
+    result &= sd.steps[i].volume.int.toHex(1)
+    result &= sd.steps[i].shape.int.toHex(1)
+
+proc synthDataFromString*(sdstr: string): SynthData =
+  result.speed = fromHex[uint8](sdstr[0..0])
+  result.loop  = fromHex[uint8](sdstr[1..1])
+  var length = 0
+  for i in 0..<result.steps.len:
+    if 2+i*4 > sdstr.high:
+      break
+    let noteStr   = sdstr[2+i*4+0..2+i*4+1]
+    result.steps[i].note = fromHex[uint8](noteStr)
+    let volumeStr = sdstr[2+i*4+2..2+i*4+2]
+    result.steps[i].volume = fromHex[uint8](volumeStr)
+    let shapeStr  = sdstr[2+i*4+3..2+i*4+3]
+    result.steps[i].shape = fromHex[uint8](shapeStr).SynthShape
+    length += 1
+  result.length = length.uint8
+
+proc note*(n: int): Pfloat =
+  # takes a note integer and converts it to a frequency float32
+  # synth(0, sin, note(48))
+  return pow(2.0, ((n.float32 - 69.0) / 12.0)) * 440.0
+
+proc noteToNoteStr*(value: int): string =
+  let oct = value div 12 - 1
+  case value mod 12:
+  of 0:
+    return "C-" & $oct
+  of 1:
+    return "C#" & $oct
+  of 2:
+    return "D-" & $oct
+  of 3:
+    return "D#" & $oct
+  of 4:
+    return "E-" & $oct
+  of 5:
+    return "F-" & $oct
+  of 6:
+    return "F#" & $oct
+  of 7:
+    return "G-" & $oct
+  of 8:
+    return "G#" & $oct
+  of 9:
+    return "A-" & $oct
+  of 10:
+    return "A#" & $oct
+  of 11:
+    return "B-" & $oct
+  else:
+    return "???"
+
+proc noteStrToNote*(s: string): int =
+  let noteChar = s[0]
+  let note = case noteChar
+    of 'C': 0
+    of 'D': 2
+    of 'E': 4
+    of 'F': 5
+    of 'G': 7
+    of 'A': 9
+    of 'B': 11
+    else: 0
+  let sharp = s[1] == '#'
+  let octave = parseInt($s[2])
+  return 12 * octave + note + (if sharp: 1 else: 0)
+
+proc note*(n: string): Pfloat =
+  return note(noteStrToNote(n))
+
 # low level events
 type
   EventKind* = enum

@@ -28,6 +28,12 @@ export StencilMode
 
 export EventListener
 
+export SynthData
+export SynthDataStep
+export synthDataToString
+export synthDataFromString
+export synthIndex
+
 export profileGetLastStats
 export profileGetLastStatsPeak
 export profileCollect
@@ -59,7 +65,6 @@ when not defined(js):
 export synthUpdate
 export synthShape
 export SynthShape
-export arp
 export vibrato
 export glide
 export wavData
@@ -2697,60 +2702,9 @@ proc wrap*[T](x,m: T): T =
     return 0
   return (x mod m + m) mod m
 
-proc noteToNoteStr*(value: int): string =
-  let oct = value div 12 - 1
-  case value mod 12:
-  of 0:
-    return "C-" & $oct
-  of 1:
-    return "C#" & $oct
-  of 2:
-    return "D-" & $oct
-  of 3:
-    return "D#" & $oct
-  of 4:
-    return "E-" & $oct
-  of 5:
-    return "F-" & $oct
-  of 6:
-    return "F#" & $oct
-  of 7:
-    return "G-" & $oct
-  of 8:
-    return "G#" & $oct
-  of 9:
-    return "A-" & $oct
-  of 10:
-    return "A#" & $oct
-  of 11:
-    return "B-" & $oct
-  else:
-    return "???"
-
-proc noteStrToNote*(s: string): int =
-  let noteChar = s[0]
-  let note = case noteChar
-    of 'C': 0
-    of 'D': 2
-    of 'E': 4
-    of 'F': 5
-    of 'G': 7
-    of 'A': 9
-    of 'B': 11
-    else: 0
-  let sharp = s[1] == '#'
-  let octave = parseInt($s[2])
-  return 12 * octave + note + (if sharp: 1 else: 0)
-
-proc note*(n: int): Pfloat =
-  # takes a note integer and converts it to a frequency float32
-  # synth(0, sin, note(48))
-  return pow(2.0, ((n.float32 - 69.0) / 12.0)) * 440.0
-
-proc note*(n: string): Pfloat =
-  return note(noteStrToNote(n))
-
-
+export note
+export noteToNoteStr
+export noteStrToNote
 
 proc init*(org, app: string) =
   ## Initializes Nico ready to be used

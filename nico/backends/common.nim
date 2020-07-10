@@ -170,7 +170,7 @@ converter toPint*(x: float): Pint {.inline.} =
 converter toPint*(x: float32): Pint {.inline.} =
   return floor(x).Pint
 
-converter toPint*(x: int): Pint {.inline.} =
+converter toPint*(x: SomeInteger): Pint {.inline.} =
   return x.Pint
 
 converter toPfloat*(x: float): Pfloat {.inline.} =

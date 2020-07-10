@@ -16,7 +16,7 @@ NICO is a simple game framework for the [Nim](http://nim-lang.org/) programming 
  * Custom audio callback for generating your own sounds via code.
  * Text drawing: load and draw fonts from png, supports variable width fonts.
  * Export animated gifs
- 
+
 ## Installation
  * You will need to have the Nim compiler installed
  * Run ```nimble install nico```
@@ -25,12 +25,16 @@ NICO is a simple game framework for the [Nim](http://nim-lang.org/) programming 
  * Make sure you have the required dependency: [https://www.libsdl.org/download-2.0.php](SDL2) for native builds, no dependencies for web builds.
  * From your project directory run ```nimble runr``` to build and run the example as a native build.
  * From your project directory run ```nimble web``` to build for web.
- 
+
+## Learning
+ * [API Documentation](../blob/master/API.md)
+ * [Examples](../tree/master/examples/)
+
 ## Why should you use NICO?
  * It's fun and easy to use
  * Learn Nim the fun way! It's a great new statically typed programming language that compiles to C.
  * You can build for Web, Windows, Linux, Mac, Android, and potentially other platforms.
-  
+
 ## Future work:
  * API Documentation
  * More examples
@@ -39,10 +43,10 @@ NICO is a simple game framework for the [Nim](http://nim-lang.org/) programming 
   * Browser to browser networking using WebRTC
   * Immediate mode GUI
   * 3D Utils and Rasterizer
- 
+
 ## Games made using NICO:
  * [Vektor 2089](https://impbox.itch.io/vektor2089)
  * [Smalltrek](https://impbox.itch.io/smalltrek)
- * [Moving in](https://impbox.itch.io/moving-in) 
+ * [Moving in](https://impbox.itch.io/moving-in)
  * [Cute Cats Daily](https://impbox.itch.io/cute-cats-daily)
  * [Super Netwalk Deluxe](https://impbox.itch.io/super-netwalk-deluxe)

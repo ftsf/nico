@@ -2,7 +2,7 @@ import nico
 import nico/gui
 
 var buttonPressed = false
-var t: float32
+var speed: float32
 var i = 5
 var advanced = false
 var darkMode = false
@@ -22,29 +22,33 @@ proc gameGui() =
   if G.beginWindow("NICO/GUI DEMO",winx,winy,winw,winh,showWin, gTopToBottom):
     G.hExpand = true
     G.outcome = gGood
-    if G.button("good button", true, K_g):
+    if G.button("GOOD BUTTON", true, K_g):
       buttonPressed = true
-      t = 1.0'f
+      speed = 1.0'f
       i += 1
     G.outcome = gDefault
-    if G.drag("drag float",t,0'f,10'f,0.01'f):
+    if G.drag("DRAG FLOAT",speed,0'f,10'f,0.01'f):
       discard
-    if G.drag("drag int",i,0,10,0.1'f):
+    if G.drag("DRAG INT",i,0,10,0.1'f):
       discard
+    if G.beginDrawer("TEST"):
+      G.label("HOW IS THAT?")
+      G.endDrawer()
     G.outcome = gDanger
-    G.toggle("dangerous toggle", advanced, true, K_d)
+    G.toggle("DANGEROUS TOGGLE", advanced, true, true, K_d)
     G.outcome = gDefault
     if advanced and advancedApproved:
       G.outcome = gWarning
-      if G.button("decrement"):
+      if G.button("DECREMENT"):
         i -= 1
       G.outcome = gDefault
       discard G.slider("slider int", i, 0, 10)
-      discard G.slider("slider float", t, 0, 10)
+      discard G.slider("slider float", speed, 0, 10)
 
-    if G.toggle("dark mode", darkMode, i mod 2 == 0, K_k):
+    if G.toggle("DARK MODE", darkMode, true, i mod 2 == 0, K_k):
       if darkMode:
-        G.colorSets = gui.colorSetDark
+        #G.colorSets = gui.colorSetDark
+        discard
       else:
         G.colorSets = gui.colorSetLight
     G.endArea()
@@ -52,14 +56,14 @@ proc gameGui() =
     if advanced and not advancedApproved:
       G.beginArea(8, screenHeight div 2 - 32, screenWidth - 16, 64, gTopToBottom, true, true)
       G.label("MODAL DIALOG")
-      G.label("are you sure you want to do this?")
+      G.label("ARE YOU SURE YOU WANT TO DO THIS?")
       G.outcome = gDanger
       G.beginHorizontal(20)
       G.hExpand = false
-      if G.button("yes"):
+      if G.button("YES"):
         advancedApproved = true
       G.outcome = gGood
-      if G.button("no"):
+      if G.button("NO"):
         advancedApproved = false
         advanced = false
       G.outcome = gDefault

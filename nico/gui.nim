@@ -13,10 +13,9 @@ type
     gRightoLeft
 
   GuiStyle* = enum
-    gInert
-    gInteractable
-    gHovered
-    gInteracted
+    gFlat
+    gOutset
+    gInset
     gDisabled
 
   GuiOutcome* = enum
@@ -28,25 +27,36 @@ type
 
   GuiColorSet* = tuple
     modalOutline: int
+
     windowTitleFillFocused: int
     windowTitleTextFocused: int
     windowTitleFill: int
     windowTitleText: int
-    text: int
-    textInteractable: int
-    textHover: int
-    textInteract: int
+
+    textFlat: int
+    textOutset: int
+    textInset: int
     textDisabled: int
-    outline: int
-    outlineHover: int
-    outlineInteract: int
-    outlineDisabled: int
-    fill: int
-    fillHover: int
-    fillInteract: int
-    fillDisabled: int
+
+    hoverOutline: int
+
+    outlineFlat: int
+    outlineOutset: int
+    outlineInset: int
+
+    outlineOutsetLit: int
+    outlineOutsetDark: int
+
+    outlineInsetLit: int
+    outlineInsetDark: int
+
+    fillFlat: int
+    fillOutset: int
+    fillInset: int
+
     sliderFill: int
     sliderHandle: int
+    sliderTray: int
 
   GuiEventKind = enum
     gRepaint
@@ -75,6 +85,11 @@ type
     element*: int
     # colors
     colorSets*: array[GuiOutcome, GuiColorSet]
+
+    drawersOpen*: seq[string]
+
+    # overridable box drawing func
+    drawBoxFunc*: proc(G: Gui, x,y,w,h: int, style: GuiStyle = gFlat, hovered: bool = false)
 
     moveWindow: bool
     resizeWindow: bool
@@ -105,9 +120,16 @@ type
 
   GuiDrawProc = proc(G: Gui, x,y,w,h: int, style: GuiStyle, ta, va: TextAlign)
 
+proc drawBox*(G: Gui, x,y,w,h: int, style: GuiStyle = gFlat, hovered: bool = false)
+proc beginArea*(G: Gui, x,y,w,h: Pint, direction: GuiDirection = gTopToBottom, box: bool = false, modal: bool = false)
+proc endArea*(G: Gui)
+
 var G*: Gui = new(Gui)
 
 # default color theme
+
+G.drawBoxFunc = drawBox
+
 var colorSetLight*: array[GuiOutcome, GuiColorSet]
 colorSetLight[gDefault].modalOutline = 0
 colorSetLight[gDefault].windowTitleFillFocused = 12
@@ -115,105 +137,125 @@ colorSetLight[gDefault].windowTitleTextFocused = 7
 colorSetLight[gDefault].windowTitleFill = 1
 colorSetLight[gDefault].windowTitleText = 6
 
-colorSetLight[gDefault].text = 1
-colorSetLight[gDefault].textInteractable = 1
-colorSetLight[gDefault].textHover = 1
-colorSetLight[gDefault].textInteract = 1
+colorSetLight[gDefault].hoverOutline = 10
+
+colorSetLight[gDefault].textFlat = 1
+colorSetLight[gDefault].textInset = 6
+colorSetLight[gDefault].textOutset = 1
 colorSetLight[gDefault].textDisabled = 5
-colorSetLight[gDefault].outline = 5
-colorSetLight[gDefault].outlineHover = 7
-colorSetLight[gDefault].outlineInteract = 1
-colorSetLight[gDefault].outlineDisabled = 5
-colorSetLight[gDefault].fill = 13
-colorSetLight[gDefault].fillHover = 13
-colorSetLight[gDefault].fillInteract = 5
-colorSetLight[gDefault].fillDisabled = 13
-colorSetLight[gDefault].sliderFill = 6
+
+colorSetLight[gDefault].outlineFlat = 5
+colorSetLight[gDefault].outlineInset = 5
+colorSetLight[gDefault].outlineInsetLit = 7
+colorSetLight[gDefault].outlineInsetDark = 1
+colorSetLight[gDefault].outlineOutset = 6
+colorSetLight[gDefault].outlineOutsetLit = 7
+colorSetLight[gDefault].outlineOutsetDark = 1
+
+colorSetLight[gDefault].fillFlat = 13
+colorSetLight[gDefault].fillOutset = 6
+colorSetLight[gDefault].fillInset = 5
+
+colorSetLight[gDefault].sliderFill = 13
 colorSetLight[gDefault].sliderHandle = 7
+colorSetLight[gDefault].sliderTray = 5
 
 for outcome in gDefault.succ..GuiOutcome.high:
   colorSetLight[outcome] = colorSetLight[gDefault]
 
-colorSetLight[gGood].text = 11
-colorSetLight[gGood].outlineHover = 11
-colorSetLight[gGood].fillInteract = 3
-colorSetLight[gGood].outline = 3
-colorSetLight[gGood].outlineDisabled = 3
+colorSetLight[gGood].textInset = 11
+colorSetLight[gGood].hoverOutline = 11
+colorSetLight[gGood].fillOutset = 11
+colorSetLight[gGood].outlineInsetLit = 11
+colorSetLight[gGood].outlineOutset = 11
+colorSetLight[gGood].fillInset = 3
+colorSetLight[gGood].outlineFlat = 3
+colorSetLight[gGood].outlineInset = 3
+colorSetLight[gGood].outlineOutsetDark = 3
 
-colorSetLight[gPrimary].text = 12
-colorSetLight[gPrimary].outlineHover = 12
-colorSetLight[gPrimary].fillInteract = 1
-colorSetLight[gPrimary].outline = 1
-colorSetLight[gPrimary].outlineDisabled = 1
+colorSetLight[gWarning].textInset = 9
+colorSetLight[gWarning].hoverOutline = 9
+colorSetLight[gWarning].fillOutset = 9
+colorSetLight[gWarning].outlineInsetLit = 9
+colorSetLight[gWarning].outlineOutset = 9
+colorSetLight[gWarning].fillInset = 4
+colorSetLight[gWarning].outlineFlat = 4
+colorSetLight[gWarning].outlineInset = 4
+colorSetLight[gWarning].outlineOutsetDark = 4
 
-colorSetLight[gWarning].text = 9
-colorSetLight[gWarning].outlineHover = 9
-colorSetLight[gWarning].outline = 9
-colorSetLight[gWarning].fillInteract = 4
-colorSetLight[gWarning].outline = 4
-colorSetLight[gWarning].outlineDisabled = 4
+colorSetLight[gDanger].textInset = 8
+colorSetLight[gDanger].hoverOutline = 8
+colorSetLight[gDanger].fillOutset = 8
+colorSetLight[gDanger].outlineInsetLit = 8
+colorSetLight[gDanger].outlineOutset = 8
+colorSetLight[gDanger].fillInset = 2
+colorSetLight[gDanger].outlineFlat = 2
+colorSetLight[gDanger].outlineInset = 2
+colorSetLight[gDanger].outlineOutsetDark = 2
 
-colorSetLight[gDanger].text = 8
-colorSetLight[gDanger].outlineHover = 8
-colorSetLight[gDanger].outline = 8
-colorSetLight[gDanger].fillInteract = 2
-colorSetLight[gDanger].outline = 2
-colorSetLight[gDanger].outlineDisabled = 2
-
+colorSetLight[gPrimary].textInset = 12
+colorSetLight[gPrimary].hoverOutline = 12
+colorSetLight[gPrimary].fillOutset = 12
+colorSetLight[gPrimary].outlineInsetLit = 12
+colorSetLight[gPrimary].outlineOutset = 12
+colorSetLight[gPrimary].fillInset = 1
+colorSetLight[gPrimary].outlineFlat = 1
+colorSetLight[gPrimary].outlineInset = 1
+colorSetLight[gPrimary].outlineOutsetDark = 1
 
 # dark color theme
-var colorSetDark*: array[GuiOutcome, GuiColorSet]
-
-colorSetDark[gDefault].modalOutline = 0
-colorSetDark[gDefault].windowTitleFillFocused = 12
-colorSetDark[gDefault].windowTitleTextFocused = 7
-colorSetDark[gDefault].windowTitleFill = 13
-colorSetDark[gDefault].windowTitleText = 1
-
-colorSetDark[gDefault].text = 6
-colorSetDark[gDefault].textInteractable = 6
-colorSetDark[gDefault].textHover = 6
-colorSetDark[gDefault].textInteract = 6
-colorSetDark[gDefault].textDisabled = 5
-colorSetDark[gDefault].outline = 5
-colorSetDark[gDefault].outlineHover = 7
-colorSetDark[gDefault].outlineInteract = 6
-colorSetDark[gDefault].outlineDisabled = 5
-colorSetDark[gDefault].fill = 0
-colorSetDark[gDefault].fillHover = 0
-colorSetDark[gDefault].fillInteract = 5
-colorSetDark[gDefault].fillDisabled = 0
-colorSetDark[gDefault].sliderFill = 13
-colorSetDark[gDefault].sliderHandle = 7
-
-for outcome in gDefault.succ..GuiOutcome.high:
-  colorSetDark[outcome] = colorSetDark[gDefault]
-
-colorSetDark[gGood].text = 11
-colorSetDark[gGood].outlineHover = 11
-colorSetDark[gGood].fillInteract = 3
-colorSetDark[gGood].outline = 3
-colorSetDark[gGood].outlineDisabled = 3
-
-colorSetDark[gPrimary].text = 12
-colorSetDark[gPrimary].outlineHover = 12
-colorSetDark[gPrimary].fillInteract = 1
-colorSetDark[gPrimary].outline = 1
-colorSetDark[gPrimary].outlineDisabled = 1
-
-colorSetDark[gWarning].text = 9
-colorSetDark[gWarning].outlineHover = 9
-colorSetDark[gWarning].outline = 9
-colorSetDark[gWarning].fillInteract = 4
-colorSetDark[gWarning].outline = 4
-colorSetDark[gWarning].outlineDisabled = 4
-
-colorSetDark[gDanger].text = 8
-colorSetDark[gDanger].outlineHover = 8
-colorSetDark[gDanger].outline = 8
-colorSetDark[gDanger].fillInteract = 2
-colorSetDark[gDanger].outline = 2
-colorSetDark[gDanger].outlineDisabled = 2
+#var colorSetDark*: array[GuiOutcome, GuiColorSet]
+#
+#colorSetDark[gDefault].modalOutline = 0
+#colorSetDark[gDefault].windowTitleFillFocused = 12
+#colorSetDark[gDefault].windowTitleTextFocused = 7
+#colorSetDark[gDefault].windowTitleFill = 13
+#colorSetDark[gDefault].windowTitleText = 1
+#
+#colorSetDark[gDefault].text = 6
+#colorSetDark[gDefault].textInteractable = 6
+#colorSetDark[gDefault].textHover = 6
+#colorSetDark[gDefault].textInteract = 6
+#colorSetDark[gDefault].textDisabled = 5
+#colorSetDark[gDefault].outline = 5
+#colorSetDark[gDefault].outlineHover = 7
+#colorSetDark[gDefault].outlineInteract = 6
+#colorSetDark[gDefault].outlineDisabled = 5
+#colorSetDark[gDefault].fill = 0
+#colorSetDark[gDefault].fillHover = -1
+#colorSetDark[gDefault].fillInteract = 5
+#colorSetDark[gDefault].fillDisabled = 0
+#colorSetDark[gDefault].sliderFill = 13
+#colorSetDark[gDefault].sliderHandle = 7
+#
+#for outcome in gDefault.succ..GuiOutcome.high:
+#  colorSetDark[outcome] = colorSetDark[gDefault]
+#
+#colorSetDark[gGood].text = 11
+#colorSetDark[gGood].outlineHover = 11
+#colorSetDark[gGood].fillInteract = 3
+#colorSetDark[gGood].outline = 3
+#colorSetDark[gGood].outlineDisabled = 3
+#
+#colorSetDark[gPrimary].text = 12
+#colorSetDark[gPrimary].outlineHover = 12
+#colorSetDark[gPrimary].fillInteract = 1
+#colorSetDark[gPrimary].outline = 1
+#colorSetDark[gPrimary].outlineDisabled = 1
+#
+#colorSetDark[gWarning].text = 9
+#colorSetDark[gWarning].outlineHover = 9
+#colorSetDark[gWarning].outline = 9
+#colorSetDark[gWarning].fillInteract = 4
+#colorSetDark[gWarning].outline = 4
+#colorSetDark[gWarning].outlineDisabled = 4
+#
+#colorSetDark[gDanger].text = 8
+#colorSetDark[gDanger].outlineHover = 8
+#colorSetDark[gDanger].outline = 8
+#colorSetDark[gDanger].fillInteract = 2
+#colorSetDark[gDanger].outline = 2
+#colorSetDark[gDanger].outlineDisabled = 2
 
 G.colorSets = colorSetLight
 
@@ -221,12 +263,11 @@ G.colorSets = colorSetLight
 G.hPadding = 3
 G.vPadding = 3
 G.hSpacing = 2
-G.vSpacing = 1
+G.vSpacing = 2
 
 var lastMouseX,lastMouseY: int
 var frame: int
 
-proc box*(G: Gui, x,y,w,h: int, style: GuiStyle = gInert)
 
 proc pointInRect(px,py, x,y,w,h: int): bool =
   return px >= x and px <= x + w - 1 and py >= y and py <= y + h - 1
@@ -264,8 +305,8 @@ proc label*(G: Gui, text: string, x,y,w,h: int, box: bool = false) =
   G.element += 1
   if G.e.kind == gRepaint:
     if box:
-      G.box(x,y,w,h)
-    setColor(G.colorSets[G.outcome].text)
+      G.drawBoxFunc(G,x,y,w,h)
+    setColor(G.colorSets[G.outcome].textFlat)
     let nLines = text.countLines()
     richPrint(text, x + (if G.center: w div 2 else: 0), y + (if G.center: h div 2 - (fontHeight() * nLines) div 2 else: 0), if G.center: taCenter else: taLeft)
 
@@ -299,8 +340,8 @@ proc labelStep*(G: Gui, text: string, x,y,w,h: int, step: int, box: bool = false
   G.element += 1
   if G.e.kind == gRepaint:
     if box:
-      G.box(x,y,w,h)
-    setColor(G.colorSets[G.outcome].text)
+      G.drawBoxFunc(G,x,y,w,h)
+    setColor(G.colorSets[G.outcome].textFlat)
     let nLines = text.countLines()
     richPrint(text, x + (if G.center: w div 2 else: 0), y + (if G.center: h div 2 - (fontHeight() * nLines) div 2 else: 0), if G.center: taCenter else: taLeft, false, step)
 
@@ -327,13 +368,12 @@ proc labelStep*(G: Gui, text: string, step: int, box: bool = false) =
   h = if G.vExpand: G.area.maxY - G.area.minY else: h + (if box: G.vPadding * 2 else: 0)
   G.labelStep(text, w, h, step, box)
 
-proc drawGuiString(G: Gui, text: string, x,y,w,h: int, style: GuiStyle = gInert, ta: TextAlign = taLeft, va: TextAlign = taCenter) =
+proc drawGuiString(G: Gui, text: string, x,y,w,h: int, style: GuiStyle = gFlat, ta: TextAlign = taLeft, va: TextAlign = taCenter) =
   let cs = G.colorSets[G.outcome]
   setColor(case style:
-  of gInert: cs.text
-  of gInteractable: cs.textInteractable
-  of gHovered: cs.textHover
-  of gInteracted: cs.textInteract
+  of gFlat: cs.textFlat
+  of gOutset: cs.textOutset
+  of gInset: cs.textInset
   of gDisabled: cs.textDisabled
   )
   let nLines = text.countLines()
@@ -352,9 +392,9 @@ proc xyarea*[T](G: Gui, xval,yval: var T, x,y,w,h: int, draw: GuiDrawProc): bool
     let down = G.downElement == G.element
     let active = G.activeElement == G.element
 
-    let style = gInteracted
+    let style = gInset
 
-    G.box(x,y,w,h,style)
+    G.drawBoxFunc(G,x,y,w,h,style,hovered)
 
     draw(G, x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taCenter, taCenter)
 
@@ -393,6 +433,45 @@ proc xyarea*[T](G: Gui, xval,yval: var T, x,y,w,h: int, draw: GuiDrawProc): bool
 
   return false
 
+proc beginDrawer*(G: Gui, text: string): bool =
+  let open = G.drawersOpen.contains(text)
+  result = open
+
+  assert(G.area != nil)
+  let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text) + G.hPadding * 2
+  let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
+  let (x,y) = G.cursor(w,h)
+
+  if G.e.kind == gRepaint:
+    let cs = G.colorSets[G.outcome]
+    setColor(cs.textFlat)
+    let ay = y + h div 2 - 3
+    if open:
+      # draw down arrow
+      boxfill(x,ay,5,3)
+      hline(x+1,ay+3,x+3)
+      pset(x+2,ay+4)
+    else:
+      # draw right arrow
+      boxfill(x,ay,3,5)
+      vline(x+3,ay+1,ay+3)
+      pset(x+4,ay+2)
+
+    G.drawGuiString(text,x + 5,y,w - 5,h,gFlat,taLeft,taLeft)
+
+  elif G.e.kind == gMouseDown:
+    if pointInRect(G.e.x, G.e.y, x, y, w, h):
+      if open:
+        let i = G.drawersOpen.find(text)
+        if i != -1:
+          G.drawersOpen.delete(i)
+      else:
+        G.drawersOpen.add(text)
+
+  G.advance(w,h)
+
+proc endDrawer*(G: Gui) =
+  discard
 
 proc button*(G: Gui, x,y,w,h: int, enabled: bool = true, hotkey = K_UNKNOWN, draw: GuiDrawProc): bool =
   G.element += 1
@@ -403,11 +482,11 @@ proc button*(G: Gui, x,y,w,h: int, enabled: bool = true, hotkey = K_UNKNOWN, dra
     let down = G.downElement == G.element
     let active = G.activeElement == G.element
 
-    let style = if not enabled: gDisabled elif down: gInteracted elif hovered: gHovered else: gInteractable
+    let style = if not enabled: gDisabled elif down: gInset else: gOutset
 
-    G.box(x,y,w,h,style)
+    G.drawBoxFunc(G,x,y,w,h,style,hovered)
 
-    draw(G, x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taCenter, taCenter)
+    draw(G, x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - (G.vPadding * 2 - 1), style, taCenter, taCenter)
 
   if G.modalArea != 0:
     # check that we're underneath the modal G.area
@@ -477,7 +556,7 @@ proc button*(G: Gui, text: string, enabled: bool = true, keycode: Keycode = K_UN
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
   return G.button(text, w, h, enabled, keycode)
 
-proc toggle*(G: Gui, val: var bool, x,y,w,h: int, enabled: bool = true, hotkey = K_UNKNOWN, draw: GuiDrawProc): bool {.discardable.} =
+proc toggle*(G: Gui, val: var bool, drawCheckbox = true, x,y,w,h: int, enabled: bool = true, hotkey = K_UNKNOWN, draw: GuiDrawProc): bool {.discardable.} =
   G.element += 1
   let hintBlocked = (G.hintOnly and G.hintHotkey != hotkey)
   if G.e.kind == gRepaint:
@@ -486,11 +565,29 @@ proc toggle*(G: Gui, val: var bool, x,y,w,h: int, enabled: bool = true, hotkey =
     let down = val
     let active = G.activeElement == G.element
 
-    let style = if not enabled: gDisabled elif down: gInteracted elif hovered: gHovered else: gInteractable
+    let style = if not enabled: gDisabled elif down: gInset else: gOutset
 
-    G.box(x,y,w,h,style)
+    G.drawBoxFunc(G,x,y,w,h,style,hovered)
 
-    draw(G, x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taCenter, taCenter)
+    if drawCheckbox:
+      draw(G, x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taLeft, taCenter)
+      let cs = G.colorSets[G.outcome]
+      let cbx = x + w - G.hPadding - 7
+      let cby = y + G.vPadding - 1
+      if val:
+        setColor(cs.textOutset)
+        rbox(cbx,cby,7,7)
+        setColor(cs.fillOutset)
+        boxfill(cbx+1,cby+1,5,5)
+        setColor(cs.textOutset)
+        boxfill(cbx+2,cby+2,3,3)
+      else:
+        setColor(cs.textOutset)
+        rbox(cbx,cby,7,7)
+        setColor(cs.fillInset)
+        boxfill(cbx+1,cby+1,5,5)
+    else:
+      draw(G, x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - (G.vPadding * 2 - 1), style, taCenter, taCenter)
 
   if G.modalArea != 0:
     # check that we're underneath the modal G.area
@@ -533,41 +630,41 @@ proc toggle*(G: Gui, val: var bool, x,y,w,h: int, enabled: bool = true, hotkey =
 
   return false
 
-proc toggle*(G: Gui, text: string, val: var bool, x,y,w,h: int, enabled: bool = true, hotkey = K_UNKNOWN): bool {.discardable.} =
-  return G.toggle(val,x,y,w,h,enabled,hotkey,proc(G:Gui,x,y,w,h: int, style: GuiStyle, ta, va: TextAlign) =
+proc toggle*(G: Gui, text: string, val: var bool, drawCheckbox = true, x,y,w,h: int, enabled: bool = true, hotkey = K_UNKNOWN): bool {.discardable.} =
+  return G.toggle(val,drawCheckbox,x,y,w,h,enabled,hotkey,proc(G:Gui,x,y,w,h: int, style: GuiStyle, ta, va: TextAlign) =
     G.drawGuiString(text,x,y,w,h,style,ta,va)
   )
 
-proc toggle*(G: Gui, text: string, val: var bool, w, h: int, enabled: bool = true, hotkey = K_UNKNOWN): bool {.discardable.} =
+proc toggle*(G: Gui, text: string, val: var bool, drawCheckbox = true, w, h: int, enabled: bool = true, hotkey = K_UNKNOWN): bool {.discardable.} =
   let (x,y) = G.cursor(w,h)
-  let ret = G.toggle(text, val, x, y, w, h, enabled, hotkey)
+  let ret = G.toggle(text, val, drawCheckbox, x, y, w, h, enabled, hotkey)
   G.advance(w,h)
   return ret
 
-proc toggle*(G: Gui, val: var bool, w,h: int, enabled: bool = true, hotkey = K_UNKNOWN, draw: proc(G:Gui,x,y,w,h:int, style: GuiStyle, ta, va: TextAlign)): bool {.discardable.} =
+proc toggle*(G: Gui, val: var bool, drawCheckbox = true, w,h: int, enabled: bool = true, hotkey = K_UNKNOWN, draw: proc(G:Gui,x,y,w,h:int, style: GuiStyle, ta, va: TextAlign)): bool {.discardable.} =
   let (x,y) = G.cursor(w,h)
-  let ret = G.toggle(val, x, y, w, h, enabled, hotkey, draw)
+  let ret = G.toggle(val, drawCheckbox, x, y, w, h, enabled, hotkey, draw)
   G.advance(w,h)
   return ret
 
-proc toggle*(G: Gui, val: var bool, w,h: int, enabled: bool = true, draw: GuiDrawProc): bool {.discardable.} =
+proc toggle*(G: Gui, val: var bool, drawCheckbox = true, w,h: int, enabled: bool = true, draw: GuiDrawProc): bool {.discardable.} =
   let (x,y) = G.cursor(w,h)
-  let ret = G.toggle(val, x, y, w, h, enabled, K_UNKNOWN, draw)
+  let ret = G.toggle(val, drawCheckbox, x, y, w, h, enabled, K_UNKNOWN, draw)
   G.advance(w,h)
   return ret
 
-proc toggle*(G: Gui, text: string, val: var bool, enabled: bool = true, keycode: Keycode = K_UNKNOWN): bool {.discardable.} =
+proc toggle*(G: Gui, text: string, val: var bool, drawCheckbox = true, enabled: bool = true, keycode: Keycode = K_UNKNOWN): bool {.discardable.} =
   assert(G.area != nil)
   let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text) + G.hPadding * 2
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
-  return G.toggle(text, val, w, h, enabled, keycode)
+  return G.toggle(text, val, drawCheckbox, w, h, enabled, keycode)
 
 proc radio*[T: Ordinal](G: Gui, text: string, radioGroup: var T, index: T, enabled: bool = true): bool =
   assert(G.area != nil)
   let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text) + G.hPadding * 2
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
   var radioGroupIsIndex = radioGroup == index
-  let ret = G.toggle(text, radioGroupIsIndex, w, h, enabled)
+  let ret = G.toggle(text, radioGroupIsIndex, false, w, h, enabled)
   if ret:
     radioGroup = index
 
@@ -585,9 +682,9 @@ proc drag*[T](G: Gui, text: string, value: var T, min: T, max: T,sensitivity: fl
     let hovered = G.activeHoverElement == G.element
     let down = G.downElement == G.element
 
-    let style = if not enabled: gDisabled elif down: gInteracted elif hovered: gHovered else: gInteractable
+    let style = if not enabled: gDisabled else: gInset
 
-    G.box(x,y,w,h,style)
+    G.drawBoxFunc(G,x,y,w,h,style,hovered)
 
     G.drawGuiString(text, x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taLeft)
     G.drawGuiString(getValueStr(value), x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taRight)
@@ -680,9 +777,11 @@ proc slider*[T](G: Gui, text: string, value: var T, min: T, max: T, x,y,w,h: Pin
     let hovered = G.activeHoverElement == G.element
     let down = G.downElement == G.element
 
-    let style = if not enabled: gDisabled elif down: gInteracted elif hovered: gHovered else: gInteractable
+    let style = if not enabled: gDisabled else: gInset
 
-    G.box(x,y,w,h,style)
+    G.drawBoxFunc(G,x,y,w,h,style,hovered)
+    setColor(G.colorSets[G.outcome].sliderTray)
+    rectfill(x,y+1, x + w - 1, y+h-2)
     setColor(G.colorSets[G.outcome].sliderFill)
     let fillAmount = clamp(invLerp(min.float32,max.float32,value.float32))
     let minx = x + 1
@@ -782,27 +881,51 @@ proc dropDown*(G: Gui, strings: openarray[string], value: int, enabled: bool = t
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() + G.vPadding * 2
   return G.dropDown(strings, value, w, h, enabled, keycode)
 
-proc box*(G: Gui, x,y,w,h: int, style: GuiStyle = gInert) =
+proc drawBox*(G: Gui, x,y,w,h: int, style: GuiStyle = gFlat, hovered: bool = false) =
   if G.e.kind == gRepaint:
     # fill
     let cs = G.colorSets[G.outcome]
     setColor(case style:
-      of gInert: cs.fill
-      of gInteractable: cs.fill
-      of gHovered: cs.fillHover
-      of gInteracted: cs.fillInteract
-      of gDisabled: cs.fillDisabled
+      of gFlat,gDisabled: cs.fillFlat
+      of gInset: cs.fillInset
+      of gOutset: cs.fillOutset
     )
-    rectfill(x+1,y+1,x+w-2,y+h-2)
+    boxfill(x+1,y+1,w-2,h-2)
+
     # outline
-    setColor(case style:
-      of gInert: cs.outline
-      of gInteractable: cs.outline
-      of gHovered: cs.outlineHover
-      of gInteracted: cs.outlineInteract
-      of gDisabled: cs.outlineDisabled
-    )
-    rrect(x,y,x+w-1,y+h-1)
+    let oc = case style:
+      of gFlat,gDisabled: cs.outlineFlat
+      of gInset: cs.outlineInset
+      of gOutset: cs.outlineOutset
+
+    if oc >= 0:
+      setColor(oc)
+      rrect(x,y,x+w-1,y+h-1)
+
+    if style == gOutset:
+      setColor(cs.outlineOutsetLit)
+      hline(x+1,y,x+w-2)
+      pset(x,y+1)
+      pset(x+w-1,y+1)
+      setColor(cs.outlineOutsetDark)
+      hline(x+1,y+h-1,x+w-2)
+      pset(x,y+h-2)
+      pset(x+w-1,y+h-2)
+
+    elif style == gInset:
+      setColor(cs.outlineInsetDark)
+      hline(x+1,y,x+w-2)
+      pset(x,y+1)
+      pset(x+w-1,y+1)
+      setColor(cs.outlineInsetLit)
+      hline(x+1,y+h-1,x+w-2)
+      pset(x,y+h-2)
+      pset(x+w-1,y+h-2)
+
+    if hovered:
+      setColor(cs.hoverOutline)
+      rbox(x-1,y-1,w+2,h+2,3)
+
   elif G.e.kind == gMouseMove:
     if G.downElement == 0 and pointInRect(G.e.x, G.e.y, x,y,w,h):
       G.hoverElement = G.element
@@ -886,7 +1009,7 @@ proc beginArea*(G: Gui, x,y,w,h: Pint, direction: GuiDirection = gTopToBottom, b
     if modal:
       setColor(G.colorSets[gDefault].modalOutline)
       rrectfill(x-1,y-1,x+w,y+h)
-    G.box(x,y,w,h)
+    G.drawBoxFunc(G,x,y,w,h)
 
 proc beginWindow*(G: Gui, title: string, x,y,w,h: var Pint, show: var bool, direction: GuiDirection = gTopToBottom, modal: bool = false): bool =
   let titlebarH = fontHeight() + 4
@@ -896,7 +1019,7 @@ proc beginWindow*(G: Gui, title: string, x,y,w,h: var Pint, show: var bool, dire
   if modal:
     setColor(G.colorSets[gDefault].modalOutline)
     rrectfill(x-1,y-1,x+w,y+showH)
-  G.box(x,y,w,showH)
+  G.drawBoxFunc(G,x,y,w,showH)
 
   if G.e.kind == gMouseDown:
     if pointInRect(G.e.x, G.e.y, x + w - 7, y + 3, 5, 5):
@@ -929,17 +1052,17 @@ proc beginWindow*(G: Gui, title: string, x,y,w,h: var Pint, show: var bool, dire
     setColor(G.colorSets[gDefault].windowTitleFill)
     rectfill(x+1,y+1,x+1+w-3,y+1+fontHeight()+1)
     if show:
-      setColor(G.colorSets[gDefault].outline)
+      setColor(G.colorSets[gDefault].outlineFlat)
       hline(x,y+1+fontHeight()+2,x+w-1)
     setColor(G.colorSets[gDefault].windowTitleText)
     print(title,x+3,y+3)
 
     # draw shade button
-    setColor(G.colorSets[gDefault].outline)
+    setColor(G.colorSets[gDefault].outlineFlat)
     box(x+w-8, y+3, 5, 5)
-    setColor(G.colorSets[gDefault].fill)
+    setColor(G.colorSets[gDefault].fillFlat)
     box(x+w-8+1, y+3+1, 3, 3)
-    setColor(G.colorSets[gDefault].outline)
+    setColor(G.colorSets[gDefault].outlineFlat)
     if show:
       box(x+w-8+1, y+3+2, 3, 1)
     else:
@@ -947,7 +1070,7 @@ proc beginWindow*(G: Gui, title: string, x,y,w,h: var Pint, show: var bool, dire
 
     # draw resizebar
     if show:
-      setColor(G.colorSets[gDefault].outline)
+      setColor(G.colorSets[gDefault].outlineFlat)
       hline(x,y+h-3,x+w-1)
 
   result = show
@@ -1005,9 +1128,9 @@ proc beginHorizontal*(G: Gui, height: int, box: bool = false) =
   let area = G.areas[G.areas.high]
   G.beginArea(area.cursorX, area.cursorY, area.maxX - area.cursorX, height, gLeftToRight, box)
 
-proc beginVertical*(G: Gui, width: int, box: bool = false) =
+proc beginVertical*(G: Gui, width: int = -1, box: bool = false) =
   let area = G.areas[G.areas.high]
-  G.beginArea(area.cursorX, area.cursorY, width, area.maxY - area.cursorY, gTopToBottom, box)
+  G.beginArea(area.cursorX, area.cursorY, if width <= 0: (area.maxX - area.minX) else: width, area.maxY - area.cursorY, gTopToBottom, box)
 
 proc draw*(G: Gui, onGui: proc()) =
   frame += 1

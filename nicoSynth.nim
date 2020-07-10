@@ -72,9 +72,6 @@ proc gameGui() =
         setColor(10)
         printc(noteToNoteStr(data.steps[editIndex].note.int), x0, bottom - noteRel * yrange.float32 - 10)
 
-    pset(x+xval,y+yval,7)
-    pset(mx,my,8)
-
     setColor(7)
     printr("pitch", x + w - 1, y)
     setColor(10)
@@ -110,9 +107,6 @@ proc gameGui() =
         setColor(10)
         printc($data.steps[editIndex].volume.int, x0, bottom - volumeRel * yrange.float32 - 10)
 
-
-    if G.downElement == G.element:
-      pset(x+xval,y+yval,7)
 
     setColor(7)
     printr("volume", x + w - 1, y)
@@ -151,8 +145,6 @@ proc gameGui() =
       if editIndex == i and G.downElement == G.element:
         setColor(10)
         printc($data.steps[editIndex].shape, x0, bottom - shapeRel * yrange.float32 - 10)
-
-    pset(x+xval,y+yval,7)
 
     setColor(7)
     printr("shape", x + w - 1, y)
@@ -223,6 +215,5 @@ proc gameDraw() =
   G.draw(gameGui)
 
 nico.init("nico", "nicoSynthEditor")
-fixedSize(false)
-nico.createWindow("nicoSynthEditor", 256, 256, 4, false)
+nico.createWindow("nicoSynthEditor", 150, 190, 4, false)
 nico.run(gameInit, gameUpdate, gameDraw)

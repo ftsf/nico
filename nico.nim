@@ -61,6 +61,7 @@ when not defined(js):
   export setAudioBufferSize
   export audioInSample
   export audioOut
+  export crtFilter
 
 export synthUpdate
 export synthShape

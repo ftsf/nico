@@ -692,10 +692,10 @@ proc music*(channel: AudioChannelId, musicId: MusicId, loop: int = -1) =
   if audioContext == nil:
     return
   if audioChannels[channel].source != nil:
+    debug "stopping music on channel ", channel
     audioChannels[channel].source.stop()
     audioChannels[channel].source = nil
     audioChannels[channel].musicId = -1
-
 
   if musicId != -1 and musicData[musicId] != nil:
     var source = audioContext.createBufferSource()

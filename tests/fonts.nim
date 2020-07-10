@@ -13,3 +13,8 @@ suite "fonts":
     loadFont(0,"font.png")
     print("hello world",0,0)
     flip()
+
+
+  test "loadFont":
+    print("hello default font",0,0)
+    flip()

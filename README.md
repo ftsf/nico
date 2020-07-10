@@ -21,7 +21,7 @@ NICO is a simple game framework for the [Nim](http://nim-lang.org/) programming 
  * You will need to have the Nim compiler installed
  * Run ```nimble install nico```
  * Run ```nicoboot <projectname>``` to create a new directory with an example base ready to start working with.
- * [https://www.youtube.com/watch?v=czLI5XJFxYA&list=PLxLdEZg8DRwTIEzUpfaIcBqhsj09mLWHx&index=3](You can watch a quick tutorial here)
+ * [You can watch a quick tutorial here](https://www.youtube.com/watch?v=czLI5XJFxYA&list=PLxLdEZg8DRwTIEzUpfaIcBqhsj09mLWHx&index=3)
  * Make sure you have the required dependency: [https://www.libsdl.org/download-2.0.php](SDL2) for native builds, no dependencies for web builds.
  * From your project directory run ```nimble runr``` to build and run the example as a native build.
  * From your project directory run ```nimble web``` to build for web.

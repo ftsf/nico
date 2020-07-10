@@ -28,7 +28,7 @@ NICO is a simple game framework for the [Nim](http://nim-lang.org/) programming 
 
 ## Learning
  * [API Documentation](../blob/master/API.md)
- * [Examples](../tree/master/examples/)
+ * [Examples](examples/)
 
 ## Why should you use NICO?
  * It's fun and easy to use

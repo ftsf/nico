@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.3.0"
+version       = "0.3.1"
 author        = "Jez 'Impbox' Kabanov"
 description   = "Nico Game Engine"
 license       = "MIT"
@@ -15,10 +15,10 @@ requires "html5_canvas >= 0.1.0"
 requires "ajax >= 0.1.0"
 requires "nimPNG"
 
-skipDirs = @["examples","tests","android"]
+skipDirs = @["examples","tests","android","tools"]
 installDirs = @["exampleApp"]
 
-bin = @["nicoboot","nicoSynth"]
+bin = @["nicoboot"]
 
 task test, "run tests":
   exec "nim c -p:. -r tests/copymem.nim"
@@ -70,3 +70,6 @@ task examples, "compile all examples":
 
 task runplatformer, "runs platformer":
   exec "nim c -r -p:. -d:release -o:examples/platformer examples/platformer.nim"
+
+task nicosynth, "runs nicosynth":
+  exec "nim c -r -p:. -d:release -o:tools/nicosynth tools/nicosynth.nim"

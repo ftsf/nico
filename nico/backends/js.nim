@@ -510,18 +510,15 @@ proc step() =
 
   frame += 1
 
-when not declared(dom.window.localStorage):
-  type LocalStorage {.importjs: "LocalStorage".} = ref object of RootObj
-
-  proc localStorage(window: Window): LocalStorage {.importjs: "#.localStorage".}
-  proc setItem(localStorage: LocalStorage, key: cstring, value: cstring) {.importjs: "#.setItem(@)".}
-  proc getItem(localStorage: LocalStorage, key: cstring): JsObject {.importjs: "#.getItem(@)".}
-
 proc updateConfigValue*(section, key, value: string) =
-  dom.window.localStorage.setItem(fmt"{section}:{key}", value)
+  var win = dom.window
+  var ls = win.localStorage
+  ls.setItem(fmt"{section}:{key}", value)
 
 proc getConfigValue*(section, key: string): string =
-  let data = dom.window.localStorage.getItem(fmt"{section}:{key}")
+  var win = dom.window
+  var ls = win.localStorage
+  let data = ls.getItem(fmt"{section}:{key}")
   if data.isNull or data.isUndefined:
     return ""
   else:

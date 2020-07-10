@@ -2209,12 +2209,11 @@ proc setSpritesheet*(index: int) =
     raise newException(Exception, "No spritesheet loaded: " & $index)
   spritesheet = spritesheets[index]
 
-{.push sinkInference: off.}
 proc loadSpriteSheet*(index: int, filename: string, tileWidth,tileHeight: Pint = 8) =
   if index < 0 or index >= spritesheets.len:
     raise newException(Exception, "Invalid spritesheet " & $index)
   let shouldReplace = spritesheet == spritesheets[index]
-  backend.loadSurfaceIndexed(joinPath(assetPath,filename)) do(surface: Surface):
+  backend.loadSurfaceIndexed(joinPath(assetPath,filename)) do(surface: Surface) {.nosinks.}:
     echo "loaded spritesheet: ", filename, " ", surface.w, "x", surface.h, " tile:", tileWidth, "x", tileHeight
     spritesheets[index] = surface
     spritesheets[index].tw = tileWidth
@@ -2222,7 +2221,6 @@ proc loadSpriteSheet*(index: int, filename: string, tileWidth,tileHeight: Pint =
     spritesheets[index].filename = filename
     if shouldReplace:
       setSpritesheet(index)
-{.pop.}
 
 proc spriteSize*(): (int,int) =
   return (spritesheet.tw, spritesheet.th)

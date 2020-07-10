@@ -347,6 +347,10 @@ proc loadSurfaceRGBA*(filename: string, callback: proc(surface: Surface)) =
     surface.filename = filename
     surface.data = imgData.data
     callback(surface)
+
+  img.addEventListener("error") do(event: dom.Event):
+    callback(nil)
+
   img.src = filename
 
 proc loadSurfaceIndexed*(filename: string, callback: proc(surface: Surface)) =

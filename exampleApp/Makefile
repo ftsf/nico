@@ -19,9 +19,9 @@ rund: debug
 	./${APPNAME}_debug
 
 web: $(SOURCES)
-	${NIMJS} $(RELEASE_ARGS) $(BUILDARGS) -o:main.js src/main.nim
+	${NIMJS} $(RELEASE_ARGS) $(BUILDARGS) -o:$(APPNAME).js src/main.nim
 
 webd: $(SOURCES)
-	${NIMJS} $(DEBUG_ARGS) $(BUILDARGS) -o:main.js src/main.nim
+	${NIMJS} $(DEBUG_ARGS) $(BUILDARGS) -o:$(APPNAME).js src/main.nim
 
 .PHONY: release debug run rund web webd

@@ -930,3 +930,15 @@ proc showMouse*() =
 proc errorPopup*(title: string, message: string) =
   echo "ERROR: ", title," : ", message
   dom.window.alert(title & "\n" & message)
+
+when not declared(dom.window.document.ClipboardEvent):
+  type ClipboardEvent {.importc.} = ref object of dom.Event
+
+  proc newClipboardEvent(kind: string, options: JsObject = nil): ClipboardEvent {.importjs:"new ClipboardEvent(@)".}
+
+proc setClipboardText*(text: string) =
+  var options: JsObject
+  options["dataType"] = "text/plain"
+  options["data"] = text
+  let copyEvent = newClipboardEvent("copy", options)
+  dom.window.document.dispatchEvent(copyEvent)

@@ -1838,6 +1838,9 @@ proc crtFilter*(on: bool) =
     if window != nil:
       resize()
 
+proc setClipboardText*(text: string) =
+  discard sdl.setClipboardText(text)
+
 proc errorPopup*(title: string, message: string) =
   echo "ERROR: ", title," : ", message
   discard showSimpleMessageBox(MessageBoxError, title, message, window)

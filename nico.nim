@@ -38,6 +38,8 @@ export profileHistory
 
 export errorPopup
 
+export setClipboardText
+
 # Audio
 export joinPath
 export loadSfx

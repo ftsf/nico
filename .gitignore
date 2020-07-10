@@ -1,2 +1,5 @@
 *.swp
 src/nimcache/*
+*.exe
+*.js
+*.dll

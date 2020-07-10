@@ -690,6 +690,8 @@ proc getMusic*(channel: int): int =
   return -1
 
 proc music*(channel: AudioChannelId, musicId: MusicId, loop: int = -1) =
+  if audioContext == nil:	
+    return
   if audioChannels[channel].source != nil:
     audioChannels[channel].source.stop()
     audioChannels[channel].source = nil

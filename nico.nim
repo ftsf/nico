@@ -751,6 +751,12 @@ proc boxfill*(x,y,w,h: Pint) =
   for y in y..<y+h:
     hline(x,y,x+w-1)
 
+proc rbox*(x,y,w,h: Pint, r: Pint = 1) =
+  rrect(x,y,x+w-1,y+h-1,r)
+
+proc rboxfill*(x,y,w,h: Pint, r: Pint = 1) =
+  rrectfill(x,y,x+w-1,y+h-1,r)
+
 proc innerLineLow(x0,y0,x1,y1: int) =
   var dx = x1 - x0
   var dy = y1 - y0

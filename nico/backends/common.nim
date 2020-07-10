@@ -184,12 +184,12 @@ var currentPalette*: Palette
 var touches*: seq[Touch]
 var touchMouseEmulation* = false
 
-var masterVolume* = 1.0
-var sfxVolume* = 1.0
-var musicVolume* = 1.0
+var masterVolume* = 1.0'f
+var sfxVolume* = 1.0'f
+var musicVolume* = 1.0'f
 
-var sampleRate* = 44100.0
-var invSampleRate* = 1.0 / sampleRate
+var sampleRate* = 44100.0'f
+var invSampleRate* = 1.0'f / sampleRate
 
 var tickFunc*: proc() = nil
 

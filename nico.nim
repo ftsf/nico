@@ -1868,22 +1868,23 @@ proc fset*(s: uint8, f: uint8, v: bool) =
     spriteFlags[s].unset(f)
 
 proc masterVol*(newVol: int) =
-  masterVolume = clamp(newVol.float / 255.0, 0, 1)
+  echo "setting masterVol: ", newVol
+  masterVolume = clamp(newVol.float32 / 255.0'f, 0'f, 1'f)
 
 proc masterVol*(): int =
-  return (masterVolume * 255.0).int
+  return (masterVolume * 255.0'f).int
 
 proc sfxVol*(newVol: int) =
-  sfxVolume = clamp(newVol.float / 255.0, 0, 1)
+  sfxVolume = clamp(newVol.float32 / 255.0'f, 0'f, 1'f)
 
 proc sfxVol*(): int =
-  return (sfxVolume * 255.0).int
+  return (sfxVolume * 255.0'f).int
 
 proc musicVol*(newVol: int) =
-  musicVolume = clamp(newVol.float / 255.0, 0, 1)
+  musicVolume = clamp(newVol.float32 / 255.0'f, 0'f, 1'f)
 
 proc musicVol*(): int =
-  return (musicVolume * 255.0).int
+  return (musicVolume * 255.0'f).int
 
 proc createFontFromSurface(surface: Surface, chars: string): Font =
   var font = new(Font)

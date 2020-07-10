@@ -53,12 +53,20 @@ task gui, "compile gui example":
   exec "nim c -p:. -d:debug -o:examples/gui examples/gui.nim"
   exec "nim js -p:. -d:release -o:examples/gui.js examples/gui.nim"
 
+task benchmark, "compile benchmark example":
+  exec "nim c -p:. -d:release -d:danger -o:examples/benchmark examples/benchmark.nim"
+  exec "nim js -p:. -d:release -d:danger -o:examples/benchmark.js examples/benchmark.nim"
+
+task runbenchmark, "compile and run benchmark example":
+  exec "nim c -r -p:. -d:release -d:danger -o:examples/benchmark examples/benchmark.nim"
+
 task examples, "compile all examples":
   exec "nimble paintout"
   exec "nimble platformer"
   exec "nimble audio"
   exec "nimble vertex"
   exec "nimble gui"
+  exec "nimble benchmark"
 
 task runplatformer, "runs platformer":
   exec "nim c -r -p:. -d:release -o:examples/platformer examples/platformer.nim"

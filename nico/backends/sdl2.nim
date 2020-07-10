@@ -115,16 +115,24 @@ when defined(android):
 
   proc android_log(priority: LogPriority, tag: cstring, text: cstring) {.header: "android/log.h", importc: "__android_log_write".}
 
-  proc debug*(args: varargs[string, `$`]) =
-    android_log(ANDROID_LOG_INFO, "NICO", join(args, ", ").cstring)
+  when defined(debug):
+    proc debug*(args: varargs[string, `$`]) =
+      android_log(ANDROID_LOG_INFO, "NICO", join(args, ", ").cstring)
+  else:
+    template debug*(args: varargs[string, `$`]) =
+      discard
 else:
-  proc debug*(args: varargs[string, `$`]) =
-    for i, s in args:
-      write(stderr, s)
-      if i != args.high:
-        write(stderr, ", ")
-    write(stderr, "\n")
-    flushFile(stderr)
+  when defined(debug):
+    proc debug*(args: varargs[string, `$`]) =
+      for i, s in args:
+        write(stderr, s)
+        if i != args.high:
+          write(stderr, ", ")
+      write(stderr, "\n")
+      flushFile(stderr)
+  else:
+    template debug*(args: varargs[string, `$`]) =
+      discard
 
 # Globals
 

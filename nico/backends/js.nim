@@ -686,9 +686,10 @@ proc sfx*(channel: AudioChannelId = audioChannelAuto, sfxId: SfxId, loop: int = 
     source.start()
     audioChannels[channel].source = source
 
-proc getMusic*(channel: int): int =
-  ## returns the id of the music currently being played on `channel` or -1 if no music is playing
-  return -1
+proc getMusic*(channel: AudioChannelId): int =
+  if audioContext == nil:
+    return -1
+  return audioChannels[channel].musicId
 
 proc music*(channel: AudioChannelId, musicId: MusicId, loop: int = -1) =
   if audioContext == nil:

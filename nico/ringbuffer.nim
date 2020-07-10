@@ -1,4 +1,3 @@
-import macros
 import math
 
 type
@@ -50,32 +49,33 @@ proc `[]=`*[T](b: var RingBuffer[T], i: int, item: T) {.raises: [IndexError].} =
 
 proc len*[T](b: RingBuffer[T]): int =
   return b.length
+  
+when isMainModule:
+  import unittest
 
-import unittest
+  suite "ringbuffer":
+    test "index":
+      var rb = newRingBuffer[int](3)
+      rb.add(0)
+      rb.add(1)
+      rb.add(2)
+      check(rb[0] == 0)
+      check(rb[1] == 1)
+      check(rb[2] == 2)
+      rb.add(3)
+      check(rb[0] == 1)
+      check(rb[1] == 2)
+      check(rb[2] == 3)
 
-suite "ringbuffer":
-  test "index":
-    var rb = newRingBuffer[int](3)
-    rb.add(0)
-    rb.add(1)
-    rb.add(2)
-    check(rb[0] == 0)
-    check(rb[1] == 1)
-    check(rb[2] == 2)
-    rb.add(3)
-    check(rb[0] == 1)
-    check(rb[1] == 2)
-    check(rb[2] == 3)
-
-  test "revIndex":
-    var rb = newRingBuffer[int](3)
-    rb.add(0)
-    rb.add(1)
-    rb.add(2)
-    check(rb[-1] == 2)
-    check(rb[-2] == 1)
-    check(rb[-3] == 0)
-    rb.add(3)
-    check(rb[-1] == 3)
-    check(rb[-2] == 2)
-    check(rb[-3] == 1)
+    test "revIndex":
+      var rb = newRingBuffer[int](3)
+      rb.add(0)
+      rb.add(1)
+      rb.add(2)
+      check(rb[-1] == 2)
+      check(rb[-2] == 1)
+      check(rb[-3] == 0)
+      rb.add(3)
+      check(rb[-1] == 3)
+      check(rb[-2] == 2)
+      check(rb[-3] == 1)

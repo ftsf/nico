@@ -21,9 +21,17 @@ installDirs = @["exampleApp"]
 bin = @["nicoboot"]
 
 task test, "run tests":
-  exec "nim c -p:. -d:debug -r tests/copymem.nim"
-  exec "nim c -p:. -d:debug -r tests/fonts.nim"
-  exec "nim c -p:. -d:debug -r tests/config.nim"
+  exec "nim c -p:. -r tests/copymem.nim"
+  exec "nim c -p:. -r tests/fonts.nim"
+  exec "nim c -p:. -r tests/config.nim"
+  exec "nim c -p:. -r tests/palette.nim"
+
+task testjs, "compile tests with js backend":
+  # test they compile with js backend, harder to test running
+  exec "nim js -p:. tests/copymem.nim"
+  exec "nim js -p:. tests/fonts.nim"
+  exec "nim js -p:. tests/config.nim"
+  exec "nim js -p:. tests/palette.nim"
 
 task paintout, "compile paintout example":
   exec "nim c -p:. -d:debug examples/paintout.nim"

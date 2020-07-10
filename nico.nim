@@ -155,9 +155,11 @@ proc glyphWidth*(c: char, scale: Pint = 1): Pint
 proc setColor*(colId: ColorId)
 proc getColor*(): ColorId
 proc loadPaletteFromGPL*(filename: string): Palette
+proc loadPaletteFromImage*(filename: string): Palette
 proc loadPalettePico8*(): Palette
 proc loadPaletteCGA*(): Palette
 proc loadPaletteGrayscale*(): Palette
+proc palSize*(): Pint
 
 proc pal*(a,b: ColorId) # maps one color to another
 proc pald*(a,b: ColorId) # maps one color to another on display output
@@ -169,6 +171,10 @@ proc palt*() # resets transparency
 proc palCol*(c: Pint, r,g,b: uint8) =
   ## sets the palette color to rgb value
   currentPalette.data[c.uint8] = (r,g,b)
+
+proc palCol*(c: Pint): (uint8,uint8,uint8) =
+  ## gets the palette color as rgb
+  return currentPalette.data[c.uint8]
 
 proc palIndex*(r,g,b: uint8): int =
   ## gets the closest color in the palette to given r,g,b
@@ -267,6 +273,7 @@ export showMouse
 # pixels
 proc pset*(x,y: Pint)
 proc pget*(x,y: Pint): ColorId
+proc pgetRGB*(x,y: Pint): (uint8,uint8,uint8)
 proc sset*(x,y: Pint, c: int = -1)
 proc sget*(x,y: Pint): ColorId
 
@@ -389,6 +396,28 @@ proc time*(): float =
 proc speed*(speed: int) =
   frameMult = speed
 
+proc loadPaletteFromImage*(filename: string): Palette =
+  var loaded = false
+  var palette: Palette
+  backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
+    if surface == nil:
+      loaded = true
+      raise newException(IOError, "Error loading palette image: " & filename)
+    var nColors = 0
+    for y in 0..<surface.h:
+      for x in 0..<surface.w:
+        let r = surface.data[y * surface.w * 4 + x * 4 + 0]
+        let g = surface.data[y * surface.w * 4 + x * 4 + 1]
+        let b = surface.data[y * surface.w * 4 + x * 4 + 2]
+        palette.data[nColors] = RGB(r,g,b)
+        nColors += 1
+    palette.size = nColors
+    loaded = true
+  while not loaded:
+    # force sync
+    discard
+  return palette
+
 proc loadPaletteFromGPL*(filename: string): Palette =
   var data = backend.readFile(joinPath(assetPath,filename))
   var i = 0
@@ -406,15 +435,18 @@ proc loadPaletteFromGPL*(filename: string): Palette =
     var r,g,b: int
     if scanf(line, "$s$i $s$i $s$i", r,g,b):
       result.data[i-1] = RGB(r,g,b)
+      result.size += 1
       if i > maxPaletteSize:
         break
       i += 1
     else:
       debug "not matched: ", line
-  result.size = i
   pal()
   pald()
   palt()
+
+proc palSize*(): Pint =
+  return currentPalette.size
 
 proc setPalette*(p: Palette) =
   currentPalette = p
@@ -716,6 +748,11 @@ proc pget*(x,y: Pint): ColorId =
   if x > swCanvas.w-1 or x < 0 or y > swCanvas.h-1 or y < 0:
     return 0
   return swCanvas.data[y*swCanvas.w+x].ColorId
+
+proc pgetRGB*(x,y: Pint): (uint8,uint8,uint8) =
+  if x > swCanvas.w-1 or x < 0 or y > swCanvas.h-1 or y < 0:
+    return (0'u8,0'u8,0'u8)
+  return palCol(swCanvas.data[y*swCanvas.w+x].ColorId)
 
 proc rectfill*(x1,y1,x2,y2: Pint) =
   let minx = min(x1,x2)

@@ -1157,8 +1157,8 @@ proc update*(G: Gui, onGui: proc(), dt: float32) =
       G.currentAreaId = 0
       G.nextAreaId = 1
       G.e.kind = gMouseDown
-      G.e.x = t.x
-      G.e.y = t.y
+      G.e.x = t.x + cameraX
+      G.e.y = t.y + cameraY
       G.e.xrel = 0
       G.e.yrel = 0
       G.element = 0
@@ -1171,8 +1171,8 @@ proc update*(G: Gui, onGui: proc(), dt: float32) =
       G.hoverElement = 0
       G.activeHoverElement = 0
       G.e.kind = gMouseMove
-      G.e.x = t.x
-      G.e.y = t.y
+      G.e.x = t.x + cameraX
+      G.e.y = t.y + cameraY
       G.e.xrel = (t.x - lastMouseX).float32
       G.e.yrel = (t.y - lastMouseY).float32
       G.element = 0
@@ -1190,8 +1190,8 @@ proc update*(G: Gui, onGui: proc(), dt: float32) =
       G.wasMouseDown = false
       G.downElement = 0
 
-    lastMouseX = t.x
-    lastMouseY = t.y
+    lastMouseX = t.x + cameraX
+    lastMouseY = t.y + cameraY
 
   else:
     if mx != lastMouseX or my != lastMouseY:

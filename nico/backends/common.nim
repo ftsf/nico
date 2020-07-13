@@ -225,6 +225,7 @@ type
     w*,h*: int
     tw*,th*: int
     filename*: string
+    spriteFlags*: seq[uint8]
 
 proc set*(s: Surface, x,y: int, v: uint8) =
   if x < 0 or y < 0 or x >= s.w or y >= s.h:
@@ -337,7 +338,6 @@ var focused* = true
 var recordSeconds* = 30
 var fullSpeedGif* = true
 
-var spriteFlags*: array[128, uint8]
 var mixerChannels* = 0
 
 var gDitherPattern*: uint16 = 0b1111_1111_1111_1111
@@ -463,7 +463,6 @@ proc mapRGB*(r,g,b: uint8): ColorId =
     if diff < smallestDiff:
       smallestDiff = diff
       bestIndex = i
-  echo "invalid color: ", r.int, " ", g.int," ",b.int
   return bestIndex
 
 proc mapRGBA*(r,g,b,a: uint8): ColorId =
@@ -483,7 +482,6 @@ proc mapRGBA*(r,g,b,a: uint8): ColorId =
     if diff < smallestDiff:
       smallestDiff = diff
       bestIndex = i
-  echo "invalid color: ", r.int, " ", g.int," ",b.int
   return bestIndex
 
 proc convertToIndexed*(surface: Surface): Surface =

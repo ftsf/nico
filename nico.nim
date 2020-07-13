@@ -203,6 +203,18 @@ proc clip*(x,y,w,h: Pint)
 proc clip*()
 proc getClip*(): (int,int,int,int)
 
+# Bitops
+proc contains[T](flags: T, bit: T): bool =
+  return (flags.int and 1 shl bit.int) != 0
+
+proc set[T](flags: var T, bit: T) =
+  flags = (flags.int or 1 shl bit.int).T
+
+proc unset[T](flags: var T, bit: T) =
+  flags = (flags.int and (not 1 shl bit.int)).T
+
+
+
 # Stencil
 proc stencilSet*(x,y,v: Pint) =
   stencilBuffer.set(x,y,v.uint8)
@@ -1890,29 +1902,32 @@ proc mget*(tx,ty: Pint): uint8 =
     return 0.uint8
   return currentTilemap[].data[ty * currentTilemap.w + tx]
 
-proc contains[T](flags: T, bit: T): bool =
-  return (flags.int and 1 shl bit.int) != 0
+iterator mapAdjacent*(tx,ty: Pint): (Pint,Pint) =
+  for y in 0..<currentTilemap.h:
+    for x in 0..<currentTilemap.w:
+      if x > 0:
+        yield ((x-1).Pint,y.Pint)
+      if x < currentTilemap.w - 1:
+        yield ((x+1).Pint,y.Pint)
+      if y > 0:
+        yield (x.Pint,(y-1).Pint)
+      if y < currentTilemap.h - 1:
+        yield (x.Pint,(y+1).Pint)
 
-proc set[T](flags: var T, bit: T) =
-  flags = (flags.int or 1 shl bit.int).T
+proc fget*(s: Pint): uint8 =
+  return spritesheet.spriteFlags[s]
 
-proc unset[T](flags: var T, bit: T) =
-  flags = (flags.int and (not 1 shl bit.int)).T
+proc fget*(s: Pint, f: uint8): bool =
+  return spritesheet.spriteFlags[s].contains(f)
 
-proc fget*(s: uint8): uint8 =
-  return spriteFlags[s]
+proc fset*(s: Pint, f: uint8) =
+  spritesheet.spriteFlags[s] = f
 
-proc fget*(s: uint8, f: uint8): bool =
-  return spriteFlags[s].contains(f)
-
-proc fset*(s: uint8, f: uint8) =
-  spriteFlags[s] = f
-
-proc fset*(s: uint8, f: uint8, v: bool) =
+proc fset*(s: Pint, f: uint8, v: bool) =
   if v:
-    spriteFlags[s].set(f)
+    spritesheet.spriteFlags[s].set(f)
   else:
-    spriteFlags[s].unset(f)
+    spritesheet.spriteFlags[s].unset(f)
 
 proc masterVol*(newVol: int) =
   echo "setting masterVol: ", newVol
@@ -2217,10 +2232,14 @@ proc loadSpriteSheet*(index: int, filename: string, tileWidth,tileHeight: Pint =
   let shouldReplace = spritesheet == spritesheets[index]
   backend.loadSurfaceIndexed(joinPath(assetPath,filename)) do(surface: Surface) {.nosinks.}:
     echo "loaded spritesheet: ", filename, " ", surface.w, "x", surface.h, " tile:", tileWidth, "x", tileHeight
+    if surface.w mod tileWidth != 0 or surface.h mod tileHeight != 0:
+      raise newException(Exception, "Spritesheet size must be divisible by tile size: " & $tileWidth & "x" & $tileHeight)
+    let numTiles = (surface.w div tileWidth) * (surface.h div tileHeight)
     spritesheets[index] = surface
     spritesheets[index].tw = tileWidth
     spritesheets[index].th = tileHeight
     spritesheets[index].filename = filename
+    spritesheets[index].spriteFlags = newSeq[uint8](numTiles)
     if shouldReplace:
       setSpritesheet(index)
 
@@ -2418,6 +2437,18 @@ proc mapDrawHex(tx,ty, tw,th, dx,dy: Pint) =
       if t != 0:
         drawTile(t, px - cameraX, py - cameraY)
 
+var mapFilterFlags: uint8 = 0'u8
+
+proc mapFilter*(flags: uint8 = 0'u8) =
+  ## set the sprite flag filter for map drawing
+  mapFilterFlags = flags
+
+proc mapFilter*(flag: range[0..7], on: bool) =
+  ## set the sprite flag filter for map drawing
+  if on:
+    mapFilterFlags.set(flag.uint8)
+  else:
+    mapFilterFlags.unset(flag.uint8)
 
 proc mapDraw*(tx,ty, tw,th, dx,dy: Pint, dw,dh: Pint = -1, loop: bool = false, ox,oy: Pint = 0) =
   ## tx,ty = top left tilemap coordinates to draw from
@@ -2493,7 +2524,8 @@ proc mapDraw*(tx,ty, tw,th, dx,dy: Pint, dw,dh: Pint = -1, loop: bool = false, o
       let px = x * xincrement
       let py = y * yincrement
       if t != 0:
-        drawTile(t, dminx - offsetX + px, dminy - offsetY + py)
+        if (mapFilterFlags == 0) or (spritesheet.spriteFlags[t] and mapFilterFlags) != 0:
+          drawTile(t, dminx - offsetX + px, dminy - offsetY + py)
       count+=1
 
   #debug "count", count, "x", endCol - startCol, "y", endRow - startRow
@@ -2519,8 +2551,9 @@ proc loadMapFromJson(index: int, filename: string) =
   # only look at first layer
   tm.data = newSeq[uint8](tm.w*tm.h)
   for i in 0..<(tm.w*tm.h):
-    let t = data["layers"][0]["data"][i].getBiggestInt().uint8 - 1
-    tm.data[i] = t.uint8
+    let t = data["layers"][0]["data"][i].getBiggestInt()
+    # map is stored as 0 = blank, 1 = first tile, so we need to subtract 1 from anything higher than 0
+    tm.data[i] = if t > 0: (t-1).uint8 else: 0
 
   tilemaps[index] = tm
 

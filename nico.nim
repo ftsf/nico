@@ -793,6 +793,8 @@ proc box*(x,y,w,h: Pint) =
   hline(x,y+h-1,x+w-1)
 
 proc boxfill*(x,y,w,h: Pint) =
+  if w == 0 or h == 0:
+    return
   for y in y..<y+h:
     hline(x,y,x+w-1)
 

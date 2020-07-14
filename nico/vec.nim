@@ -385,6 +385,11 @@ proc rndVec2f*(mag: float32): Vec2f =
   result.x = rnd(mag*2'f) - mag
   result.y = rnd(mag*2'f) - mag
 
+proc rndDir*(mag: float32 = 1'f): Vec2f =
+  result.x = rnd(2'f) - 1'f
+  result.y = rnd(2'f) - 1'f
+  result = result.normalized * mag
+
 proc rndVec3f*(mag: float32): Vec3f =
   result.x = rnd(mag*2'f) - mag
   result.y = rnd(mag*2'f) - mag

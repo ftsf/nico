@@ -68,7 +68,7 @@ var audioChannels: array[nAudioChannels, Channel]
 
 var tickFunc: proc() = nil
 
-proc synthSetOsc(self: var Channel)
+proc synthSetOsc(self: var Channel, newShape: SynthShape, trigger: bool)
 
 proc toNicoKeycode(x: int): Keycode =
   var x = x
@@ -382,7 +382,6 @@ proc audioClock(self: var Channel) =
     if self.synthDataIndex >= 0:
       let i = self.synthDataIndex div (self.synthData.speed.int + 1)
       if i < self.synthData.length.int:
-        self.shape = self.synthData.steps[i].shape
         self.basefreq = note(self.synthData.steps[i].note.int)
         self.targetFreq = self.basefreq
         self.freq = self.basefreq
@@ -391,8 +390,8 @@ proc audioClock(self: var Channel) =
         self.env = 0
         self.envPhase = 0
         self.pchange = 0
+        self.synthSetOsc(self.synthData.steps[i].shape, false)
         self.synthDataIndex += 1
-        self.synthSetOsc()
       else:
         # reached end of data
         if self.synthData.loop > 0:
@@ -673,6 +672,11 @@ proc mute*() {.exportc:"mute".} =
 proc sfx*(channel: AudioChannelId = audioChannelAuto, sfxId: SfxId, loop: int = 0) =
   if audioContext == nil:
     return
+
+  if sfxId == -1:
+    audioChannels[channel].resetChannel()
+    return
+
   if sfxData[sfxId] != nil:
     if audioChannels[channel].source != nil:
       audioChannels[channel].resetChannel()
@@ -755,28 +759,35 @@ proc synthShape*(channel: AudioChannelId, newShape: SynthShape) =
 
   audioChannels[channel].shape = newShape
 
-proc synthSetOsc(self: var Channel) =
+proc synthSetOsc(self: var Channel, newShape: SynthShape, trigger: bool) =
   if audioContext == nil:
     return
 
+  if newShape == self.shape and self.source != nil:
+    # same shape
+    return
+
+  self.shape = newShape
+
   if self.source != nil:
+    disconnect(self.source)
     self.source.stop()
+    self.source = nil
 
   if self.shape == synNoise or self.shape == synNoise2:
-    when true:
-      var osc = audioContext.createBufferSource()
+    var osc = audioContext.createBufferSource()
 
-      if self.shape == synNoise:
-        if noiseBuffer == nil:
-          noiseBuffer = initNoiseBuffer(4096, 1000.0)
-        osc.buffer = noiseBuffer
-      elif self.shape == synNoise2:
-        if noiseBuffer2 == nil:
-          noiseBuffer2 = initNoiseBuffer(128, 1000.0)
-        osc.buffer = noiseBuffer2
+    if self.shape == synNoise:
+      if noiseBuffer == nil:
+        noiseBuffer = initNoiseBuffer(4096, 4096.0'f)
+      osc.buffer = noiseBuffer
+    elif self.shape == synNoise2:
+      if noiseBuffer2 == nil:
+        noiseBuffer2 = initNoiseBuffer(128, 128.0'f)
+      osc.buffer = noiseBuffer2
 
-      self.source = osc
-      osc.loop = true
+    self.source = osc
+    osc.loop = true
   else:
     var osc = audioContext.createOscillator();
     osc.`type` = case self.shape:
@@ -828,7 +839,8 @@ proc synth*(channel: AudioChannelId, shape: SynthShape, freq: float32, init: ran
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
 
-  audioChannels[channel].resetChannel()
+  if audioChannels[channel].kind != channelSynth:
+    audioChannels[channel].resetChannel()
 
   audioChannels[channel].kind = channelSynth
   audioChannels[channel].shape = shape
@@ -846,23 +858,23 @@ proc synth*(channel: AudioChannelId, shape: SynthShape, freq: float32, init: ran
   audioChannels[channel].vibspeed = 1
   audioChannels[channel].synthDataIndex = -1
 
-  audioChannels[channel].synthSetOsc()
+  audioChannels[channel].synthSetOsc(shape, true)
 
 
 proc synth*(channel: AudioChannelId, synthData: SynthData) =
   if channel > audioChannels.high:
     raise newException(KeyError, "invalid channel: " & $channel)
+
   audioChannels[channel].kind = channelSynth
   audioChannels[channel].synthData = synthData
   audioChannels[channel].synthDataIndex = 0
   audioChannels[channel].loop = synthData.loop.int
   audioChannels[channel].trigger = true
-  audioChannels[channel].synthSetOsc()
+  audioChannels[channel].synthSetOsc(synthData.steps[0].shape, true)
 
 proc synth*(channel: AudioChannelId, synthString: string) =
   let sd = synthDataFromString(synthString)
   synth(channel, sd)
-  audioChannels[channel].synthSetOsc()
 
 proc synthIndex*(channel: AudioChannelId): int =
   return audioChannels[channel].synthDataIndex div (audioChannels[channel].synthData.speed.int+1)

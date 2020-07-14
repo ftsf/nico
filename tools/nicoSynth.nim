@@ -83,7 +83,21 @@ proc gameGui() =
     if ix >= 0 and ix < data.steps.len:
       editMode = 0
       editIndex = ix
-      data.steps[ix].note = clamp(minNote + pitchHeight - yval, minNote, maxNote).uint8
+      var note = clamp(minNote + pitchHeight - yval, minNote, maxNote)
+      if key(K_LSHIFT):
+        # lock to C maj, 0 2 4 7 9 11
+        let oct = note div 12
+        let noteInOct = note mod 12
+        let adjusted = case noteInOct:
+          of 0,1: 0
+          of 2,3: 2
+          of 4,5: 4
+          of 6,7: 7
+          of 8,9: 9
+          of 10,11: 11
+          else: 0
+        note = oct * 12 + adjusted
+      data.steps[ix].note = note.uint8
 
   # volume
   let volumeHeight = 32

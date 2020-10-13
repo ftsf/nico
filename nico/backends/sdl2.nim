@@ -593,15 +593,16 @@ proc readFile*(filename: string): string =
 proc loadSurfaceIndexed*(filename: string, callback: proc(surface: common.Surface)) =
   var buffer = readFile(filename)
   let ss = newStringStream(buffer)
-  let png = decodePNG(ss, LCT_PALETTE, 8)
+  let png = decodePNG(ss, LCT_RGBA, 8)
 
   var surface = newSurface(png.width, png.height)
   surface.filename = filename
   surface.w = png.width
   surface.h = png.height
-  surface.channels = 1
+  surface.channels = 4
   surface.data = cast[seq[uint8]](png.data)
-  callback(surface)
+
+  callback(surface.convertToIndexed())
 
 proc loadSurfaceRGBA*(filename: string, callback: proc(surface: common.Surface)) =
   var buffer = readFile(filename)

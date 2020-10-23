@@ -327,10 +327,10 @@ proc spr*(spr: Pint, x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false)
 proc sprs*(spr: Pint, x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip, vflip: bool = false)
 proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = false)
 proc sprshift*(spr: Pint, x,y: Pint, w,h: Pint = 1, ox,oy: Pint = 0, hflip, vflip: bool = false)
-proc spr*(drawer : SpriteDraw)
-proc spr*(drawer : SpriteDraw, x,y : Pint)
-
-proc sprOverlap*(a, b : SpriteDraw): bool
+proc sprRot*(spr: Pint, x,y: Pint, radians: float32, w,h: Pint = 1)
+proc spr*(drawer: SpriteDraw)
+proc spr*(drawer: SpriteDraw, x,y: Pint)
+proc sprOverlap*(a, b: SpriteDraw): bool
 
 # misc
 proc copy*(sx,sy,dx,dy,w,h: Pint) # copy one area of the screen to another
@@ -1711,6 +1711,77 @@ proc blitFast(src: Surface, sx,sy, dx,dy, w,h: Pint) =
     sxi = sx
     dxi = dx
 
+proc blitFastRot(src: Surface, srcRect: Rect, centerX, centerY: Pint, radians: float32) =
+  # used for tile drawing, no stretch or flipping, but allows rotation
+  # uses RSamp algorithm, contributed by avahe-kellenberger
+  # http://www.leptonica.org/rotation.html
+
+  let cosRadians = cos(radians)
+  let sinRadians = sin(radians)
+
+  let srcCenterX = (srcRect.w - 1).float32 / 2f
+  let srcCenterY = (srcRect.h - 1).float32 / 2f
+
+  # calculate bounds
+  let sminx = -srcCenterX
+  let smaxx = srcCenterX
+  let sminy = -srcCenterY
+  let smaxy = srcCenterY
+
+  let AX = cosRadians * sminx + sinRadians * sminy + srcCenterX
+  let AY = cosRadians * sminy - sinRadians * sminx + srcCenterY
+
+  let BX = cosRadians * smaxx + sinRadians * sminy + srcCenterX
+  let BY = cosRadians * sminy - sinRadians * smaxx + srcCenterY
+
+  let CX = cosRadians * smaxx + sinRadians * smaxy + srcCenterX
+  let CY = cosRadians * smaxy - sinRadians * smaxx + srcCenterY
+
+  let DX = cosRadians * sminx + sinRadians * smaxy + srcCenterX
+  let DY = cosRadians * smaxy - sinRadians * sminx + srcCenterY
+
+  let minx = min(AX,min(BX,min(CX,DX)))
+  let miny = min(AY,min(BY,min(CY,DY)))
+  let maxx = max(AX,max(BX,max(CX,DX)))
+  let maxy = max(AY,max(BY,max(CY,DY)))
+
+  let dstW = maxx - minx
+  let dstH = maxy - miny
+
+  let dstCenterX = (dstW - 1).float32 / 2f
+  let dstCenterY = (dstH - 1).float32 / 2f
+
+  for y in 0..<dstH:
+    for x in 0..<dstW:
+      let dx = (centerX - dstCenterX) + x
+      let dy = (centerY - dstCenterY) + y
+
+      # check dest pixel is in bounds
+      if dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY:
+        continue
+
+      let dstIndex = dy * swCanvas.w + dx
+
+      let
+        rx = x.float32 - dstCenterX
+        ry = y.float32 - dstCenterY
+        rsx = round(cosRadians * rx + sinRadians * ry + srcCenterX).int
+        rsy = round(cosRadians * ry - sinRadians * rx + srcCenterY).int
+      # check source pixel is in bounds
+      if rsx < 0 or rsy < 0 or rsx >= srcRect.w or rsy >= srcRect.h:
+        continue
+
+      let
+        sx = srcRect.x + rsx
+        sy = srcRect.y + rsy
+
+      if ditherPass(dx,dy):
+        let srcCol = src.data[sy * src.w + sx]
+        if not paletteTransparent[srcCol]:
+          swCanvas.data[dstIndex] = paletteMapDraw[srcCol].uint8
+      elif ditherColor >= 0:
+        swCanvas.data[dstIndex] = ditherColor.uint8
+
 proc blitFastFlip(src: Surface, sx,sy, dx,dy, w,h: Pint, hflip, vflip: bool) =
   # used for tile drawing, no stretch
   let startsx = sx + (if hflip: w - 1 else: 0)
@@ -2270,11 +2341,15 @@ proc sprshift*(spr: Pint, x,y: Pint, w,h: Pint = 1, ox,oy: Pint = 0, hflip, vfli
   if spritesheet.tw == 0 or spritesheet.th == 0:
     return
   # draw a sprite
-  var src = getSprRect(spr, w, h)
+  let src = getSprRect(spr, w, h)
   if hflip or vflip:
     blitFastFlipShift(spritesheet, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h, ox, oy, hflip, vflip)
   else:
     blitFastFlipShift(spritesheet, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h, ox, oy, false, false)
+
+proc sprRot*(spr: Pint, x,y: Pint, radians: float32, w,h: Pint = 1) =
+  let src = getSprRect(spr, w, h)
+  blitFastRot(spritesheet, src, x, y, radians)
 
 proc sprBlit*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
   # draw a sprite

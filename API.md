@@ -321,6 +321,11 @@ Draws `w,h` sprites starting from `spr` from the current spritesheet at `x,y`, o
 
 ---
 
+`sprRot(spr: int, centerX,centerY: int, radians: float32, w,h: int = 1)`
+Draws sprite at centerX,centerY rotated by radians, can optionally specify how many tiles
+
+---
+
 `sprs(spr: int, x,y: int, w,h: int = 1, dw,dh: int = 1, hflip, vflip: bool = false)`
 Draws `w,h` tiles starting from `spr` from the current spritesheet at `x,y`, optionally flipped and scaled to `dw,dh` tiles.
 

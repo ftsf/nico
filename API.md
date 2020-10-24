@@ -321,8 +321,15 @@ Draws `w,h` sprites starting from `spr` from the current spritesheet at `x,y`, o
 
 ---
 
+`sprRot90(spr: int, x, y int, rotations: int, w,h: int = 1)`
+Draws sprite at x,y rotated clockwise by 90 degrees, can optionally specify how many tiles
+
+---
+
 `sprRot(spr: int, centerX,centerY: int, radians: float32, w,h: int = 1)`
 Draws sprite at centerX,centerY rotated by radians, can optionally specify how many tiles
+
+Unlike all other sprite drawing operations this one draws based on the center of the sprite.
 
 ---
 

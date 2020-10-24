@@ -27,6 +27,13 @@ proc gameUpdate(dt: Pfloat) =
 
 proc gameDraw() =
   cls()
+
+  var i = 0
+  for ty in 0..<screenHeight div 16:
+    for tx in 0..<screenWidth div 16:
+      sprRot90(16, tx * 16, ty * 16, i mod 4)
+      i+=1
+
   if mode == 0:
     sprRot(0, pos.x, pos.y, angle, 1, 1)
   elif mode == 1:

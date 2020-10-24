@@ -328,6 +328,7 @@ proc sprs*(spr: Pint, x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip, vflip: b
 proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = false)
 proc sprshift*(spr: Pint, x,y: Pint, w,h: Pint = 1, ox,oy: Pint = 0, hflip, vflip: bool = false)
 proc sprRot*(spr: Pint, x,y: Pint, radians: float32, w,h: Pint = 1)
+proc sprRot90*(spr: Pint, x,y: Pint, rotations: int, w,h: Pint = 1)
 proc spr*(drawer: SpriteDraw)
 proc spr*(drawer: SpriteDraw, x,y: Pint)
 proc sprOverlap*(a, b: SpriteDraw): bool
@@ -1712,7 +1713,7 @@ proc blitFast(src: Surface, sx,sy, dx,dy, w,h: Pint) =
     dxi = dx
 
 proc blitFastRot(src: Surface, srcRect: Rect, centerX, centerY: Pint, radians: float32) =
-  # used for tile drawing, no stretch or flipping, but allows rotation
+  # no stretch or flipping, but allows rotation
   # uses RSamp algorithm, contributed by avahe-kellenberger
   # http://www.leptonica.org/rotation.html
 
@@ -1777,6 +1778,52 @@ proc blitFastRot(src: Surface, srcRect: Rect, centerX, centerY: Pint, radians: f
 
       if ditherPass(dx,dy):
         let srcCol = src.data[sy * src.w + sx]
+        if not paletteTransparent[srcCol]:
+          swCanvas.data[dstIndex] = paletteMapDraw[srcCol].uint8
+      elif ditherColor >= 0:
+        swCanvas.data[dstIndex] = ditherColor.uint8
+
+proc blitFastRot90(src: Surface, srcRect: Rect, dx, dy: Pint, rotations: int) =
+  # no stretch or flipping, but allows 90,180,270 degree rotation
+  # uses RSamp algorithm, contributed by avahe-kellenberger
+  # http://www.leptonica.org/rotation.html
+
+  let rotations: range[0..3] = floorMod(rotations, 4)
+
+  let dstW = if rotations mod 2 == 0: srcRect.w else: srcRect.h
+  let dstH = if rotations mod 2 == 0: srcRect.h else: srcRect.w
+
+  for y in 0..<dstH:
+    for x in 0..<dstW:
+
+      let dxi = dx + x
+      let dyi = dy + y
+
+      # check dest pixel is in bounds
+      if dxi < clipMinX or dyi < clipMinY or dxi > clipMaxX or dyi > clipMaxY:
+        continue
+
+      let dstIndex = dyi * swCanvas.w + dxi
+
+      var sx: int
+      var sy: int
+
+      case rotations:
+      of 0: # orig
+        sx = x
+        sy = y
+      of 1: # 90 clockwise
+        sx = y
+        sy = dstW - 1 - x
+      of 2: # 180 clockwise
+        sx = dstW - 1 - x
+        sy = dstH - 1 - y
+      of 3: # 270 clockwise
+        sx = dstH - 1 - y
+        sy = x
+
+      if ditherPass(dx,dy):
+        let srcCol = src.data[(srcRect.y + sy) * src.w + (srcRect.x + sx)]
         if not paletteTransparent[srcCol]:
           swCanvas.data[dstIndex] = paletteMapDraw[srcCol].uint8
       elif ditherColor >= 0:
@@ -2350,6 +2397,10 @@ proc sprshift*(spr: Pint, x,y: Pint, w,h: Pint = 1, ox,oy: Pint = 0, hflip, vfli
 proc sprRot*(spr: Pint, x,y: Pint, radians: float32, w,h: Pint = 1) =
   let src = getSprRect(spr, w, h)
   blitFastRot(spritesheet, src, x, y, radians)
+
+proc sprRot90*(spr: Pint, x,y: Pint, rotations: int, w,h: Pint = 1) =
+  let src = getSprRect(spr, w, h)
+  blitFastRot90(spritesheet, src, x, y, rotations)
 
 proc sprBlit*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
   # draw a sprite

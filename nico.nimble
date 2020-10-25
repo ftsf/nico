@@ -1,18 +1,18 @@
 # Package
 
-version       = "0.3.1"
+version       = "0.3.2"
 author        = "Jez 'Impbox' Kabanov"
 description   = "Nico Game Engine"
 license       = "MIT"
 
 # Dependencies
 
-requires "nim >= 1.2.0"
+requires "nim >= 1.4.0"
 requires "sdl2_nim >= 2.0.10.0"
 requires "gifenc >= 0.1.0"
 requires "webaudio >= 0.2.1"
 requires "html5_canvas >= 0.1.0"
-requires "ajax >= 0.1.0"
+requires "ajax >= 0.1.1"
 requires "nimPNG"
 
 skipDirs = @["examples","tests","android","tools"]

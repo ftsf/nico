@@ -766,6 +766,8 @@ proc sget*(x,y: Pint): ColorId =
   return color
 
 proc pget*(x,y: Pint): ColorId =
+  let x = x-cameraX
+  let y = y-cameraY
   if x > swCanvas.w-1 or x < 0 or y > swCanvas.h-1 or y < 0:
     return 0
   return swCanvas.data[y*swCanvas.w+x].ColorId

@@ -1756,8 +1756,8 @@ proc blitFastRot(src: Surface, srcRect: Rect, centerX, centerY: Pint, radians: f
 
   for y in 0..<dstH:
     for x in 0..<dstW:
-      let dx = (centerX - dstCenterX) + x
-      let dy = (centerY - dstCenterY) + y
+      let dx = (centerX - dstCenterX) + x - cameraX
+      let dy = (centerY - dstCenterY) + y - cameraY
 
       # check dest pixel is in bounds
       if dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY:
@@ -1798,8 +1798,8 @@ proc blitFastRot90(src: Surface, srcRect: Rect, dx, dy: Pint, rotations: int) =
   for y in 0..<dstH:
     for x in 0..<dstW:
 
-      let dxi = dx + x
-      let dyi = dy + y
+      let dxi = dx + x - cameraX
+      let dyi = dy + y - cameraY
 
       # check dest pixel is in bounds
       if dxi < clipMinX or dyi < clipMinY or dxi > clipMaxX or dyi > clipMaxY:

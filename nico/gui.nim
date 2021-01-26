@@ -769,7 +769,7 @@ proc drag*[T](G: Gui, text: string, value: var T, min, max: T, sensitivity: floa
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
   return G.drag(text, value, min, max, sensitivity, w, h, enabled)
 
-proc slider*[T](G: Gui, text: string, value: var T, min: T, max: T, x,y,w,h: Pint, enabled: bool = true): bool =
+proc slider*[T](G: Gui, text: string, value: var T, min: T, max: T, x,y,w,h: Pint, enabled, showNumber, alwaysShowHandle = true): bool =
   G.element += 1
   let hintBlocked = G.hintOnly
 
@@ -789,12 +789,13 @@ proc slider*[T](G: Gui, text: string, value: var T, min: T, max: T, x,y,w,h: Pin
     let range = maxx - minx
     if fillAmount > 0:
       rectfill(minx,y+1,minx + range.float32 * fillAmount,y+h-2)
-    if down:
+    if min != max and (down or alwaysShowHandle):
       setColor(G.colorSets[G.outcome].sliderHandle)
       rectfill(max(minx + range.float32 * fillAmount - 1, minx), y+1, min(minx + range.float32 * fillAmount + 1, maxx), y+h-2)
 
     G.drawGuiString(text, x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taLeft)
-    G.drawGuiString(getValueStr(value), x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taRight)
+    if showNumber:
+      G.drawGuiString(getValueStr(value), x + G.hPadding, y + G.vPadding, w - G.hPadding * 2, h - G.vPadding * 2, style, taRight)
 
   if G.modalArea != 0:
     # check that we're underneath the modal G.area
@@ -846,17 +847,17 @@ proc slider*[T](G: Gui, text: string, value: var T, min: T, max: T, x,y,w,h: Pin
       return true
   return
 
-proc slider*[T](G: Gui, text: string, value: var T, min, max: T, w, h: int, enabled: bool = true): bool =
+proc slider*[T](G: Gui, text: string, value: var T, min, max: T, w, h: int, enabled, showNumber, alwaysShowHandle = true): bool =
   let (x,y) = G.cursor(w,h)
-  let ret = G.slider(text, value, min, max, x, y, w, h, enabled)
+  let ret = G.slider(text, value, min, max, x, y, w, h, enabled, showNumber, alwaysShowHandle)
   G.advance(w,h)
   return ret
 
-proc slider*[T](G: Gui, text: string, value: var T, min, max: T, enabled: bool = true): bool =
+proc slider*[T](G: Gui, text: string, value: var T, min, max: T, enabled, showNumber, alwaysShowHandle = true): bool =
   assert(G.area != nil)
   let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text & ":" & getValueStr(value) & "  ") +  + G.hPadding * 2
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
-  return G.slider(text, value, min, max, w, h, enabled)
+  return G.slider(text, value, min, max, w, h, enabled, showNumber, alwaysShowHandle)
 
 
 

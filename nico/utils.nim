@@ -162,7 +162,7 @@ proc richPrint*(text: string, x,y: int, align: TextAlign = taLeft, shadow: bool 
         elif code == "s":
           wiggle = true
         elif code.startsWith("spr"):
-          var sprId: int
+          var sprId, palA, palB: int
           var (sw,sh) = spriteSize()
           if scanf(code, "spr($i,$i,$i)", sprId, sw, sh):
             spr(sprId, x - (if align == taCenter: tlen div 2 elif align == taRight: tlen else: 0), y)

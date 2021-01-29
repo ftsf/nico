@@ -170,7 +170,9 @@ proc loadPaletteGrayscale*(): Palette
 proc palSize*(): Pint
 
 proc pal*(a,b: ColorId) # maps one color to another
+proc pal*(a: ColorId): ColorId # returns the color mapping for `a`
 proc pald*(a,b: ColorId) # maps one color to another on display output
+proc pald*(a: ColorId): ColorId # returns the display color mapping for `a`
 proc pal*() # resets palette
 proc pald*() # resets display palette
 proc palt*(a: ColorId, trans: bool) # sets transparency for color
@@ -679,12 +681,18 @@ proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): Pfloat =
 proc pal*(a,b: ColorId) =
   paletteMapDraw[a] = b
 
+proc pal*(a: ColorId): ColorId =
+  return paletteMapDraw[a]
+
 proc pal*() =
   for i in 0..<maxPaletteSize:
     paletteMapDraw[i] = i
 
 proc pald*(a,b: ColorId) =
   paletteMapDisplay[a] = b
+
+proc pald*(a: ColorId): ColorId =
+  return paletteMapDisplay[a]
 
 proc pald*() =
   for i in 0..<maxPaletteSize:

@@ -457,6 +457,11 @@ Maps color `a` to color `b` for subsequent drawing operations
 
 ---
 
+`pal(a: int): int`
+Returns the color mapping for `a`
+
+---
+
 `pal()`
 Resets palette mapping
 
@@ -475,6 +480,21 @@ Resets transparent colors such that only color 0 is transparent.
 
 `palIndex(r,g,b: uint8): int`
 Returns the closest color index in the palette to color `r,g,b`
+
+---
+
+`pald(a,b: int)`
+Maps color `a` to color `b` for final display
+
+---
+
+`pald(a: int): int`
+Returns the display color mapping for `a`
+
+---
+
+`pald()`
+Resets display palette mapping
 
 ---
 

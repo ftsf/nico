@@ -77,11 +77,11 @@ proc richPrintWidth*(text: string): int =
         k += 1
       let code = text[i+1..k-1]
       if code.startsWith("spr"):
-        var sprId: int
+        var sprId, palA, palB: int
         var (sw,sh) = spriteSize()
-        if scanf(code, "spr($i,$i,$i)", sprId, sw, sh):
-          result += sw
-        elif scanf(code, "spr($i)", sprId):
+        if scanf(code, "spr($i,$i,$i)", sprId, sw, sh) or 
+          scanf(code, "spr($i)pal($i,$i)", sprId, palA, palB) or
+          scanf(code, "spr($i)", sprId):
           result += sw
       i = k + 1
       continue
@@ -166,6 +166,12 @@ proc richPrint*(text: string, x,y: int, align: TextAlign = taLeft, shadow: bool 
           var (sw,sh) = spriteSize()
           if scanf(code, "spr($i,$i,$i)", sprId, sw, sh):
             spr(sprId, x - (if align == taCenter: tlen div 2 elif align == taRight: tlen else: 0), y)
+            x += sw
+          elif scanf(code, "spr($i)pal($i,$i)", sprId, palA, palB):
+            let original = pal(palA)
+            pal(palA, palB)
+            spr(sprId, x - (if align == taCenter: tlen div 2 elif align == taRight: tlen else: 0), y)
+            pal(palA, original)
             x += sw
           elif scanf(code, "spr($i)", sprId):
             spr(sprId, x - (if align == taCenter: tlen div 2 elif align == taRight: tlen else: 0), y)

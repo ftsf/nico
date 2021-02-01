@@ -312,6 +312,10 @@ proc resize*(w,h: int) =
   stencilBuffer = newSurface(screenWidth, screenHeight)
 
   when defined(opengl):
+    glViewport(0, 0, w, h)
+
+    glClear(GL_COLOR_BUFFER_BIT)
+
     glViewport(dstRect.x, dstRect.y, dstRect.w, dstRect.h)
 
     glGenVertexArrays(1, quadVAO.addr)

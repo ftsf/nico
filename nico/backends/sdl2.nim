@@ -312,10 +312,6 @@ proc resize*(w,h: int) =
   stencilBuffer = newSurface(screenWidth, screenHeight)
 
   when defined(opengl):
-    glViewport(0, 0, w, h)
-
-    glClear(GL_COLOR_BUFFER_BIT)
-
     glViewport(dstRect.x, dstRect.y, dstRect.w, dstRect.h)
 
     glGenVertexArrays(1, quadVAO.addr)
@@ -703,8 +699,8 @@ proc present*() =
   when defined(opengl):
     convertToRGBA(swCanvas, swCanvas32.pixels, swCanvas32.pitch, screenWidth, screenHeight)
 
-    #glClearColor(1,1,1,1)
-    #glClear(GL_COLOR_BUFFER_BIT)
+    glClearColor(0,0,0,0)
+    glClear(GL_COLOR_BUFFER_BIT)
 
     # copy swCanvas32 to texture
     glActiveTexture(GL_TEXTURE0)

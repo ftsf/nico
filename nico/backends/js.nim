@@ -924,6 +924,15 @@ proc hideMouse*() =
 proc showMouse*() =
   canvas.style.cursor = "default"
 
+proc setShaderBool*(uniformName: string, value: bool) =
+  discard
+
+proc setShaderFloat*(uniformName: string, value: bool) =
+  discard
+
+proc setLinearFilter*(on: bool) =
+  discard
+
 proc errorPopup*(title: string, message: string) =
   echo "ERROR: ", title," : ", message
   dom.window.alert(title & "\n" & message)

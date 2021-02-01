@@ -136,7 +136,7 @@ else:
 
 # Globals
 
-var useCRTFilter = true
+var linearFilter = false
 
 var keyListeners = newSeq[KeyListener]()
 
@@ -162,6 +162,7 @@ when defined(opengl):
   var quadVAO: GLuint
   var quadVBO: GLuint
   var shaderProgram: GLuint
+  var lutTexture: GLuint
 else:
   var render: Renderer
   var hwCanvas: Texture
@@ -254,35 +255,6 @@ proc resize*(w,h: int) =
     return
 
 
-  when defined(opengl):
-    glViewport(0,0,w,h)
-
-    glGenVertexArrays(1, quadVAO.addr)
-    glBindVertexArray(quadVAO)
-    glGenBuffers(1, quadVBO.addr)
-    glBindBuffer(GL_ARRAY_BUFFER, quadVBO)
-
-    var hw = 1.0'f
-    var hh = 1.0'f
-
-    var vertices = [
-      -hw,  hh, 0'f, 0'f,
-       hw,  hh, 1'f, 0'f,
-      -hw, -hh, 0'f, 1'f,
-       hw, -hh, 1'f, 1'f,
-    ]
-
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float32) * vertices.len, vertices[0].addr, GL_STATIC_DRAW)
-    glVertexAttribPointer(0.GLuint, 4.GLint, cGL_FLOAT, false, (4 * sizeof(float32)).GLsizei, cast[pointer](0))
-    glEnableVertexAttribArray(0)
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0)
-    glBindVertexArray(0)
-
-  else:
-    render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync)
-    debug "created renderer"
-
   if integerScreenScale:
     screenScale = max(1.0, min(
       (w.float32 / targetScreenWidth.float32).floor,
@@ -340,6 +312,30 @@ proc resize*(w,h: int) =
   stencilBuffer = newSurface(screenWidth, screenHeight)
 
   when defined(opengl):
+    glViewport(dstRect.x, dstRect.y, dstRect.w, dstRect.h)
+
+    glGenVertexArrays(1, quadVAO.addr)
+    glBindVertexArray(quadVAO)
+    glGenBuffers(1, quadVBO.addr)
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO)
+
+    var hw = 1.0'f
+    var hh = 1.0'f
+
+    var vertices = [
+      -hw,  hh, 0'f, 0'f,
+       hw,  hh, 1'f, 0'f,
+      -hw, -hh, 0'f, 1'f,
+       hw, -hh, 1'f, 1'f,
+    ]
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float32) * vertices.len, vertices[0].addr, GL_STATIC_DRAW)
+    glVertexAttribPointer(0.GLuint, 4.GLint, cGL_FLOAT, false, (4 * sizeof(float32)).GLsizei, cast[pointer](0))
+    glEnableVertexAttribArray(0)
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0)
+    glBindVertexArray(0)
+
     if hwCanvas != 0:
       glDeleteTextures(1, hwCanvas.addr)
 
@@ -348,24 +344,65 @@ proc resize*(w,h: int) =
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA.GLint, screenWidth.GLsizei, screenHeight.GLsizei, 0, GL_RGBA, GL_UNSIGNED_BYTE, nil)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE.GLint)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE.GLint)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR.GLint)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR.GLint)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, if linearFilter: GL_LINEAR.GLint else: GL_NEAREST.GLint)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, if linearFilter: GL_LINEAR.GLint else: GL_NEAREST.GLint)
 
-    let crtID = glGetUniformLocation(shaderProgram, "useCRT")
-    if crtID != -1:
-      glUniform1i(crtID, useCRTFilter.int)
+    if existsFile(joinPath(assetPath, "LUT.png")):
+      if lutTexture != 0:
+        glDeleteTextures(1, lutTexture.addr)
+
+
+      glGenTextures(1, lutTexture.addr)
+      glBindTexture(GL_TEXTURE_2D, lutTexture)
+
+      var lutPng = readFile(joinPath(assetPath,"LUT.png"))
+      let ss = newStringStream(lutPng)
+      let png = decodePNG(ss, LCT_RGBA, 8)
+
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA.GLint, png.width.GLsizei, png.height.GLsizei, 0, GL_RGBA, GL_UNSIGNED_BYTE, png.data[0].addr)
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE.GLint)
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE.GLint)
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST.GLint)
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST.GLint)
+
+      glActiveTexture(GL_TEXTURE1)
+      glBindTexture(GL_TEXTURE_2D, lutTexture)
+
+      glActiveTexture(GL_TEXTURE0)
+      glBindTexture(GL_TEXTURE_2D, 0)
+
+      let lutID = glGetUniformLocation(shaderProgram, "LUT")
+      if lutID != -1:
+        glUniform1i(lutID, 1.int)
+
+      echo "loaded LUT ", png.width, "x", png.height
+
+    else:
+      echo "no LUT.png found"
+
+    let texID = glGetUniformLocation(shaderProgram, "tex")
+    if texID != -1:
+      glUniform1i(texID, 0.int)
 
     let canvasResID = glGetUniformLocation(shaderProgram, "canvasResolution")
     if canvasResID != -1:
       glUniform2f(canvasResID, screenWidth.float32, screenHeight.float32)
+    echo "canvasResolution ", screenWidth.float32, " ", screenHeight.float32
+
     let displayResID = glGetUniformLocation(shaderProgram, "displayResolution")
     if displayResID != -1:
-      glUniform2f(canvasResID, w.float32, h.float32)
+      glUniform2f(displayResID, w.float32, h.float32)
+    echo "displayResolution ", w.float32, " ", h.float32
+
     let scaleID = glGetUniformLocation(shaderProgram, "scale")
     if scaleID != -1:
       glUniform2f(scaleID, screenScale.float32, screenScale.float32)
+    echo "screenScale ", screenScale.float32, " ", screenScale.float32
 
   else:
+    render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync)
+    debug "created renderer"
+
     hwCanvas = render.createTexture(PIXELFORMAT_RGBA8888, TEXTUREACCESS_STREAMING, screenWidth, screenHeight)
     discard render.setRenderTarget(hwCanvas)
   createRecordBuffer(true)
@@ -374,6 +411,22 @@ proc resize*(w,h: int) =
     rf(screenWidth,screenHeight)
 
   debug "resize done"
+
+proc setShaderBool*(uniformName: string, value: bool) =
+  when defined(opengl):
+    let loc = glGetUniformLocation(shaderProgram, uniformName)
+    if loc != -1:
+      glUniform1i(loc, value.int)
+  else:
+    discard
+
+proc setShaderFloat*(uniformName: string, value: float32) =
+  when defined(opengl):
+    let loc = glGetUniformLocation(shaderProgram, uniformName)
+    if loc != -1:
+      glUniform1f(loc, value.float32)
+  else:
+    discard
 
 proc resize*() =
   if window == nil:
@@ -522,7 +575,13 @@ void main() {
 """
     let fs = compileShader(fragSrc, GL_FRAGMENT_SHADER)
 
-    let vertSrc = """
+    var vertSrc: string
+    if existsFile(joinPath(assetPath, "vert.glsl")):
+      vertSrc = readFile(joinPath(assetPath, "vert.glsl"))
+      echo "using custom vertex shader"
+    else:
+      echo "using built-in vertex shader"
+      vertSrc = """
 #version 330 core
 
 layout (location = 0) in vec4 posUV;
@@ -639,12 +698,12 @@ proc present*() =
 
   when defined(opengl):
     convertToRGBA(swCanvas, swCanvas32.pixels, swCanvas32.pitch, screenWidth, screenHeight)
-    var w,h: cint
-    getWindowSize(window, w.addr, h.addr)
+
     #glClearColor(1,1,1,1)
     #glClear(GL_COLOR_BUFFER_BIT)
 
     # copy swCanvas32 to texture
+    glActiveTexture(GL_TEXTURE0)
     glBindTexture(GL_TEXTURE_2D, hwCanvas)
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, swCanvas32.w, swCanvas32.h, GL_RGBA, GL_UNSIGNED_BYTE, swCanvas32.pixels)
 
@@ -1039,10 +1098,6 @@ proc appHandleEvent(evt: sdl.Event) =
     elif sym == ((sdl.Keycode)K_F8) and down:
       # restart recording from here
       createRecordBuffer(true)
-
-    elif sym == ((sdl.Keycode)K_F4) and down:
-      useCRTFilter = not useCRTFilter
-      resize()
 
     elif sym == ((sdl.Keycode)K_F9) and down:
       saveRecording()
@@ -1854,14 +1909,12 @@ proc hideMouse*() =
 proc showMouse*() =
   discard showCursor(1)
 
-proc crtFilter*(on: bool) =
-  when defined(opengl):
-    useCRTFilter = on
-    if window != nil:
-      resize()
-
 proc setClipboardText*(text: string) =
   discard sdl.setClipboardText(text)
+
+proc setLinearFilter*(on: bool) =
+  linearFilter = on
+  resize()
 
 proc errorPopup*(title: string, message: string) =
   echo "ERROR: ", title," : ", message

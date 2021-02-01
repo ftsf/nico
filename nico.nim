@@ -61,7 +61,6 @@ when not defined(js):
   export setAudioBufferSize
   export audioInSample
   export audioOut
-  export crtFilter
 
 export synthUpdate
 export synthShape
@@ -71,6 +70,11 @@ export glide
 export wavData
 export pitchbend
 export pitch
+
+# shader stuff
+export setShaderBool
+export setShaderFloat
+export setLinearFilter
 
 export clipMinX,clipMinY,clipMaxX,clipMaxY
 export currentColor

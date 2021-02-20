@@ -737,8 +737,6 @@ proc flip*() =
         recordFrames.add([recordFrame])
         recordFrame = newSurface(swCanvas.w, swCanvas.h)
 
-  delay(0)
-
 proc saveScreenshot*() =
   createDir(writePath & "/screenshots")
   var frame = recordFrames[recordFrames.size-1]
@@ -1662,6 +1660,7 @@ proc getRecordSeconds*(): int =
 proc run*() =
   while keepRunning:
     step()
+    delay(0)
   sdl.quit()
 
 proc loadMapBinary*(index: int, filename: string) =

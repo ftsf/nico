@@ -123,11 +123,11 @@ proc gameUpdate(dt: float32) =
           song[currentSongRow][currentChannel] += 1
         currentPattern = song[currentSongRow][currentChannel].int
       if btnp(pcUp):
-        if song[currentSongRow][currentChannel].int < 63:
+        if song[currentSongRow][currentChannel].int < 48:
           song[currentSongRow][currentChannel] += 16
         currentPattern = song[currentSongRow][currentChannel].int
       if btnp(pcDown):
-        if song[currentSongRow][currentChannel].int < 63:
+        if song[currentSongRow][currentChannel].int > 15:
           song[currentSongRow][currentChannel] -= 16
         currentPattern = song[currentSongRow][currentChannel].int
     elif btnp(pcB):

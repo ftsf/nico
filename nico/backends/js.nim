@@ -115,7 +115,7 @@ proc setKeyMap*(newmap: string) =
   discard
 
 proc resize*(displayW,displayH: int)
-proc resizeCanvas(w,h: int, scale: int)
+proc resizeCanvas(w,h: int, scale: float32)
 
 proc present*() =
   # copy swCanvas to canvas
@@ -140,7 +140,7 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
   document.title = title
 
   if fixedScreenSize:
-    resizeCanvas(targetScreenWidth,targetScreenHeight,scale)
+    resizeCanvas(targetScreenWidth,targetScreenHeight,scale.float32)
   else:
     resize(dom.window.innerWidth,dom.window.innerHeight)
 
@@ -567,27 +567,36 @@ proc flip*() =
 proc resize*(displayW,displayH: int) =
   echo "display ", displayW, " x ", displayH
   echo "canvas target size ", targetScreenWidth, " x ", targetScreenHeight
-  screenScale = max(1'f, min((displayW.float32 / targetScreenWidth.float32).floor, (displayH.float32 / targetScreenHeight.float32).floor))
-  echo "scale ", screenScale
+  if integerScreenScale:
+    screenScale = max(1.0, min(
+      (displayW.float32 / targetScreenWidth.float32).floor,
+      (displayH.float32 / targetScreenHeight.float32).floor,
+    ))
+  else:
+    screenScale = max(1.0, min(
+      (displayW.float32 / targetScreenWidth.float32),
+      (displayH.float32 / targetScreenHeight.float32),
+    ))
+  echo "scale ", screenScale.float32
 
   if fixedScreenSize:
     var canvasW = targetScreenWidth
     var canvasH = targetScreenHeight
-    resizeCanvas(canvasW,canvasH,screenScale.int)
+    resizeCanvas(canvasW,canvasH,screenScale)
   else:
-    screenWidth = displayW div screenScale.int
-    screenHeight = displayH div screenScale.int
-    resizeCanvas(screenWidth,screenHeight,screenScale.int)
+    screenWidth = displayW div screenScale
+    screenHeight = displayH div screenScale
+    resizeCanvas(screenWidth,screenHeight,screenScale)
 
 proc resize*() =
   resize(dom.window.innerWidth,dom.window.innerHeight)
 
-proc resizeCanvas(w,h: int, scale: int) =
+proc resizeCanvas(w,h: int, scale: float32) =
   echo "resizing canvas to ", w, " x ", h, " at scale ", scale
   swCanvas = newSurface(w,h)
   screenWidth = w
   screenHeight = h
-  screenScale = scale.float32
+  screenScale = scale
   if canvas == nil:
     canvas = dom.document.createElement("canvas").Canvas
   canvas.width = w

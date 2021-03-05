@@ -30,13 +30,10 @@ const textOptions = [
   "NIM IS FUN",
 ]
 
-type SfxName = enum
-  sfxHitPaddle
-  sfxHitWall
-  sfxDrop
-
-converter toInt(x: SfxName): SfxId =
-  x.SfxId
+const
+  sfxHitPaddle = 0
+  sfxHitWall = 1
+  sfxDrop = 2
 
 proc gameInit() =
   # load all our assets

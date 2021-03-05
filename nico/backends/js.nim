@@ -584,8 +584,8 @@ proc resize*(displayW,displayH: int) =
     var canvasH = targetScreenHeight
     resizeCanvas(canvasW,canvasH,screenScale)
   else:
-    screenWidth = displayW div screenScale
-    screenHeight = displayH div screenScale
+    screenWidth = int(displayW.float32 / screenScale)
+    screenHeight = int(displayH.float32 / screenScale)
     resizeCanvas(screenWidth,screenHeight,screenScale)
 
 proc resize*() =
@@ -597,12 +597,17 @@ proc resizeCanvas(w,h: int, scale: float32) =
   screenWidth = w
   screenHeight = h
   screenScale = scale
+
   if canvas == nil:
     canvas = dom.document.createElement("canvas").Canvas
+
+  let displayW = int(w.float32 * scale)
+  let displayH = int(h.float32 * scale)
+
   canvas.width = w
   canvas.height = h
-  canvas.style.width = $(w * scale) & "px"
-  canvas.style.height = $(h * scale) & "px"
+  canvas.style.width = $displayW & "px"
+  canvas.style.height = $displayH & "px"
 
   ctx = canvas.getContext2D()
   swCanvas32 = ctx.getImageData(0,0,w.float32,h.float32)
@@ -957,3 +962,6 @@ proc setClipboardText*(text: string) =
   options["data"] = text
   let copyEvent = newClipboardEvent("copy", options)
   dom.window.document.dispatchEvent(copyEvent)
+
+proc isWindowCreated*(): bool =
+  return canvas != nil

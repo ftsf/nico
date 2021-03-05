@@ -2335,12 +2335,19 @@ proc fixedSize*(): bool =
 
 proc fixedSize*(enabled: bool) =
   fixedScreenSize = enabled
+  if backend.isWindowCreated():
+    resize()
+
+proc getScreenScale*(): float32 =
+  return common.screenScale
 
 proc integerScale*(): bool =
   return integerScreenScale
 
 proc integerScale*(enabled: bool) =
   integerScreenScale = enabled
+  if backend.isWindowCreated():
+    resize()
 
 proc newSpritesheet*(index: int, w, h: int, tw,th = 8) =
   if index < 0 or index >= spritesheets.len:

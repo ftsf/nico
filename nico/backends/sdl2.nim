@@ -1915,6 +1915,9 @@ proc setLinearFilter*(on: bool) =
   linearFilter = on
   resize()
 
+proc isWindowCreated*(): bool =
+  return window != nil
+
 proc errorPopup*(title: string, message: string) =
   echo "ERROR: ", title," : ", message
   discard showSimpleMessageBox(MessageBoxError, title, message, window)

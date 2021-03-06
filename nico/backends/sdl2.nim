@@ -198,25 +198,25 @@ converter toInt(x: sdl.Scancode): int =
   x.int
 
 keymap = [
-  @[SCANCODE_LEFT.int,  SCANCODE_A.int], # left
-  @[SCANCODE_RIGHT.int, SCANCODE_D.int], # right
-  @[SCANCODE_UP.int,    SCANCODE_W.int], # up
-  @[SCANCODE_DOWN.int,  SCANCODE_S.int], # down
-  @[SCANCODE_Z.int], # A
-  @[SCANCODE_X.int], # B
-  @[SCANCODE_LSHIFT.int, SCANCODE_RSHIFT.int], # X
-  @[SCANCODE_C.int], # Y
+  @[Scancode.SCANCODE_LEFT.int,  Scancode.SCANCODE_A.int], # left
+  @[Scancode.SCANCODE_RIGHT.int, Scancode.SCANCODE_D.int], # right
+  @[Scancode.SCANCODE_UP.int,    Scancode.SCANCODE_W.int], # up
+  @[Scancode.SCANCODE_DOWN.int,  Scancode.SCANCODE_S.int], # down
+  @[Scancode.SCANCODE_Z.int], # A
+  @[Scancode.SCANCODE_X.int], # B
+  @[Scancode.SCANCODE_LSHIFT.int, Scancode.SCANCODE_RSHIFT.int], # X
+  @[Scancode.SCANCODE_C.int], # Y
 
-  @[SCANCODE_F.int], # L1
-  @[SCANCODE_G.int], # L2
-  @[SCANCODE_H.int], # L3
+  @[Scancode.SCANCODE_F.int], # L1
+  @[Scancode.SCANCODE_G.int], # L2
+  @[Scancode.SCANCODE_H.int], # L3
 
-  @[SCANCODE_V.int], # R1
-  @[SCANCODE_B.int], # R2
-  @[SCANCODE_N.int], # R3
+  @[Scancode.SCANCODE_V.int], # R1
+  @[Scancode.SCANCODE_B.int], # R2
+  @[Scancode.SCANCODE_N.int], # R3
 
-  @[SCANCODE_RETURN.int], # Start
-  @[SCANCODE_ESCAPE.int, SCANCODE_BACKSPACE.int], # Back
+  @[Scancode.SCANCODE_RETURN.int], # Start
+  @[Scancode.SCANCODE_ESCAPE.int, Scancode.SCANCODE_BACKSPACE.int], # Back
 ]
 
 proc resetChannel*(channel: var Channel)
@@ -1068,14 +1068,14 @@ proc appHandleEvent(evt: sdl.Event) =
       if listener(sym.int, mods.uint16, scancode.int, down.bool):
         return
 
-    if sym == (sdl.Keycode)K_AC_BACK:
+    if sym == (sdl.Keycode)Keycode.K_AC_BACK:
       controllers[0].setButtonState(pcBack, down)
 
-    elif sym == ((sdl.Keycode)K_q) and down and (mods and uint16(KMOD_CTRL)) != 0:
+    elif sym == ((sdl.Keycode)Keycode.K_q) and down and (mods and uint16(KMOD_CTRL)) != 0:
       # ctrl+q to quit
       keepRunning = false
 
-    elif sym == ((sdl.Keycode)K_f) and not down and (mods and uint16(KMOD_CTRL)) != 0:
+    elif sym == ((sdl.Keycode)Keycode.K_f) and not down and (mods and uint16(KMOD_CTRL)) != 0:
       if getFullscreen():
         setFullscreen(false)
         resize()
@@ -1084,7 +1084,7 @@ proc appHandleEvent(evt: sdl.Event) =
         resize()
       return
 
-    elif sym == ((sdl.Keycode)K_return) and not down and (mods and uint16(KMOD_ALT)) != 0:
+    elif sym == ((sdl.Keycode)Keycode.K_return) and not down and (mods and uint16(KMOD_ALT)) != 0:
       if getFullscreen():
         setFullscreen(false)
         resize()
@@ -1093,17 +1093,17 @@ proc appHandleEvent(evt: sdl.Event) =
         resize()
       return
 
-    elif sym == ((sdl.Keycode)K_F8) and down:
+    elif sym == ((sdl.Keycode)Keycode.K_F8) and down:
       # restart recording from here
       createRecordBuffer(true)
 
-    elif sym == ((sdl.Keycode)K_F9) and down:
+    elif sym == ((sdl.Keycode)Keycode.K_F9) and down:
       saveRecording()
 
-    elif sym == ((sdl.Keycode)K_F10) and down:
+    elif sym == ((sdl.Keycode)Keycode.K_F10) and down:
       saveScreenshot()
 
-    elif sym == ((sdl.Keycode)K_F11) and down:
+    elif sym == ((sdl.Keycode)Keycode.K_F11) and down:
       when system.hostOS == "windows":
         discard startProcess("explorer", writePath, [writePath], nil, {poUsePath})
       elif system.hostOS == "macosx":

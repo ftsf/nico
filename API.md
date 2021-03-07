@@ -17,7 +17,7 @@
    * [Misc Graphics](#misc-graphics)
  * [Audio](#audio)
  * [Math](#math)
-   
+
 ## Overview
 
 Many functions in Nico take `Pfloat` or `Pint` arguments, these are automatically converted types so you don't have to think too much about types when you don't care.
@@ -140,7 +140,7 @@ returns the current mouse position in canvas units `0,0` being the top left of t
 
 ---
 
-`mouserel(): (float32,float32)` 
+`mouserel(): (float32,float32)`
 returns the change in mouse position in canvas units but with subpixel precision
 
 ---
@@ -387,8 +387,8 @@ create a new tilemap in index `index` with size `w,h` and each tile of size `tw,
 
 ---
 
-`loadMap(index: int, filename: string)`
-loads tilemap at `filename` into index `index`
+`loadMap(index: int, filename: string, layer: int = 0)`
+loads tilemap at `filename` from layer `layer` into index `index`
 `filename` should be in Tiled's json format.
 
 ---

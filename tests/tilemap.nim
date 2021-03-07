@@ -31,6 +31,24 @@ suite "config":
     mset(8,8,0)
     check(mget(8,8) == 0)
 
+  test "loadMap with layer":
+    loadSpriteSheet(0, "spritesheet.png", 16, 16)
+    loadMap(0, "map.json")
+    loadMap(1, "map.json", layer = 1)
+
+    setMap(0)
+    check(mget(1,0) == 1)
+
+    setMap(1)
+    check(mget(1,0) == 7)
+
+  test "loadMap layer out of range":
+    expect RangeError:
+      loadMap(0, "map.json", layer = -1)
+
+    expect RangeError:
+      loadMap(0, "map.json", layer = 2)
+
   test "mapDraw":
     loadSpriteSheet(0, "spritesheet.png", 16, 16)
     loadMap(0, "map.json")

@@ -385,7 +385,7 @@ proc mset*(tx,ty: Pint, t: uint8)
 proc mget*(tx,ty: Pint): uint8
 proc mapDraw*(tx,ty, tw,th, dx,dy: Pint, dw,dh: Pint = -1, loop: bool = false, ox,oy: Pint = 0)
 proc setMap*(index: int)
-proc loadMap*(index: int, filename: string)
+proc loadMap*(index: int, filename: string, layer: int = 0)
 proc newMap*(index: int, w,h: Pint, tw,th: Pint = 8)
 proc pixelToMap*(px,py: Pint): (Pint,Pint) # returns the tile coordinates at pixel position
 proc mapToPixel*(tx,ty: Pint): (Pint,Pint) # returns the pixel position of the tile coordinates
@@ -2456,12 +2456,12 @@ proc spr*(drawer: SpriteDraw, x,y:Pint)=
 proc sprOverlap*(a,b : SpriteDraw): bool=
   ##Will return true if the sprites overlap
   setSpritesheet(a.spriteSheet)
-  let 
+  let
     aSprRect = getSprRect(a.spriteIndex,a.w,a.h)
     aRect: Rect = (a.x, a.y, aSprRect.w, aSprRect.h)
 
   if(a.spritesheet != b.spritesheet): setSpritesheet(b.spriteSheet)
-  let 
+  let
     bSprRect = getSprRect(b.spriteIndex,b.w,b.h)
     bRect: Rect = (b.x, b.y, bSprRect.w, bSprRect.h)
 
@@ -2476,7 +2476,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
       bXRelative = xOverlap - b.x
       bYRelative = yOverlap - b.y
 
-    var 
+    var
       surfA = spritesheets[a.spriteSheet]
       surfB = spritesheets[b.spriteSheet]
       indA = 0
@@ -2485,7 +2485,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
     #Foreach pixel in the overlap check the colour there
     for xSamp in 0..<wOverlap:
       for ySamp in 0..<hOverlap:
-        var 
+        var
           aX = aSprRect.x + xSamp + aXRelative
           aY = aSprRect.y + ySamp + aYRelative
           bX = bSprRect.x + xSamp + bxRelative
@@ -2496,7 +2496,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
         if(a.flipX):
           aX = aSprRect.x + (aSprRect.w - (xSamp + aXRelative)) - 1
         if(a.flipY):
-          aY = aSprRect.y + (aSprRect.h - (ySamp + aYRelative)) - 1 
+          aY = aSprRect.y + (aSprRect.h - (ySamp + aYRelative)) - 1
 
         if(b.flipX):
           bX = bSprRect.x + (aSprRect.w - (xSamp + bXRelative)) - 1
@@ -2508,7 +2508,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
         indB = bX + bY * surfB.w
         if(indA < surfA.data.len and indB < surfB.data.len):#Shouldnt ever happen but errors must be checked
           if(surfA.data[indA] > 0 and surfB.data[indB] > 0): #Using 0 as of now for alpha check
-            return true 
+            return true
 
   return false
 
@@ -2683,7 +2683,7 @@ proc mapWidth*(): Pint =
 proc mapHeight*(): Pint =
   return currentTilemap.h
 
-proc loadMapFromJson(index: int, filename: string) =
+proc loadMapFromJson(index: int, filename: string, layer: int) =
   var tm: Tilemap
   # read tiled output format
   var data = readJsonFile(joinPath(assetPath,filename))
@@ -2695,10 +2695,12 @@ proc loadMapFromJson(index: int, filename: string) =
   if tm.hex:
     let hsl = data["hexsidelength"].getBiggestInt.int
     tm.hexOffset = hsl + ((tm.th - hsl) div 2)
-  # only look at first layer
+  # only look at the selected layer
+  if layer < 0 or layer >= data["layers"].len:
+    raise newException(RangeError, "layer #$1 not found in map".format(layer))
   tm.data = newSeq[uint8](tm.w*tm.h)
   for i in 0..<(tm.w*tm.h):
-    let t = data["layers"][0]["data"][i].getBiggestInt()
+    let t = data["layers"][layer]["data"][i].getBiggestInt()
     # map is stored as 0 = blank, 1 = first tile, so we need to subtract 1 from anything higher than 0
     tm.data[i] = if t > 0: (t-1).uint8 else: 0
 
@@ -2769,9 +2771,9 @@ proc mapToPixel*(tx,ty: Pint): (Pint,Pint) = # returns the pixel coordinates at 
   else:
     return ((ty * currentTilemap.tw).Pint, (ty * currentTilemap.th).Pint)
 
-proc loadMap*(index: int, filename: string) =
+proc loadMap*(index: int, filename: string, layer: int = 0) =
   if filename.endsWith(".json"):
-    loadMapFromJson(index, filename)
+    loadMapFromJson(index, filename, layer)
   else:
     when not defined(js):
       loadMapBinary(index, filename)

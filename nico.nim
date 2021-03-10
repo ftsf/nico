@@ -448,31 +448,33 @@ proc loadPaletteFromImage*(filename: string): Palette =
 
 proc loadPaletteFromGPL*(filename: string): Palette =
   ## Loads a GPL palette from the assets folder.
-  var data = backend.readFile(joinPath(assetPath,filename))
-  var i = 0
-  for line in data.splitLines():
-    if line.len == 0:
-      continue
-    if i == 0:
-      if scanf(line, "GIMP Palette"):
-        i += 1
+  when defined(docgen): return
+  else:
+    var data = backend.readFile(joinPath(assetPath,filename))
+    var i = 0
+    for line in data.splitLines():
+      if line.len == 0:
         continue
-    if line[0] == '#':
-      continue
-    if line.len == 0:
-      continue
-    var r,g,b: int
-    if scanf(line, "$s$i $s$i $s$i", r,g,b):
-      result.data[i-1] = RGB(r,g,b)
-      result.size += 1
-      if i > maxPaletteSize:
-        break
-      i += 1
-    else:
-      debug "not matched: ", line
-  pal()
-  pald()
-  palt()
+      if i == 0:
+        if scanf(line, "GIMP Palette"):
+          i += 1
+          continue
+      if line[0] == '#':
+        continue
+      if line.len == 0:
+        continue
+      var r,g,b: int
+      if scanf(line, "$s$i $s$i $s$i", r,g,b):
+        result.data[i-1] = RGB(r,g,b)
+        result.size += 1
+        if i > maxPaletteSize:
+          break
+        i += 1
+      else:
+        debug "not matched: ", line
+    pal()
+    pald()
+    palt()
 
 proc palSize*(): Pint =
   ## Returns the number of colours in the palette.
@@ -699,7 +701,7 @@ proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool =
 proc key*(k: Keycode): bool =
   ## Allows accessing unmapped keys directly returns true if pressed.
   runnableExamples:
-    if key(K_Shift):
+    if key(K_LShift):
       echo "Shift is held"
   keysDown.hasKey(k) and keysDown[k] != 0
 

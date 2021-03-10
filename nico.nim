@@ -481,7 +481,7 @@ proc palSize*(): Pint =
   return currentPalette.size
 
 proc setPalette*(p: Palette) =
-  ## Changes the active palette, can be used for SFX.
+  ## Changes the active palette, can be used for visual effects.
   runnableExamples:
     let pal = loadPaletteFromGpl("palette.gpl")
     pal.setPalette
@@ -2719,23 +2719,25 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
 
 
 proc sprs*(spr: Pint, x,y: Pint, w,h: Pint = 1, dw,dh: Pint = 1, hflip, vflip: bool = false) =
-  # draw an integer scaled sprite
+  ## Draw an integer scaled sprite
   var src = getSprRect(spr, w, h)
   var dst: Rect = ((x-cameraX).int,(y-cameraY).int,(dw*8).int,(dh*8).int)
   blitStretch(spritesheet, src, dst, hflip, vflip)
 
 proc sprss*(spr: Pint, x,y: Pint, w,h: Pint = 1, dw,dh: Pint, hflip, vflip: bool = false) =
-  # draw a scaled sprite
+  ## Draw a scaled sprite
   var src = getSprRect(spr, w, h)
   var dst: Rect = ((x-cameraX).int,(y-cameraY).int,dw.int,dh.int)
   blit(spritesheet, src, dst, hflip, vflip)
 
 proc drawTile(spr: uint8, x,y: Pint) =
+  ## Draw Tile at position
   var src = getSprRect(spr.Pint)
   if overlap(clippingRect,(x.int,y.int, spritesheet.tw, spritesheet.th)):
     blitFast(spritesheet, src.x, src.y, x, y, spritesheet.tw, spritesheet.th)
 
 proc sspr*(sx,sy, sw,sh, dx,dy: Pint, dw,dh: Pint = -1, hflip, vflip: bool = false) =
+  ## Draws a selection of the spritesheet to the screen.
   var src: Rect = (sx.int,sy.int,sw.int,sh.int)
   let dw = if dw >= 0: dw else: sw
   let dh = if dh >= 0: dh else: sh
@@ -2956,7 +2958,8 @@ proc saveMap*(index: int, filename: string) =
   fp.write($j)
   fp.close()
 
-proc pixelToMap*(px,py: Pint): (Pint,Pint) = # returns the tile coordinates at pixel position
+proc pixelToMap*(px,py: Pint): (Pint,Pint) = 
+  ## Returns the tile coordinates at pixel position.
   if currentTilemap.hex:
     # pretend they're rectangles
     let ty = py div currentTilemap.hexOffset
@@ -2965,7 +2968,8 @@ proc pixelToMap*(px,py: Pint): (Pint,Pint) = # returns the tile coordinates at p
   else:
     return ((px div currentTilemap.tw).Pint, (py div currentTilemap.th).Pint)
 
-proc mapToPixel*(tx,ty: Pint): (Pint,Pint) = # returns the pixel coordinates at map coord
+proc mapToPixel*(tx,ty: Pint): (Pint,Pint) = 
+  ## Returns the pixel coordinates at map coord.
   if currentTilemap.hex:
     # pretend they're rectangles
     let py = ty * currentTilemap.hexOffset
@@ -2975,6 +2979,7 @@ proc mapToPixel*(tx,ty: Pint): (Pint,Pint) = # returns the pixel coordinates at 
     return ((ty * currentTilemap.tw).Pint, (ty * currentTilemap.th).Pint)
 
 proc loadMap*(index: int, filename: string) =
+  ## Loads a Tiled map into the index slot.
   if filename.endsWith(".json"):
     loadMapFromJson(index, filename)
   else:
@@ -2982,6 +2987,7 @@ proc loadMap*(index: int, filename: string) =
       loadMapBinary(index, filename)
 
 proc newMap*(index: int, w,h: Pint, tw,th: Pint = 8) =
+  ## Creates a new TileMap.
   var tm = tilemaps[index].addr
   tm[].w = w
   tm[].h = h
@@ -2990,6 +2996,7 @@ proc newMap*(index: int, w,h: Pint, tw,th: Pint = 8) =
   tm[].data = newSeq[uint8](w*h)
 
 proc setMap*(index: int) =
+  ## Sets the active Tilemap.
   currentTilemap = tilemaps[index].addr
 
 template succWrap*[T](x: T): T =
@@ -3040,26 +3047,34 @@ proc srand*() =
   randomize()
 
 proc getControllers*(): seq[NicoController] =
+  ## Gets all the current Controllers
   return controllers
 
 proc setFont*(fontId: FontId) =
-  # sets the active font to be used by future print calls
+  ## Sets the active font to be used by future print calls
   if fontId > fonts.len:
     return
   currentFontId = fontId
   currentFont = fonts[currentFontId]
 
 proc getFont*(): FontId =
+  ## Gets the currently active font ID.
   return currentFontId
 
 proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = false) =
+  ## Creates the game window, with a given title.
+  ## With `fixedSize(true)`, `w` and `h` are the size that the buffer is.
+  ## `Scale` controls how much a windowed version scales by default.
+  ## `fullscreen` controls if the window is fullscreened on creation.
   backend.createWindow(title, w, h, scale, fullscreen)
   clip()
 
 proc readFile*(filename: string): string =
+  ## Backend safe read of a file.
   return backend.readFile(filename)
 
 proc readJsonFile*(filename: string): JsonNode =
+  ## Backend safe parsing of a json file.
   return backend.readJsonFile(filename)
 
 when not defined(js):
@@ -3070,18 +3085,23 @@ proc flip*() {.inline.} =
   backend.flip()
 
 proc setFullscreen*(fullscreen: bool) =
+  ## Sets game to be fullscreen.
   backend.setFullscreen(fullscreen)
 
 proc getFullscreen*(): bool =
+  ## Gets if currently fullscreened.
   return backend.getFullscreen()
 
 proc setScreenSize*(w,h: int) =
+  ## Sets the current screen size.
   backend.setScreenSize(w,h)
 
 proc setWindowTitle*(title: string) =
+  ## Changes window title.
   backend.setWindowTitle(title)
 
 proc cursor*(x,y: Pint) =
+  ## Moves the cursor to given position.
   cursorX = x
   cursorY = y
 
@@ -3096,6 +3116,8 @@ export noteStrToNote
 
 proc init*(org, app: string) =
   ## Initializes Nico ready to be used
+  ## `org` and `app` are used for configs,
+  ## and other stored information.
   controllers = newSeq[NicoController]()
 
   backend.init(org, app)
@@ -3117,21 +3139,28 @@ proc init*(org, app: string) =
   clip()
 
 proc setInitFunc*(init: (proc())) =
+  ## Sets of the init procedure.
   initFunc = init
 
 proc setUpdateFunc*(update: (proc(dt:float32))) =
+  ## Sets the update procedure.
   updateFunc = update
 
 proc setDrawFunc*(draw: (proc())) =
+  ## Sets the draw procedure.
   drawFunc = draw
 
 proc setControllerAdded*(cadded: proc(controller: NicoController)) =
+  ## Adds a controller added callback.
   controllerAddedFunc = cadded
 
 proc setControllerRemoved*(cremoved: proc(controller: NicoController)) =
+  ## Adds a controller removed callback.
   controllerRemovedFunc = cremoved
 
 proc run*(init: (proc()), update: (proc(dt:float32)), draw: (proc())) =
+  ## Starts the program setting the `init`, `update`, 
+  ## and `draw` procedure.
   assert(update != nil)
   assert(draw != nil)
 
@@ -3147,53 +3176,64 @@ proc run*(init: (proc()), update: (proc(dt:float32)), draw: (proc())) =
     backend.run()
 
 proc setBasePath*(path: string) =
+  ## Sets the base path.
   if path.endswith("/"):
     basePath = path
   else:
     basePath = path & "/"
 
 proc setWritePath*(path: string) =
+  ## Sets the write path, used for things like gif recording.
   if path.endswith("/"):
     writePath = path
   else:
     writePath = path & "/"
 
 proc setAssetPath*(path: string) =
+  ## Sets a new asset path.
   if path.endswith("/"):
     assetPath = path
   else:
     assetPath = path & "/"
 
 proc bpm*(newBpm: Natural) =
+  ## Sets the beats per minute.
   currentBpm = newBpm
 
 proc tpb*(newTpb: Natural) =
   currentTpb = newTpb
 
 proc setTickFunc*(f: proc()) =
+  ## Sets the procedure called for every tick.
   tickFunc = f
 
 proc addKeyListener*(p: KeyListener) =
+  ## Add a key listener.
   keyListeners.add(p)
 
 proc removeKeyListener*(p: KeyListener) =
+  ## Removes a key listener.
   for i,v in keyListeners:
     if v == p:
       keyListeners.del(i)
       break
 
 proc addEventListener*(f: EventListener): EventListener {.discardable.} =
+  ## Adds an event listener that has to return true if handled.
   eventListeners.add(f)
 
 proc removeEventListener*(f: EventListener) =
+  ## Removes an event listener.
   let i = eventListeners.find(f)
   if i != -1:
     eventListeners.del(i)
 
 proc removeAllEventListeners*() =
+  ## Removes all event listener.
   eventListeners = @[]
 
 proc sgn*(x: Pint): Pint =
+  ## Returns the sign of an integer.
   if x < 0:
     return -1
   if x >= 0:
@@ -3205,9 +3245,11 @@ const DEG2RAD* = PI / 180.0
 const RAD2DEG* = 180.0 / PI
 
 proc deg2rad*[T](x: T): T =
+  ## Converts an value from degrees to radians.
   x * DEG2RAD
 
 proc rad2deg*[T](x: T): T =
+  ## Converts an value from radians to degrees.
   x * RAD2DEG
 
 proc invLerp*(a,b,v: Pfloat): Pfloat =
@@ -3217,9 +3259,11 @@ proc modSign*[T](a,n: T): T =
   return (a mod n + n) mod n
 
 proc angleDiff*(a,b: Pfloat): Pfloat =
+  ## Returns the difference between two angles in radians.
   return modSign((a - b) + PI, TAU) - PI
 
 converter toPint*(x: uint8): Pint =
+  ## Implict converter to make life easier on game devs.
   x.Pint
 
 iterator all*[T](a: var openarray[T]): T {.inline.} =

@@ -424,6 +424,7 @@ proc speed*(speed: int) =
   frameMult = speed
 
 proc loadPaletteFromImage*(filename: string): Palette =
+  ## Loads an image from assets folder, getting the palette.
   var loaded = false
   var palette: Palette
   backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
@@ -446,6 +447,7 @@ proc loadPaletteFromImage*(filename: string): Palette =
   return palette
 
 proc loadPaletteFromGPL*(filename: string): Palette =
+  ## Loads a GPL palette from the assets folder.
   var data = backend.readFile(joinPath(assetPath,filename))
   var i = 0
   for line in data.splitLines():
@@ -473,15 +475,22 @@ proc loadPaletteFromGPL*(filename: string): Palette =
   palt()
 
 proc palSize*(): Pint =
+  ## Returns the number of colours in the palette.
   return currentPalette.size
 
 proc setPalette*(p: Palette) =
+  ## Changes the active palette, can be used for SFX.
+  runnableExamples:
+    let pal = loadPaletteFromGpl("palette.gpl")
+    pal.setPalette
   currentPalette = p
 
 proc getPalette*(): Palette =
+  ## Gets the currently active palette.
   return currentPalette
 
 proc loadPaletteCGA*(): Palette =
+  ## Loads a 4 colour CGA palette.
   result.data[0] = RGB(0,0,0)
   result.data[1] = RGB(85,255,255)
   result.data[2] = RGB(255,85,255)
@@ -489,6 +498,7 @@ proc loadPaletteCGA*(): Palette =
   result.size = 4
 
 proc loadPalettePico8*(): Palette =
+  ## Loads the 16 colour palette based on Pico-8
   result.data[0]  = RGB(0,0,0)
   result.data[1]  = RGB(29,43,83)
   result.data[2]  = RGB(126,37,83)
@@ -508,6 +518,7 @@ proc loadPalettePico8*(): Palette =
   result.size = 16
 
 proc loadPalettePico8Extra*(): Palette =
+  ## Loads a 32 colour expanded palette based on Pico-8
   result.data[0]  = RGB(0,0,0)
   result.data[1]  = RGB(29,43,83)
   result.data[2]  = RGB(126,37,83)
@@ -543,6 +554,7 @@ proc loadPalettePico8Extra*(): Palette =
   result.size = 32
 
 proc loadPaletteGrayscale*(): Palette =
+  ## Loads a 256 colour pallette
   for i in 0..<256:
     result.data[i] = RGB(i,i,i)
   result.size = 256
@@ -551,6 +563,7 @@ clipMaxX = screenWidth-1
 clipMaxY = screenHeight-1
 
 proc clip*() =
+  ## Resets clip mask
   clipMinX = 0
   clipMaxX = screenWidth-1
   clipMinY = 0
@@ -561,6 +574,7 @@ proc clip*() =
   clippingRect.h = screenHeight - 1
 
 proc clip*(x,y,w,h: Pint) =
+  ## Sets the cliping mask to a given a rect
   clipMinX = max(x, 0)
   clipMaxX = min(x+w-1, screenWidth-1)
   clipMinY = max(y, 0)
@@ -571,14 +585,17 @@ proc clip*(x,y,w,h: Pint) =
   clippingRect.h = min(h, screenHeight - y)
 
 proc getClip*(): (int,int,int,int) =
+  ## Returns the current clip mask.
   return (clipMinX,clipMinY,clipMaxX-clipMinX,clipMaxY-clipMinY)
 
 var ditherColor: int = -1
 
 proc setDitherColor*(c: Pint = -1) =
+  ## Changes the colour used for dithering
   ditherColor = c
 
 proc ditherPattern*(pattern: uint16 = 0b1111_1111_1111_1111) =
+  ## A integer that represents the pixel dithering method.
   # 0123
   # 4567
   # 89ab
@@ -586,21 +603,27 @@ proc ditherPattern*(pattern: uint16 = 0b1111_1111_1111_1111) =
   gDitherPattern = pattern
 
 proc ditherPatternScanlines*() =
+  ## Preset dither pattern.
   gDitherPattern = 0b1111_0000_1111_0000
 
 proc ditherPatternScanlines2*() =
+  ## Preset dither pattern.
   gDitherPattern = 0b0000_1111_0000_1111
 
 proc ditherPatternCheckerboard*() =
+  ## Preset dither pattern.
   gDitherPattern = 0b1010_0101_1010_0101
 
 proc ditherPatternCheckerboard2*() =
+  ## Preset dither pattern.
   gDitherPattern = 0b0101_1010_0101_1010
 
 proc ditherPatternBigCheckerboard*() =
+  ## Preset dither pattern.
   gDitherPattern = 0b1100_1100_0011_0011
 
 proc ditherPatternBigCheckerboard2*() =
+  ## Preset dither pattern.
   gDitherPattern = 0b0011_0011_1100_1100
 
 proc ditherPass(x,y: int): bool =
@@ -610,23 +633,33 @@ proc ditherPass(x,y: int): bool =
   return (gDitherPattern and (1.uint16 shl bit)) != 0
 
 proc btn*(b: NicoButton): bool =
+  ## Returns true if a button is currently pressed.
+  runnableExamples:
+    if btn(pcUp):
+      echo "Move up"
   for c in controllers:
     if c.btn(b):
       return true
   return false
 
 proc btnup*(b: NicoButton): bool =
+  ## Returns true if a button was just released
+  runnableExamples:
+    if btn(pcA):
+      echo "Jump!"
   for c in controllers:
     if c.btnup(b):
       return true
   return false
 
 proc btn*(b: NicoButton, player: range[0..maxPlayers]): bool =
+  ## Same as prior `btn` but allows differentiating controllers.
   if player > controllers.high:
     return false
   return controllers[player].btn(b)
 
 proc btnup*(b: NicoButton, player: range[0..maxPlayers]): bool =
+  ## Same as prior `btnup` but allows differentiating controllers.
   if player > controllers.high:
     return false
   return controllers[player].btnup(b)
@@ -648,17 +681,26 @@ proc btnp*(b: NicoButton, player: range[0..maxPlayers]): bool =
   return controllers[player].btnp(b)
 
 proc btnpr*(b: NicoButton, repeat = 48): bool =
+  ## Same as btn but allows a repeat delay.
+  runnableExamples:
+    if btnpr(pcUp, 50):
+      echo "Move Up!"
   for c in controllers:
     if c.btnpr(b, repeat):
       return true
   return false
 
 proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool =
+  ## Same as prior `btnpr` but allows differentiating controllers.
   if player > controllers.high:
     return false
   return controllers[player].btnpr(b, repeat)
 
 proc key*(k: Keycode): bool =
+  ## Allows accessing unmapped keys directly returns true if pressed.
+  runnableExamples:
+    if key(K_Shift):
+      echo "Shift is held"
   keysDown.hasKey(k) and keysDown[k] != 0
 
 proc keyp*(k: Keycode): bool =
@@ -668,6 +710,10 @@ proc keypr*(k: Keycode, repeat: int = 48): bool =
   keysDown.hasKey(k) and keysDown[k].int mod repeat == 1
 
 proc anykeyp*(): bool =
+  ## if any key is pressed it returns true
+  runnableExamples:
+    if anykeyp():
+      echo "Start the game!"
   aKeyWasPressed
 
 proc jaxis*(axis: NicoAxis): Pfloat =
@@ -683,53 +729,83 @@ proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): Pfloat =
   return controllers[player].axis(axis)
 
 proc pal*(a,b: ColorId) =
+  ## Makes colour `a` draw as `b`.
+  runnableExamples:
+    pal(1, 2)
   paletteMapDraw[a] = b
 
 proc pal*(a: ColorId): ColorId =
+  ## Gets the current color in the drawing palette remap.
+  runnableExamples:
+    pal(1, 2)
+    assert pal(1) == 2
   return paletteMapDraw[a]
 
 proc pal*() =
+  ## Resets the palette mapping so all colours draw normally.
   for i in 0..<maxPaletteSize:
     paletteMapDraw[i] = i
 
 proc pald*(a,b: ColorId) =
+  ## Changes the display palette mapping.
+  runnableExamples:
+    pald(1, 2)
   paletteMapDisplay[a] = b
 
 proc pald*(a: ColorId): ColorId =
+  ## Gets the currently displayed palete at an index.
+  runnableExamples:
+    pald(1, 2)
+    assert pald(1) == 2
   return paletteMapDisplay[a]
 
 proc pald*() =
+  ## Resets the display palette mapping.
   for i in 0..<maxPaletteSize:
     paletteMapDisplay[i] = i
 
 proc palt*(a: ColorId, trans: bool) =
+  ## Controls if a palette colour is transparent.
   paletteTransparent[a] = trans
 
 proc palt*() =
+  ## Resets all transparent pixels aside from the first.
   for i in 0..<maxPaletteSize:
     paletteTransparent[i] = if i == 0: true else: false
 
 {.push checks:off, optimization: speed.}
 proc cls*() =
+  ## Clears the screen buffer, 
+  ## use before drawing to not have after effects.
+  runnableExamples:
+    proc draw() =
+      cls()
+      circ(0, 0, 30)
   for y in clipMinY..clipMaxY:
     for x in clipMinX..clipMaxX:
       psetRaw(x,y,0)
 
 proc setCamera*(x,y: Pint = 0) =
+  ## Moves the camera to the given `x` `y`,
+  ## pixel coordinates.
   cameraX = x
   cameraY = y
 
 proc getCamera*(): (Pint,Pint) =
+  ## Returns the current camera pixel coordinates
   return (cameraX, cameraY)
 
 
 proc setColor*(colId: ColorId) =
+  ## Changes the active colour for drawing with the primitive drawing techiniques.
   currentColor = colId
 
 proc getColor*(): ColorId =
+  ## Returns active colour.
   return currentColor
 
 proc pset*(x,y: Pint, c: ColorId) =
+  ## Changes the given coord to the desired colour.
   let x = x-cameraX
   let y = y-cameraY
   if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
@@ -743,9 +819,12 @@ proc pset*(x,y: Pint, c: ColorId) =
       stencilBuffer.set(x,y,stencilRef)
 
 proc pset*(x,y: Pint) =
+  ## Sets the coordinate with the active colour.
   pset(x,y,currentColor)
 
 proc psetRaw*(x,y: int, c: Pint) =
+  ## Directly sets the buffer colours.
+  ## .. warning: Unsafe, requires you to not go outside the bounds
   # relies on you not going outside the buffer bounds
   if stencilTest(x,y,stencilRef):
     if ditherPass(x,y):
@@ -756,21 +835,25 @@ proc psetRaw*(x,y: int, c: Pint) =
       stencilBuffer.set(x,y,stencilRef)
 
 proc psetRaw*(x,y: int) =
+  ## Same as prior `psetRaw` but uses the active colour.
   psetRaw(x,y,currentColor)
 
 proc ssetSafe*(x,y: Pint, c: int = -1) =
+  ## Safely changes the given pixel to the given colour on the active spritesheet.
   let c = if c == -1: currentColor else: c
   if x < 0 or y < 0 or x > spritesheet.w-1 or y > spritesheet.h-1:
     return
   spritesheet.data[y*spritesheet.w+x] = paletteMapDraw[c].uint8
 
 proc sset*(x,y: Pint, c: int = -1) =
+  ## Changes the given pixel to the given colour on the active spritesheet.
   let c = if c == -1: currentColor else: c
   if x < 0 or y < 0 or x > spritesheet.w-1 or y > spritesheet.h-1:
     raise newException(RangeError, "sset ($1,$2) out of bounds".format(x,y))
   spritesheet.data[y*spritesheet.w+x] = paletteMapDraw[c].uint8
 
 proc sget*(x,y: Pint): ColorId =
+  ## Changes the given pixel to the active colour on the active spritesheet
   if x > spritesheet.w-1 or x < 0 or y > spritesheet.h-1 or y < 0:
     debug "sget invalid coord: ", x, y
     return 0
@@ -778,6 +861,7 @@ proc sget*(x,y: Pint): ColorId =
   return color
 
 proc pget*(x,y: Pint): ColorId =
+  ## Gets the colour of a given pixel from the screen buffer.
   let x = x-cameraX
   let y = y-cameraY
   if x > swCanvas.w-1 or x < 0 or y > swCanvas.h-1 or y < 0:
@@ -785,11 +869,13 @@ proc pget*(x,y: Pint): ColorId =
   return swCanvas.data[y*swCanvas.w+x].ColorId
 
 proc pgetRGB*(x,y: Pint): (uint8,uint8,uint8) =
+  ## Gets the colour of a given pixel from the screen buffer as RGB.
   if x > swCanvas.w-1 or x < 0 or y > swCanvas.h-1 or y < 0:
     return (0'u8,0'u8,0'u8)
   return palCol(swCanvas.data[y*swCanvas.w+x].ColorId)
 
 proc rectfill*(x1,y1,x2,y2: Pint) =
+  ## Draws a filled rectangle from `x1`, `y1` to `x2`, `y1`
   let minx = min(x1,x2)
   let maxx = max(x1,x2)
   let miny = min(y1,y2)
@@ -799,6 +885,8 @@ proc rectfill*(x1,y1,x2,y2: Pint) =
       pset(x,y)
 
 proc rrectfill*(x1,y1,x2,y2: Pint, r: Pint = 1) =
+  ## Draws a filled rectangle from `x1`, `y1` to `x2`, `y1`
+  ## `r` is the radius of the corners
   let minx = min(x1,x2)
   let maxx = max(x1,x2)
   let miny = min(y1,y2)
@@ -814,21 +902,25 @@ proc rrectfill*(x1,y1,x2,y2: Pint, r: Pint = 1) =
   rectfill(minx + r, maxy - r, maxx - r, maxy)
 
 proc box*(x,y,w,h: Pint) =
+  ## Draws a rectangle outline with position of top left corner, width and height.
   hline(x,y,x+w-1)
   vline(x,y,y+h-1)
   vline(x+w-1,y,y+h-1)
   hline(x,y+h-1,x+w-1)
 
 proc boxfill*(x,y,w,h: Pint) =
+  ## Draws a filled rectangle with position of top left corner, width and height.
   if w == 0 or h == 0:
     return
   for y in y..<y+h:
     hline(x,y,x+w-1)
 
 proc rbox*(x,y,w,h: Pint, r: Pint = 1) =
+  ## Draws a radiused rectangle outline with position of top left corner, width and height.
   rrect(x,y,x+w-1,y+h-1,r)
 
 proc rboxfill*(x,y,w,h: Pint, r: Pint = 1) =
+  ## Draws a radiused filled rectangle with position of top left corner, width and height.
   rrectfill(x,y,x+w-1,y+h-1,r)
 
 proc innerLineLow(x0,y0,x1,y1: int) =
@@ -1073,6 +1165,7 @@ proc innerLineClipped(x1,y1,x2,y2: int) =
             y_pos += sign_y
 
 proc innerLine*(x0,y0,x1,y1: Pint) =
+  ## Draws line from first coordinates to the second.
   if abs(y1 - y0) < abs(x1 - x0):
     if x0 > x1:
       innerLineLow(x1,y1,x0,y0)
@@ -1085,6 +1178,7 @@ proc innerLine*(x0,y0,x1,y1: Pint) =
       innerLineHigh(x0,y0,x1,y1)
 
 proc line*(x0,y0,x1,y1: Pint) =
+  ## Draws line from first coordinates to the second.
   if x0 == x1 and y0 == y1:
     pset(x0,y0)
   elif x0 == x1:
@@ -1153,6 +1247,7 @@ proc hlineFast(x0,y,x1: Pint) =
     psetRaw(x,y,currentColor)
 
 proc hline*(x0,y,x1: Pint) =
+  ## Draws a horizontal line at a given `y` between two `x`s.
   let minX = clipMinX + cameraX
   let maxX = clipMaxX + cameraX
   if x0 < minX and x1 < minX:
@@ -1169,6 +1264,7 @@ proc hline*(x0,y,x1: Pint) =
     pset(x,y)
 
 proc vline*(x,y0,y1: Pint) =
+  ## Draws a vertical line at a given `x` between two `y`s.
   let minY = clipMinY + cameraY
   let maxY = clipMaxY + cameraY
   if y0 < minY and y1 < minY:
@@ -1185,6 +1281,8 @@ proc vline*(x,y0,y1: Pint) =
     pset(x,y)
 
 proc hlineDashed*(x0,y,x1: Pint, pattern: uint8 = 0b10101010) =
+  ## Draws a horizontal line at a given `y` between two `x`s.
+  ## Dashed with the bit pattern
   var x0 = x0
   var x1 = x1
   var i = 0
@@ -1196,6 +1294,8 @@ proc hlineDashed*(x0,y,x1: Pint, pattern: uint8 = 0b10101010) =
     i = (i + 1) mod 8
 
 proc vlineDashed*(x,y0,y1: Pint, pattern: uint8 = 0b10101010) =
+  ## Draws a vertical line at a given `x` between two `y`s.
+  ## Dashed with the bit pattern
   var y0 = y0
   var y1 = y1
   var i = 0
@@ -1207,6 +1307,8 @@ proc vlineDashed*(x,y0,y1: Pint, pattern: uint8 = 0b10101010) =
     i = (i + 1) mod 8
 
 proc lineDashed*(x0,y0,x1,y1: Pint, pattern: uint8 = 0b10101010) =
+  ## Draws line from first coordinates to the second.
+  ## Dashed by the bit pattern.
   if x0 == x1 and y0 == y1:
     pset(x0,y0)
   elif x0 == x1:
@@ -1217,6 +1319,7 @@ proc lineDashed*(x0,y0,x1,y1: Pint, pattern: uint8 = 0b10101010) =
     innerLineDashed(x0,y0,x1,y1, pattern)
 
 proc rect*(x1,y1,x2,y2: Pint) =
+  ## Draws a rectangle outline from `x1`, `y1` to `x2`, `y1`
   let w = x2-x1
   let h = y2-y1
   let x = x1
@@ -1231,6 +1334,8 @@ proc rect*(x1,y1,x2,y2: Pint) =
   vline(x, y+1, y+h-1)
 
 proc rrect*(x1,y1,x2,y2: Pint, r: Pint = 1) =
+  ## Draws a radius rectangle outline from `x1`, `y1` to `x2`, `y1`.
+  ## Radiused by `r`.
 #  https://www.freebasic.net/forum/viewtopic.php?t=19874
 #  Sub drawRoundedRectangle(x0 As Integer, y0 As Integer, x1 As Integer, y1 As Integer, radius As Integer, col As UInteger = RGB(255,255,255))
 #   Dim f As Integer
@@ -1311,6 +1416,7 @@ proc rrect*(x1,y1,x2,y2: Pint, r: Pint = 1) =
   vline(maxx, miny + r, maxy - r)
 
 proc rectCorner*(x1,y1,x2,y2: Pint) =
+  ## Draws corners of a rectangle.
   let w = x2-x1
   let h = y2-y1
   let x = x1
@@ -1333,6 +1439,7 @@ proc rectCorner*(x1,y1,x2,y2: Pint) =
   pset(x2, y2-1)
 
 proc rrectCorner*(x1,y1,x2,y2: Pint) =
+  ## Draws corners of a rounded rectangle.
   let w = x2-x1
   let h = y2-y1
   let x = x1
@@ -1351,6 +1458,7 @@ proc rrectCorner*(x1,y1,x2,y2: Pint) =
   pset(x2, y2-1)
 
 proc flr*(x: Pfloat): Pfloat =
+  ## Floors a `Pfloat`.
   return x.floor()
 
 proc lerp[T](a, b: T, t: Pfloat): T =
@@ -1399,6 +1507,7 @@ proc orient2d(ax,ay,bx,by,cx,cy: Pint): int =
   return (bx - ax) * (cy - ay) - (by - ay) * (cx-ax)
 
 proc trifill*(ax,ay,bx,by,cx,cy: Pint) =
+  ## Fills a clockwise winding declared triangle.
   let ax = ax - cameraX
   let bx = bx - cameraX
   let cx = cx - cameraX
@@ -1440,6 +1549,7 @@ proc trifill*(ax,ay,bx,by,cx,cy: Pint) =
     w2_row += B01
 
 proc quadfill*(x1,y1,x2,y2,x3,y3,x4,y4: Pint) =
+  ## Draws a clockwise winding quad.
   trifill(x1,y1,x2,y2,x3,y3)
   trifill(x1,y1,x3,y3,x4,y4)
 
@@ -1454,6 +1564,8 @@ template doWhile(a, b: untyped): untyped =
     b
 
 proc ellipsefill*(cx,cy,rx,ry: Pint) =
+  ## Draws an filled ellipse with the center at `cx`, `cy`.
+  ## `rx` controls the x radius, and `ry` controls the y radius.
   var x,y: int
   var dx,dy: int
   var err: int
@@ -1502,6 +1614,8 @@ proc ellipsefill*(cx,cy,rx,ry: Pint) =
       dy += twoASquare
 
 proc circfill*(cx,cy,r: Pint) =
+  ## Draws a filled circle with it's center at `cx`, `cy`.
+  ## `r` is radius
   if r == 1:
       pset(cx,cy)
       pset(cx-1,cy)
@@ -1530,6 +1644,8 @@ proc circfill*(cx,cy,r: Pint) =
         err -= x
 
 proc circ*(cx,cy,r: Pint) =
+  ## Draws a circle outline with it's center at `cx`, `cy`.
+  ## `r` is radius
   if r == 1:
       pset(cx-1,cy)
       pset(cx+1,cy)
@@ -1559,6 +1675,7 @@ proc circ*(cx,cy,r: Pint) =
       err += 1 - 2*x
 
 proc arc*(cx,cy,r: Pint, startAngle, endAngle: Pfloat) =
+  ## Draws an arc around `cx`, `cy` with a radius of `r`
   let startX = cos(startAngle) * r
   let startY = sin(startAngle) * r
   let endX = cos(endAngle) * r
@@ -2021,6 +2138,7 @@ proc blitStretch(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = fals
 {.pop.}
 
 proc mset*(tx,ty: Pint, t: uint8) =
+  ## Sets the current tilemap.
   if currentTilemap == nil:
     raise newException(Exception, "No map set")
   if tx < 0 or tx > currentTilemap.w - 1 or ty < 0 or ty > currentTilemap.h - 1:
@@ -2028,6 +2146,7 @@ proc mset*(tx,ty: Pint, t: uint8) =
   currentTilemap[].data[ty * currentTilemap.w + tx] = t
 
 proc mget*(tx,ty: Pint): uint8 =
+  ## Gets the current tilemap.
   if currentTilemap == nil:
     raise newException(Exception, "No map set")
   if tx < 0 or tx > currentTilemap.w - 1 or ty < 0 or ty > currentTilemap.h - 1:
@@ -2047,37 +2166,47 @@ iterator mapAdjacent*(tx,ty: Pint): (Pint,Pint) =
         yield (x.Pint,(y+1).Pint)
 
 proc fget*(s: Pint): uint8 =
+  ## Gets the flags of spritesheet `s`.
   return spritesheet.spriteFlags[s]
 
 proc fget*(s: Pint, f: uint8): bool =
+  ## Checks whether a spritesheet has flags `f`.
   return spritesheet.spriteFlags[s].contains(f)
 
 proc fset*(s: Pint, f: uint8) =
+  ## Adds flags `f` to a spritesheet `s`.
   spritesheet.spriteFlags[s] = f
 
 proc fset*(s: Pint, f: uint8, v: bool) =
+  ## Adds flags `f` to spritesheet `s` if `v` is true, else removes them.
   if v:
     spritesheet.spriteFlags[s].set(f)
   else:
     spritesheet.spriteFlags[s].unset(f)
 
 proc masterVol*(newVol: int) =
+  ## Sets the master volume.
   echo "setting masterVol: ", newVol
   masterVolume = clamp(newVol.float32 / 255.0'f, 0'f, 1'f)
 
 proc masterVol*(): int =
+  ## Gets the master volume.
   return (masterVolume * 255.0'f).int
 
 proc sfxVol*(newVol: int) =
+  ## Sets sfx volume.
   sfxVolume = clamp(newVol.float32 / 255.0'f, 0'f, 1'f)
 
 proc sfxVol*(): int =
+  ## Gets sfx volume
   return (sfxVolume * 255.0'f).int
 
 proc musicVol*(newVol: int) =
+  ## Gets Music volume.
   musicVolume = clamp(newVol.float32 / 255.0'f, 0'f, 1'f)
 
 proc musicVol*(): int =
+  ## Sets Music volume.
   return (musicVolume * 255.0'f).int
 
 proc createFontFromSurface(surface: Surface, chars: string): Font =
@@ -2152,6 +2281,7 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
 import nico/fontdata
 
 proc loadDefaultFont*(index: int) =
+  ## Loads the default font into `index`.
   let shouldReplace = currentFont == fonts[index]
   fonts[index] = createFontFromSurface(defaultFontSurface, defaultFontChars)
   if shouldReplace:
@@ -2159,6 +2289,8 @@ proc loadDefaultFont*(index: int) =
     setFont(index)
 
 proc loadFont*(index: int, filename: string) =
+  ## Loads a font from the `assets` folder into the `index` slot.
+  ## Uses the `.dat` file.
   let shouldReplace = currentFont == fonts[index]
   var chars: string
   var datPath: string
@@ -2175,6 +2307,8 @@ proc loadFont*(index: int, filename: string) =
       setFont(index)
 
 proc loadFont*(index: int, filename: string, chars: string) =
+  ## Loads a font from the `assets` folder into the `index` slot.
+  ## `chars` is used instead of a `.dat` file.
   let shouldReplace = currentFont == fonts[index]
   backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
     fonts[index] = createFontFromSurface(surface, chars)
@@ -2182,6 +2316,9 @@ proc loadFont*(index: int, filename: string, chars: string) =
     setFont(index)
 
 proc glyph*(c: Rune, x,y: Pint, scale: Pint = 1): Pint =
+  ## Draws a glyph if it exists in the font at a given position.
+  ## `scale` is the font scale.
+  ## Returns offset of drawn glyph.
   if currentFont == nil:
     raise newException(Exception, "No font selected")
   if not currentFont.rects.hasKey(c):
@@ -2196,14 +2333,20 @@ proc glyph*(c: Rune, x,y: Pint, scale: Pint = 1): Pint =
   return src.w * scale + scale
 
 proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint =
+  ## Draws a glyph if it exists in the font at `x`, `y`.
+  ## `scale` is the font scale.
+  ## Returns offset of drawn glyph.
   return glyph(c.Rune, x, y, scale)
 
 proc fontHeight*(): Pint =
+  ## Returns the font height in pixels.
   if currentFont == nil:
     return 0
   return currentFont.rects[Rune(' ')].h
 
 proc print*(text: string, x,y: Pint, scale: Pint = 1) =
+  ## Writes a left justified string at cordinates `x`, `y`.
+  ## ## `scale` is the font scale.
   if currentFont == nil:
     raise newException(Exception, "No font selected")
   var x = x - cameraX
@@ -2216,6 +2359,8 @@ proc print*(text: string, x,y: Pint, scale: Pint = 1) =
     y += currentFont.h
 
 proc print*(text: string) =
+  ## Writes a left justified string at the cursor.
+  ## `scale` is the font scale.
   if currentFont == nil:
     raise newException(Exception, "No font selected")
   var x = cursorX - cameraX
@@ -2225,6 +2370,7 @@ proc print*(text: string) =
   cursorY += 6
 
 proc glyphWidth*(c: Rune, scale: Pint = 1): Pint =
+  ## Returns the width of a character given with the current font at `scale`
   if currentFont == nil:
     raise newException(Exception, "No font selected")
   if not currentFont.rects.hasKey(c):
@@ -2232,9 +2378,11 @@ proc glyphWidth*(c: Rune, scale: Pint = 1): Pint =
   result = currentFont.rects[c].w*scale + scale
 
 proc glyphWidth*(c: char, scale: Pint = 1): Pint =
+  ## Returns the width of a character given with the current font at `scale`
   glyphWidth(c.Rune)
 
 proc textWidth*(text: string, scale: Pint = 1): Pint =
+  ## Returns the width of a string given with the current font at `scale`
   if currentFont == nil:
     raise newException(Exception, "No font selected")
   for c in text.runes:
@@ -2243,17 +2391,23 @@ proc textWidth*(text: string, scale: Pint = 1): Pint =
     result += currentFont.rects[c].w*scale + scale
 
 proc printr*(text: string, x,y: Pint, scale: Pint = 1) =
+  ## Writes a right justified string at cordinates `x`, `y`.
+  ## `scale` is the font scale.
   let width = textWidth(text, scale)
   print(text, x-width, y, scale)
 
 proc printc*(text: string, x,y: Pint, scale: Pint = 1) =
+  ## Writes a centre justified string at cordinates `x`, `y`.
+  ## `scale` is the font scale.
   let width = textWidth(text, scale)
   print(text, x-(width div 2), y, scale)
 
 proc copy*(sx,sy,dx,dy,w,h: Pint) =
+  ## Copies a rectangle of pixels to a new position.
   blitFastRaw(swCanvas, sx, sy, dx, dy, w, h)
 
 proc copyPixelsToMem*(sx,sy: Pint, buffer: var seq[uint8]) =
+  ## Copies pixels to buffer, starting at `sx`, `sy` untill the `buffer.len` is hit.
   let offset = sy*swCanvas.w+sx
   for i in 0..<buffer.len:
     if offset+i < 0:
@@ -2263,6 +2417,7 @@ proc copyPixelsToMem*(sx,sy: Pint, buffer: var seq[uint8]) =
     buffer[i] = swCanvas.data[offset+i]
 
 proc copyMemToScreen*(dx,dy: Pint, buffer: var seq[uint8]) =
+  ## Copies pixels to screen, starting at `sx`, `sy` untill the `buffer.len` is hit.
   let offset = dy*swCanvas.w+dx
   for i in 0..<buffer.len:
     if offset+i < 0:
@@ -2275,39 +2430,62 @@ proc hasMouse*(): bool =
   return mouseDetected
 
 proc mouse*(): (int,int) =
+  ## Returns mouse position.
   return (mouseX,mouseY)
 
 proc mouserel*(): (float32,float32) =
+  ## Returns relative mouse position.
   return (mouseRelX,mouseRelY)
 
 proc useRelativeMouse*(on: bool) =
+  ## Locks the mouse for relative motion only.
   when not defined(js):
     backend.useRelativeMouse(on)
 
 proc mousebtn*(b: range[0..2]): bool =
+  ## Returns whether a given button is pressed.
+  runnableExamples:
+    if mouseBtn(1):
+      echo "Lmb is pressed"
   return mouseButtons[b] > 0
 
 proc mousebtnp*(b: range[0..2]): bool =
+  ## Returns whether a given button was just pressed.
+  runnableExamples:
+    if mouseBtnp(1):
+      echo "Lmb was pressed"
   return mouseButtons[b] == 1
 
 proc mousebtnup*(b: range[0..2]): bool =
+  ## Returns whether a given button was just released.
+  runnableExamples:
+    if mouseBtnup(1):
+      echo "Lmb was released"
   return mouseButtons[b] == -1
 
 proc mousebtnpr*(b: range[0..2], r: Pint): bool =
+  ## Returns whether a given button is pressed on a repeat,
+  ## `r` is the repeat which controls the delay until reset.
+  runnableExamples:
+    if mouseBtnpr(1, 30):
+      echo "Lmb has reset"
   return mouseButtons[b] > 0 and mouseButtons[b] mod r == 1
 
 proc mousewheel*(): int =
-  # return the mousewheel status, 0 normal, -1 or 1
+  ## Return the mousewheel status, 0 normal, -1 or 1.
   return mouseWheelState
 
 proc clearKeysForBtn*(btn: NicoButton) =
+  ## Clears the keymap for a `NicoButton`.
   keymap[btn] = @[]
 
 proc addKeyForBtn*(btn: NicoButton, scancode: int) =
+  ## Adds a key to a `Nicobutton` 
   if not (scancode in keymap[btn]):
     keymap[btn].add(scancode)
 
 proc shutdown*() =
+  ## Stops the nico program, but doesnt quit.
   keepRunning = false
 
 proc resize() =
@@ -2317,13 +2495,16 @@ proc resize() =
   present()
 
 proc addResizeFunc*(newResizeFunc: ResizeFunc) =
+  ## Adds a resize callback.
   resizeFuncs.add(newResizeFunc)
 
 proc removeResizeFunc*(resizeFunc: ResizeFunc) =
+  ## Removes a resize callback.
   let i = resizeFuncs.find(resizeFunc)
   resizeFuncs.del(i)
 
 proc setTargetSize*(w,h: int) =
+  ## Changes desired screen size.
   if targetScreenWidth == w and targetScreenHeight == h:
     return
   targetScreenWidth = w
@@ -2331,14 +2512,17 @@ proc setTargetSize*(w,h: int) =
   resize()
 
 proc fixedSize*(): bool =
+  ## Returns if the screensize is fixed to the given resolution. 
   return fixedScreenSize
 
 proc fixedSize*(enabled: bool) =
+  ## Controls whether the application scales to fit the screen.
   fixedScreenSize = enabled
   if backend.isWindowCreated():
     resize()
 
 proc getScreenScale*(): float32 =
+  ## The multiplier on the buffer to get to the scaled image
   return common.screenScale
 
 proc integerScale*(): bool =
@@ -2350,6 +2534,7 @@ proc integerScale*(enabled: bool) =
     resize()
 
 proc newSpritesheet*(index: int, w, h: int, tw,th = 8) =
+  ## Creates a new sprite sheet that one can write to.
   if index < 0 or index >= spritesheets.len:
     raise newException(Exception, "Invalid spritesheet " & $index)
   spritesheets[index] = newSurface(w, h)
@@ -2358,6 +2543,7 @@ proc newSpritesheet*(index: int, w, h: int, tw,th = 8) =
   spritesheets[index].filename = ""
 
 proc setSpritesheet*(index: int) =
+  ## Sets the active spritesheet.
   if index < 0 or index >= spritesheets.len:
     raise newException(Exception, "Invalid spritesheet " & $index)
 
@@ -2366,6 +2552,7 @@ proc setSpritesheet*(index: int) =
   spritesheet = spritesheets[index]
 
 proc loadSpriteSheet*(index: int, filename: string, tileWidth,tileHeight: Pint = 8) =
+  ## Loads a sprite sheet into the `index` slot from the `assets` folder
   if index < 0 or index >= spritesheets.len:
     raise newException(Exception, "Invalid spritesheet " & $index)
   let shouldReplace = spritesheet == spritesheets[index]
@@ -2383,6 +2570,7 @@ proc loadSpriteSheet*(index: int, filename: string, tileWidth,tileHeight: Pint =
       setSpritesheet(index)
 
 proc spriteSize*(): (int,int) =
+  ## Returns active spritesheet tile size.
   return (spritesheet.tw, spritesheet.th)
 
 proc getSprRect(spr: Pint, w,h: Pint = 1): Rect {.inline.} =
@@ -2396,6 +2584,9 @@ proc getSprRect(spr: Pint, w,h: Pint = 1): Rect {.inline.} =
   result.h = h * spritesheet.th
 
 proc spr*(spr: Pint, x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false) =
+  ## Draws active spritesheet's `spr` at `x`,`y`, 
+  ## `w`/`h` control the amount of tiles drawn.
+  ## `hflip`/`vFlip` control whether the tiles are flipped.
   if spritesheet.tw == 0 or spritesheet.th == 0:
     return
   # draw a sprite
@@ -2406,6 +2597,10 @@ proc spr*(spr: Pint, x,y: Pint, w,h: Pint = 1, hflip, vflip: bool = false) =
     blitFast(spritesheet, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h)
 
 proc sprshift*(spr: Pint, x,y: Pint, w,h: Pint = 1, ox,oy: Pint = 0, hflip, vflip: bool = false) =
+  ## Draws active spritesheet's `spr` at `x`,`y`,
+  ## offset by `ox`/`oy`.
+  ## `w`/`h` control the amount of tiles drawn.
+  ## `hflip`/`vFlip` control whether the tiles are flipped.
   if spritesheet.tw == 0 or spritesheet.th == 0:
     return
   # draw a sprite
@@ -2416,10 +2611,16 @@ proc sprshift*(spr: Pint, x,y: Pint, w,h: Pint = 1, ox,oy: Pint = 0, hflip, vfli
     blitFastFlipShift(spritesheet, src.x, src.y, x-cameraX, y-cameraY, src.w, src.h, ox, oy, false, false)
 
 proc sprRot*(spr: Pint, x,y: Pint, radians: float32, w,h: Pint = 1) =
+  ## Draws active spritesheet's `spr` at `x`,`y`,
+  ## `radians` controls the angle of rotation.
+  ## `w`/`h` control the amount of tiles drawn.
   let src = getSprRect(spr, w, h)
   blitFastRot(spritesheet, src, x, y, radians)
 
 proc sprRot90*(spr: Pint, x,y: Pint, rotations: int, w,h: Pint = 1) =
+  ## Draws active spritesheet's `spr` at `x`,`y`,
+  ## `rotations` is the amount of 90 degree rotations.
+  ## `w`/`h` control the amount of tiles drawn.
   let src = getSprRect(spr, w, h)
   blitFastRot90(spritesheet, src, x, y, rotations)
 
@@ -2446,15 +2647,17 @@ proc sprBlitStretch*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
   blitStretch(spritesheet, src, dst)
 
 proc spr*(drawer: SpriteDraw)=
+  ## Same as `spr` but used a `SpriteDraw` instead.
   setSpritesheet(drawer.spriteSheet)
   spr(drawer.spriteIndex, drawer.x, drawer.y, drawer.w, drawer.h, drawer.flipX, drawer.flipY)
 
 proc spr*(drawer: SpriteDraw, x,y:Pint)=
+  ## Same as `spr` but used a `SpriteDraw` instead.
   setSpritesheet(drawer.spriteSheet)
   spr(drawer.spriteIndex, x, y, drawer.w, drawer.h, drawer.flipX, drawer.flipY)
 
 proc sprOverlap*(a,b : SpriteDraw): bool=
-  ##Will return true if the sprites overlap
+  ## Will return true if the sprites overlap
   setSpritesheet(a.spriteSheet)
   let 
     aSprRect = getSprRect(a.spriteIndex,a.w,a.h)

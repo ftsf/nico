@@ -447,7 +447,7 @@ proc loadPaletteFromImage*(filename: string): Palette =
   return palette
 
 proc loadPaletteFromGPL*(filename: string): Palette =
-  ## Loads a GPL palette from the assets folder.
+  ## Loads a GIMP / GPL palette from the assets folder.
   when defined(docgen): return
   else:
     var data = backend.readFile(joinPath(assetPath,filename))
@@ -576,7 +576,7 @@ proc clip*() =
   clippingRect.h = screenHeight - 1
 
 proc clip*(x,y,w,h: Pint) =
-  ## Sets the cliping mask to a given a rect
+  ## Sets the clipping mask to a given a rect.
   clipMinX = max(x, 0)
   clipMaxX = min(x+w-1, screenWidth-1)
   clipMinY = max(y, 0)
@@ -683,7 +683,7 @@ proc btnp*(b: NicoButton, player: range[0..maxPlayers]): bool =
   return controllers[player].btnp(b)
 
 proc btnpr*(b: NicoButton, repeat = 48): bool =
-  ## Same as btn but allows a repeat delay.
+  ## Same as `btn` but allows a repeat delay.
   runnableExamples:
     if btnpr(pcUp, 50):
       echo "Move Up!"
@@ -841,21 +841,21 @@ proc psetRaw*(x,y: int) =
   psetRaw(x,y,currentColor)
 
 proc ssetSafe*(x,y: Pint, c: int = -1) =
-  ## Safely changes the given pixel to the given colour on the active spritesheet.
+  ## Safely changes the given pixel on the active spritesheet to the given colour.
   let c = if c == -1: currentColor else: c
   if x < 0 or y < 0 or x > spritesheet.w-1 or y > spritesheet.h-1:
     return
   spritesheet.data[y*spritesheet.w+x] = paletteMapDraw[c].uint8
 
 proc sset*(x,y: Pint, c: int = -1) =
-  ## Changes the given pixel to the given colour on the active spritesheet.
+  ## Changes the given pixel on the active spritesheet to the given colour.
   let c = if c == -1: currentColor else: c
   if x < 0 or y < 0 or x > spritesheet.w-1 or y > spritesheet.h-1:
     raise newException(RangeError, "sset ($1,$2) out of bounds".format(x,y))
   spritesheet.data[y*spritesheet.w+x] = paletteMapDraw[c].uint8
 
 proc sget*(x,y: Pint): ColorId =
-  ## Changes the given pixel to the active colour on the active spritesheet
+  ## Gets the colour of a given pixel from the active spritesheet.
   if x > spritesheet.w-1 or x < 0 or y > spritesheet.h-1 or y < 0:
     debug "sget invalid coord: ", x, y
     return 0
@@ -877,7 +877,7 @@ proc pgetRGB*(x,y: Pint): (uint8,uint8,uint8) =
   return palCol(swCanvas.data[y*swCanvas.w+x].ColorId)
 
 proc rectfill*(x1,y1,x2,y2: Pint) =
-  ## Draws a filled rectangle from `x1`, `y1` to `x2`, `y1`
+  ## Draws a filled rectangle from `x1`, `y1` to `x2`, `y1`.
   let minx = min(x1,x2)
   let maxx = max(x1,x2)
   let miny = min(y1,y2)
@@ -887,7 +887,7 @@ proc rectfill*(x1,y1,x2,y2: Pint) =
       pset(x,y)
 
 proc rrectfill*(x1,y1,x2,y2: Pint, r: Pint = 1) =
-  ## Draws a filled rectangle from `x1`, `y1` to `x2`, `y1`
+  ## Draws a filled rectangle from `x1`, `y1` to `x2`, `y2`
   ## `r` is the radius of the corners
   let minx = min(x1,x2)
   let maxx = max(x1,x2)
@@ -1336,7 +1336,7 @@ proc rect*(x1,y1,x2,y2: Pint) =
   vline(x, y+1, y+h-1)
 
 proc rrect*(x1,y1,x2,y2: Pint, r: Pint = 1) =
-  ## Draws a radius rectangle outline from `x1`, `y1` to `x2`, `y1`.
+  ## Draws a radius rectangle outline from `x1`, `y1` to `x2`, `y2`.
   ## Radiused by `r`.
 #  https://www.freebasic.net/forum/viewtopic.php?t=19874
 #  Sub drawRoundedRectangle(x0 As Integer, y0 As Integer, x1 As Integer, y1 As Integer, radius As Integer, col As UInteger = RGB(255,255,255))
@@ -2140,7 +2140,7 @@ proc blitStretch(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = fals
 {.pop.}
 
 proc mset*(tx,ty: Pint, t: uint8) =
-  ## Sets the current tilemap.
+  ## Changes the given tile position on the current tilemap to the tile id `t`.
   if currentTilemap == nil:
     raise newException(Exception, "No map set")
   if tx < 0 or tx > currentTilemap.w - 1 or ty < 0 or ty > currentTilemap.h - 1:
@@ -2148,7 +2148,7 @@ proc mset*(tx,ty: Pint, t: uint8) =
   currentTilemap[].data[ty * currentTilemap.w + tx] = t
 
 proc mget*(tx,ty: Pint): uint8 =
-  ## Gets the current tilemap.
+  ## Gets the tile id on the given position from the current tilemap.
   if currentTilemap == nil:
     raise newException(Exception, "No map set")
   if tx < 0 or tx > currentTilemap.w - 1 or ty < 0 or ty > currentTilemap.h - 1:
@@ -2292,7 +2292,7 @@ proc loadDefaultFont*(index: int) =
 
 proc loadFont*(index: int, filename: string) =
   ## Loads a font from the `assets` folder into the `index` slot.
-  ## Uses the `.dat` file.
+  ## Uses the `.dat` file for character mapping.
   let shouldReplace = currentFont == fonts[index]
   var chars: string
   var datPath: string

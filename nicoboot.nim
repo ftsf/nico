@@ -2,6 +2,7 @@
 import os
 import osproc
 import parseopt
+import strutils
 
 var params = initOptParser(commandLineParams(), shortNoVal = {'f'})
 
@@ -30,7 +31,21 @@ if overwrite == false and (dirExists(targetPath) or fileExists(targetPath) or sy
 echo "copying ", sourcePath, " to ", targetPath
 copyDir(sourcePath, targetPath)
 # search and replace
-moveFile(joinPath(targetPath, "exampleApp.nimble"), joinPath(targetPath, targetPath & ".nimble"))
+
+let 
+  nimblePath = targetPath / (targetPath & ".nimble")
+  mainFile = targetPath & ".nim"
+
+echo "New main file: ", mainFile
+
+# Make the nimble file with tasks to build the `targetPath.nim` file.
+let nimbleFile = readFile(targetPath / "exampleApp.nimble")
+nimblePath.writeFile nimbleFile.replace("main.nim", mainFile)
+removeFile(targetPath / "exampleApp.nimble")
+
+# Move the test to the main folder"
+moveFile(targetPath / "src" / "main.nim", targetPath / "src" / mainFile)
+
 echo execProcess("nimgrep", "", ["-!","exampleApp",targetPath,"-r",targetPath], nil, {poUsePath})
 echo "nico project ", targetPath, " created"
 quit(0)

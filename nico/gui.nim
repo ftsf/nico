@@ -328,7 +328,7 @@ proc label*(G: Gui, text: string, box: bool = false) =
   # TODO word wrapping to fix max width
   let text = wrapWords(text, maxWidth div glyphWidth('x'), true)
   for line in text.splitLines():
-    var lineW = textWidth(line)
+    var lineW = richPrintWidth(line)
     if lineW > w:
       w = min(lineW, maxWidth)
     h += fontHeight()
@@ -360,7 +360,7 @@ proc labelStep*(G: Gui, text: string, step: int, box: bool = false) =
   var w = 0
   var h = 0
   for line in text.splitLines():
-    var lineW = textWidth(line)
+    var lineW = richPrintWidth(line)
     if lineW > w:
       w = lineW
     h += fontHeight()
@@ -438,7 +438,7 @@ proc beginDrawer*(G: Gui, text: string): bool =
   result = open
 
   assert(G.area != nil)
-  let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text) + G.hPadding * 2
+  let w = if G.hExpand: G.area.maxX - G.area.minX else: richPrintWidth(text) + G.hPadding * 2
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
   let (x,y) = G.cursor(w,h)
 
@@ -552,7 +552,7 @@ proc button*(G: Gui, w,h: int, enabled: bool = true, draw: GuiDrawProc): bool =
 
 proc button*(G: Gui, text: string, enabled: bool = true, keycode: Keycode = K_UNKNOWN): bool =
   assert(G.area != nil)
-  let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text) + G.hPadding * 2
+  let w = if G.hExpand: G.area.maxX - G.area.minX else: richPrintWidth(text) + G.hPadding * 2
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
   return G.button(text, w, h, enabled, keycode)
 
@@ -655,13 +655,13 @@ proc toggle*(G: Gui, val: var bool, drawCheckbox = true, w,h: int, enabled: bool
 
 proc toggle*(G: Gui, text: string, val: var bool, drawCheckbox = true, enabled: bool = true, keycode: Keycode = K_UNKNOWN): bool {.discardable.} =
   assert(G.area != nil)
-  let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text) + G.hPadding * 2
+  let w = if G.hExpand: G.area.maxX - G.area.minX else: richPrintWidth(text) + G.hPadding * 2
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
   return G.toggle(text, val, drawCheckbox, w, h, enabled, keycode)
 
 proc radio*[T: Ordinal](G: Gui, text: string, radioGroup: var T, index: T, enabled: bool = true): bool =
   assert(G.area != nil)
-  let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text) + G.hPadding * 2
+  let w = if G.hExpand: G.area.maxX - G.area.minX else: richPrintWidth(text) + G.hPadding * 2
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
   var radioGroupIsIndex = radioGroup == index
   let ret = G.toggle(text, radioGroupIsIndex, false, w, h, enabled)
@@ -765,7 +765,7 @@ proc drag*[T](G: Gui, text: string, value: var T, min, max: T, sensitivity: floa
 
 proc drag*[T](G: Gui, text: string, value: var T, min, max: T, sensitivity: float32, enabled: bool = true): bool =
   assert(G.area != nil)
-  let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text & ":" & getValueStr(value) & "  ") +  + G.hPadding * 2
+  let w = if G.hExpand: G.area.maxX - G.area.minX else: richPrintWidth(text & ":" & getValueStr(value) & "  ") +  + G.hPadding * 2
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
   return G.drag(text, value, min, max, sensitivity, w, h, enabled)
 
@@ -855,7 +855,7 @@ proc slider*[T](G: Gui, text: string, value: var T, min, max: T, w, h: int, enab
 
 proc slider*[T](G: Gui, text: string, value: var T, min, max: T, enabled, showNumber, alwaysShowHandle = true): bool =
   assert(G.area != nil)
-  let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(text & ":" & getValueStr(value) & "  ") +  + G.hPadding * 2
+  let w = if G.hExpand: G.area.maxX - G.area.minX else: richPrintWidth(text & ":" & getValueStr(value) & "  ") +  + G.hPadding * 2
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() * text.countLines() + G.vPadding * 2
   return G.slider(text, value, min, max, w, h, enabled, showNumber, alwaysShowHandle)
 
@@ -878,7 +878,7 @@ proc dropDown*(G: Gui, strings: openarray[string], value: int, w,h: int, enabled
   return ret
 
 proc dropDown*(G: Gui, strings: openarray[string], value: int, enabled: bool = true, keycode = K_UNKNOWN): int =
-  let w = if G.hExpand: G.area.maxX - G.area.minX else: textWidth(strings[value]) + G.hPadding * 2
+  let w = if G.hExpand: G.area.maxX - G.area.minX else: richPrintWidth(strings[value]) + G.hPadding * 2
   let h = if G.vExpand: G.area.maxY - G.area.minY else: fontHeight() + G.vPadding * 2
   return G.dropDown(strings, value, w, h, enabled, keycode)
 

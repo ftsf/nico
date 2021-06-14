@@ -423,7 +423,7 @@ proc loadPaletteFromImage*(filename: string): Palette =
   ## returns a palette from a PNG image
   var loaded = false
   var palette: Palette
-  backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
+  backend.loadSurfaceFromPNG(joinPath(assetPath,filename)) do(surface: Surface):
     if surface == nil:
       loaded = true
       raise newException(IOError, "Error loading palette image: " & filename)
@@ -2073,7 +2073,7 @@ proc loadFont*(index: int, filename: string) =
   except IOError as e:
     raise newException(Exception, "Missing " & datPath & " needed if not passing chars to loadFont: " & e.msg)
   chars.removeSuffix()
-  backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
+  backend.loadSurfaceFromPNG(joinPath(assetPath,filename)) do(surface: Surface):
     fonts[index] = createFontFromSurface(surface, chars)
     if shouldReplace:
       debug "updating current font ", index
@@ -2082,7 +2082,7 @@ proc loadFont*(index: int, filename: string) =
 proc loadFont*(index: int, filename: string, chars: string) =
   ## loads the font from filename into font index. expects a png file, you must pass a list of characters in the font
   let shouldReplace = currentFont == fonts[index]
-  backend.loadSurfaceRGBA(joinPath(assetPath,filename)) do(surface: Surface):
+  backend.loadSurfaceFromPNG(joinPath(assetPath,filename)) do(surface: Surface):
     fonts[index] = createFontFromSurface(surface, chars)
   if shouldReplace:
     setFont(index)

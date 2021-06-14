@@ -704,32 +704,6 @@ proc readFile*(filename: string): string =
 
   result = cast[string](buffer)
 
-proc loadSurfaceIndexed*(filename: string, callback: proc(surface: common.Surface)) =
-  var buffer = readFile(filename)
-  let ss = newStringStream(buffer)
-  let png = decodePNG(ss, LCT_PALETTE, 8)
-
-  var surface = newSurface(png.width, png.height)
-  surface.filename = filename
-  surface.w = png.width
-  surface.h = png.height
-  surface.channels = 1
-  surface.data = cast[seq[uint8]](png.data)
-  callback(surface)
-
-proc loadSurfaceRGBA*(filename: string, callback: proc(surface: common.Surface)) =
-  var buffer = readFile(filename)
-  let ss = newStringStream(buffer)
-  let png = decodePNG(ss, LCT_RGBA, 8)
-
-  var surface = newSurface(png.width, png.height)
-  surface.filename = filename
-  surface.w = png.width
-  surface.h = png.height
-  surface.channels = 4
-  surface.data = cast[seq[uint8]](png.data)
-  callback(surface)
-
 proc loadSurfaceFromPNG*(filename: string, callback: proc(surface: common.Surface)) =
   var buffer = readFile(filename)
   let ss = newStringStream(buffer)
@@ -738,7 +712,9 @@ proc loadSurfaceFromPNG*(filename: string, callback: proc(surface: common.Surfac
 
   let pngInfo = getInfo(png)
 
-  var surface = newSurface(png.width, png.height)
+  echo "loadSurfaceFromPNG ", filename, " size: ", pngInfo.width, "x", pngInfo.height, " type: ", pngInfo.mode.colorType
+
+  var surface = newSurface(pngInfo.width, pngInfo.height)
   surface.filename = filename
   surface.w = pngInfo.width
   surface.h = pngInfo.height

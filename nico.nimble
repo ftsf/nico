@@ -29,6 +29,7 @@ task test, "run tests":
 
 task testemscripten, "compile tests with emscripten":
   # test they compile with emscripten backend, harder to test running
+  exec "nim c -d:emscripten -p:. tests/rgba.nim"
   exec "nim c -d:emscripten -p:. tests/copymem.nim"
   exec "nim c -d:emscripten -p:. tests/fonts.nim"
   exec "nim c -d:emscripten -p:. tests/config.nim"
@@ -37,31 +38,24 @@ task testemscripten, "compile tests with emscripten":
 
 task paintout, "compile paintout example":
   exec "nim c -p:. -d:debug examples/paintout.nim"
-  exec "nim c -d:emscripten -p:. -d:debug examples/paintout.nim"
 
 task platformer, "compile platformer example":
   exec "nim c -p:. -d:release --multimethods:on -o:examples/platformer examples/platformer.nim"
-  exec "nim c -d:emscripten -p:. -d:release --multimethods:on examples/platformer.nim"
 
 task audio, "compile audio example":
   exec "nim c -p:. -d:debug -o:examples/audio examples/audio.nim"
-  exec "nim c -d:emscripten -p:. -d:release examples/audio.nim"
 
 task vertex, "compile vertex example":
   exec "nim c -p:. -d:debug -o:examples/vertex examples/vertex.nim"
-  exec "nim c -d:emscripten -p:. -d:release examples/vertex.nim"
 
 task gui, "compile gui example":
   exec "nim c -p:. -d:debug -o:examples/gui examples/gui.nim"
-  exec "nim c -d:emscripten -p:. -d:release examples/gui.nim"
 
 task coro, "compile coro example":
   exec "nim c -p:. -d:debug -o:examples/gui examples/coro.nim"
-  exec "nim c -d:emscripten -p:. -d:release examples/coro.nim"
 
 task benchmark, "compile benchmark example":
   exec "nim c -p:. -d:release -d:danger -o:examples/benchmark examples/benchmark.nim"
-  exec "nim c -d:emscripten -p:. -d:release -d:danger examples/benchmark.nim"
 
 task examples, "compile all examples":
   exec "nimble paintout"

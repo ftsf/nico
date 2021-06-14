@@ -734,29 +734,25 @@ proc loadSurfaceFromPNG*(filename: string, callback: proc(surface: common.Surfac
   var buffer = readFile(filename)
   let ss = newStringStream(buffer)
 
-  let pngFile = parsePNG[uint8](ss, nil)
-  let pngHeader = (PNGHeader)pngFile.getChunk(IHDR)
-  ss.setPosition(0)
+  let png = decodePNG(ss, nil)
 
-  let colorType =  pngHeader.colorType
-
-  let png = decodePNG(ss, colorType, 8)
+  let pngInfo = getInfo(png)
 
   var surface = newSurface(png.width, png.height)
   surface.filename = filename
-  surface.w = png.width
-  surface.h = png.height
+  surface.w = pngInfo.width
+  surface.h = pngInfo.height
 
-  if colorType == LCT_RGBA:
+  if pngInfo.mode.colorType == LCT_RGBA:
     echo "loading RGBA image, converting to indexed using current palette ", filename
     surface.channels = 4
-    surface.data = cast[seq[uint8]](png.data)
+    surface.data = cast[seq[uint8]](png.pixels)
     callback(surface.convertToIndexed())
 
-  elif colorType == LCT_PALETTE:
+  elif pngInfo.mode.colorType == LCT_PALETTE:
     echo "loading paletted image ", filename
     surface.channels = 1
-    surface.data = cast[seq[uint8]](png.data)
+    surface.data = cast[seq[uint8]](png.pixels)
     callback(surface)
 
 proc refreshSpritesheets*() =

@@ -10,7 +10,7 @@ license       = "MIT"
 requires "nim >= 1.4.0"
 requires "sdl2_nim >= 2.0.10.0"
 requires "gifenc >= 0.1.0"
-requires "nimPNG"
+requires "nimPNG >= 0.3.1"
 requires "zippy"
 
 skipDirs = @["examples","tests","android","tools"]

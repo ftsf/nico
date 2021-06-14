@@ -32,23 +32,33 @@ proc `$`*(self: Tweak): string =
   of TweakInt:
     return $self.i[]
 
+proc saveTweaks*() =
+  try:
+    var j = newJObject()
+    for k,v in tweakTable:
+      j[k] = %* v.f[]
+    saveJsonFile("assets/tweaks.json", j)
+    echo "saved tweaks"
+  except:
+    echo "error saving tweaks"
+
 proc reloadTweaks*() =
-  when true:
-    try:
-      var j = readJsonFile("assets/tweaks.json")
-      for k,v in j.pairs():
-        let tweak = tweakTable[k]
-        echo "tweak: '", k, "' = ", $tweak, " => ", v
-        if k in tweakTable:
-          case tweak.kind:
-          of TweakFloat:
-            tweak.f[] = v.getFloat
-          of TweakInt:
-            tweak.i[] = v.getInt
-        else:
-          echo "unregistered tweak: ", k
-    except:
-      return
+  try:
+    var j = readJsonFile("assets/tweaks.json")
+    for k,v in j.pairs():
+      let tweak = tweakTable[k]
+      echo "tweak: '", k, "' = ", $tweak, " => ", v
+      if k in tweakTable:
+        case tweak.kind:
+        of TweakFloat:
+          tweak.f[] = v.getFloat
+        of TweakInt:
+          tweak.i[] = v.getInt
+      else:
+        echo "unregistered tweak: ", k
+    echo "reloaded tweaks"
+  except:
+    return
 
 import macros
 
@@ -84,8 +94,11 @@ proc setTweak(args: seq[string]): seq[string] =
       tweak.f[] = parseFloat(v)
     of TweakInt:
       tweak.i[] = parseInt(v)
+    saveTweaks()
   except KeyError:
     return @["unknown tweak: '" & k & "'"]
 
 registerConsoleCommand("tweaks", listTweaks)
 registerConsoleCommand("tweak", setTweak)
+registerConsoleCommand("reloadTweaks", proc(args: seq[string]): seq[string] = reloadTweaks())
+registerConsoleCommand("saveTweaks", proc(args: seq[string]): seq[string] = saveTweaks())

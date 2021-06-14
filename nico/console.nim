@@ -109,7 +109,7 @@ proc consoleKeyListener(sym: int, mods: uint16, scancode:int, down: bool): bool 
             return false
           # enter the character, apply shifting
           let c = if ((mods and 1.uint16) != 0) or ((mods and 2.uint16) != 0): chr(sym).toUpperAscii else: chr(sym)
-          if c.isAlphaNumeric:
+          if c.isAlphaNumeric or c.isSpaceAscii or c == '.':
             inputBuffer.add(c)
           return true
         except:

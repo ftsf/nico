@@ -152,8 +152,6 @@ else:
 
 var linearFilter = false
 
-var keyListeners = newSeq[KeyListener]()
-
 var audioDeviceId: AudioDeviceID
 var audioInDeviceId: AudioDeviceID
 var audioInSample*: float32

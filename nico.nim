@@ -3022,7 +3022,12 @@ proc modSign*[T](a,n: T): T =
 
 proc angleDiff*(a,b: Pfloat): Pfloat =
   ## returns the nearest difference between two angles in radians
-  return modSign((a - b) + PI, TAU) - PI
+  var r = (b.float - a.float) mod TAU.float
+  if r < -PI:
+    r += TAU
+  if r >= PI:
+    r -= TAU
+  return r.float32
 
 converter toPint*(x: uint8): Pint =
   x.Pint
@@ -3055,11 +3060,16 @@ when defined(test):
   import unittest
 
   suite "nico":
+    proc `~=`(a,b: float32): bool =
+      ## approximately equal
+      return abs(a-b) < 0.000001f
+
     test "angleDiff":
       check(angleDiff(0'f,0'f) == 0'f)
-      check(angleDiff(deg2rad(90'f),deg2rad(-90'f)) == deg2rad(180'f))
-      check(angleDiff(deg2rad(-90'f),deg2rad(90'f)) == deg2rad(180'f))
-      check(angleDiff(deg2rad(-180'f),deg2rad(180'f)) == deg2rad(0'f))
+      check(angleDiff(deg2rad(90'f),deg2rad(-90'f)) ~= deg2rad(180'f))
+      check(angleDiff(deg2rad(-90'f),deg2rad(90'f)) ~= deg2rad(-180'f))
+      check(angleDiff(deg2rad(-180'f),deg2rad(180'f)) ~= deg2rad(0'f))
+      check(angleDiff(deg2rad(180'f),deg2rad(-180'f)) ~= deg2rad(0'f))
 
     test "roundTo":
       check(roundTo(16, 16) == 16)

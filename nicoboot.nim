@@ -6,12 +6,22 @@ import parseopt
 var params = initOptParser(commandLineParams(), shortNoVal = {'f'})
 
 var targetPath: string = ""
+var orgName: string = ""
+var appName: string = ""
 var overwrite = false
+
+var arg = 0
 
 for kind, key, val in getOpt(params):
   case kind:
     of cmdArgument:
-      targetPath = key
+      if arg == 0:
+        orgName = key
+      elif arg == 1:
+        appName = key
+      elif arg == 2:
+        targetPath = key
+      arg.inc
     of cmdLongOption, cmdShortOption:
       case key:
         of "f": overwrite = true
@@ -19,7 +29,7 @@ for kind, key, val in getOpt(params):
       assert(false)
 
 if targetPath == "":
-  echo "nicoboot [-f] projectPath"
+  echo "nicoboot [-f] orgName appName projectPath"
   quit(1)
 
 # create a new project
@@ -31,6 +41,7 @@ echo "copying ", sourcePath, " to ", targetPath
 copyDir(sourcePath, targetPath)
 # search and replace
 moveFile(joinPath(targetPath, "exampleApp.nimble"), joinPath(targetPath, targetPath & ".nimble"))
-echo execProcess("nimgrep", "", ["-!","exampleApp",targetPath,"-r",targetPath], nil, {poUsePath})
-echo "nico project ", targetPath, " created"
+echo execProcess("nimgrep", "", ["-!","exampleApp",appName,"-r",targetPath], nil, {poUsePath, poStdErrToStdOut})
+echo execProcess("nimgrep", "", ["-!","exampleOrg",orgName,"-r",targetPath], nil, {poUsePath, poStdErrToStdOut})
+echo "nico project ", appName, " created in ", targetPath
 quit(0)

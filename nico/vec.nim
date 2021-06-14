@@ -85,6 +85,16 @@ proc vec3f*(): Vec3f =
   result.y = 0
   result.z = 0
 
+proc vec3i*(): Vec3i =
+  result.x = 0
+  result.y = 0
+  result.z = 0
+
+proc vec3i*(x,y,z: PInt): Vec3i =
+  result.x = x
+  result.y = y
+  result.z = z
+
 proc vec4f*(): Vec4f =
   result.x = 0
   result.y = 0
@@ -342,6 +352,13 @@ proc normalized*[N,T](v: Vec[N,T]): Vec[N,T] =
     return result
   result = v / length
 
+proc normalizedAndLength*[N,T](v: Vec[N,T]): (Vec[N,T], T) =
+  let length = v.length()
+  if length < 0.000001:
+    return result
+  result[0] = v / length
+  result[1] = length
+
 proc normalize*[N,T](v: var Vec[N,T]) =
   let length = v.length()
   if length < 0.000001:
@@ -372,7 +389,7 @@ proc dot*[T](a,b: Vec4[T]): T =
   result += a.w*b.w
 
 proc line*[T](a,b: Vec2[T]) =
-  line(a.x.int, a.y.int, b.x.int, b.y.int)
+  line(clamp(a.x.int,-99999,99999), clamp(a.y.int,-99999,99999), clamp(b.x.int,-99999,99999), clamp(b.y.int,-99999,99999))
 
 proc lineDashed*[T](a,b: Vec2[T], pattern: uint8 = 0b10101010) =
   lineDashed(a.x.int, a.y.int, b.x.int, b.y.int, pattern)
@@ -487,6 +504,18 @@ proc cross*(a,b: Vec3f): Vec3f =
   result.y = a.z*b.x - a.x*b.z
   result.z = a.x*b.y - a.y*b.x
 
+proc tripleProduct*(a,b,c: Vec2f): Vec2f =
+  let a = a.vec3f(0f)
+  let b = b.vec3f(0f)
+  let c = c.vec3f(0f)
+  a.cross(b.cross(c)).xy
+
+proc tripleProduct*(a,b,c: Vec3f): Vec3f =
+  a.cross(b.cross(c))
+
+proc scalarTripleProduct*(a,b,c: Vec3f): float32 =
+  a.dot(b.cross(c))
+
 proc project*(v,n: Vec2f): Vec2f =
   return n * (v.dot(n) / n.dot(n))
 
@@ -494,7 +523,7 @@ proc projectAbs*(v,n: Vec2f): Vec2f =
   return abs(dot(v.normalized,n)) * n
 
 proc reflect*(v,n: Vec2f): Vec2f =
-  return -(v - v.dot(n) * 2.0 * n)
+  return -(v - v.dot(n) * 2.0f * n)
 
 proc slide*(v,n: Vec2f): Vec2f =
   return n - v * dot(v, n)
@@ -505,3 +534,9 @@ proc scaleOnTwoAxes*(v: var Vec2f, axis: Vec2f, s1,s2: float32) =
 proc round*[N,T](v: Vec[N,T]): T =
   for i in 0..<N:
     v[i] = v.round()
+
+proc `div`*[N,T](v: Vec[N,T], s: T): Vec[N,T] =
+  var v = v
+  for i in 0..<N:
+    v[i] = v[i] div s
+  return v

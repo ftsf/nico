@@ -7,6 +7,7 @@ import algorithm
 import strutils
 
 import nico/keycodes
+
 export Keycode
 export Scancode
 
@@ -72,7 +73,7 @@ type
   MusicId* = range[-1..63]
   SfxId* = range[-1..63]
 
-type AudioChannelId* = range[-1..nAudioChannels.high]
+type AudioChannelId* = range[-1..(nAudioChannels-1)]
 const audioChannelAuto* = -1.AudioChannelId
 
 type
@@ -239,16 +240,11 @@ proc get*(s: Surface, x,y: int): uint8 =
 
 type
   Tilemap* = object
-    data*: seq[uint8]
+    data*: seq[int]
     w*,h*: int
     hex*: bool
     hexOffset*: int
     tw*,th*: int
-
-type
-  LineIterator = iterator(): (Pint,Pint)
-  Edge = tuple[xint, xfrac, dxint, dxfrac, dy, life: int]
-
 
 type ResizeFunc* = proc(x,y: int)
 
@@ -284,7 +280,7 @@ var musicVolume* = 1.0'f
 var sampleRate* = 44100.0'f
 var invSampleRate* = 1.0'f / sampleRate
 
-var tickFunc*: proc() = nil
+var audioTickCallback*: proc() = nil
 
 var currentBpm*: Natural = 128
 var currentTpb*: Natural = 4
@@ -359,6 +355,7 @@ var tilemaps*: array[16,Tilemap]
 var currentTilemap*: ptr Tilemap
 
 var initFunc*: proc()
+var initFuncCalled* = false
 var updateFunc*: proc(dt: Pfloat)
 var drawFunc*: proc()
 var textFunc*: proc(text: string): bool
@@ -512,6 +509,14 @@ proc convertToIndexed*(surface: Surface): Surface =
 
 proc RGB*(r,g,b: Pint): tuple[r,g,b: uint8] =
   return (r.uint8,g.uint8,b.uint8)
+
+proc RGB*(color: Pint): tuple[r,g,b: uint8] =
+  ## takes a web style hex color eg 0xFF8800 (red, green, blue)
+  let r = color shr 16 and 0xff
+  let g = color shr 8 and 0xff
+  let b = color and 0xff
+  return (r.uint8, g.uint8, b.uint8)
+
 {.pop.}
 
 type ProfilerNode* = object
@@ -523,7 +528,7 @@ type ProfilerNode* = object
   children*: seq[ProfilerNode]
 
 var profileCollect* = true
-var profileHistory* = newRingBuffer[ProfilerNode](256)
+var profileHistory* = initRingBuffer[ProfilerNode](256)
 
 when defined(profile):
   var rootProfilerNode: ProfilerNode

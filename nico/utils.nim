@@ -124,6 +124,8 @@ proc richPrint*(text: string, x,y: int, align: TextAlign = taLeft, shadow: bool 
       print($c, x + (if wiggle: cos(x.float32 * 0.2 + t * 2.0) * 1.5 else: 0) - (if align == taRight: tlen elif align == taCenter: tlen div 2 else: 0), y + (if wiggle: sin(x.float32 + t * 8.0) * 2.0 else: 0))
     x += glyphWidth(c)
 
+  let hfh = fontHeight() div 2
+
   var j = 0
   for text in text.split('\n'):
     let tlen = richPrintWidth(text)
@@ -165,16 +167,16 @@ proc richPrint*(text: string, x,y: int, align: TextAlign = taLeft, shadow: bool 
           var sprId, palA, palB: int
           var (sw,sh) = spriteSize()
           if scanf(code, "spr($i,$i,$i)", sprId, sw, sh):
-            spr(sprId, x - (if align == taCenter: tlen div 2 elif align == taRight: tlen else: 0), y)
+            spr(sprId, x - (if align == taCenter: tlen div 2 elif align == taRight: tlen else: 0), y - sh div 2 + hfh)
             x += sw
           elif scanf(code, "spr($i)pal($i,$i)", sprId, palA, palB):
             let original = pal(palA)
             pal(palA, palB)
-            spr(sprId, x - (if align == taCenter: tlen div 2 elif align == taRight: tlen else: 0), y)
+            spr(sprId, x - (if align == taCenter: tlen div 2 elif align == taRight: tlen else: 0), y - sh div 2 + hfh)
             pal(palA, original)
             x += sw
           elif scanf(code, "spr($i)", sprId):
-            spr(sprId, x - (if align == taCenter: tlen div 2 elif align == taRight: tlen else: 0), y)
+            spr(sprId, x - (if align == taCenter: tlen div 2 elif align == taRight: tlen else: 0), y - sh div 2 + hfh)
             x += sw
         else:
           let col = try: parseInt(code) except ValueError: startColor

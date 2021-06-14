@@ -1,5 +1,6 @@
 import nico
 import times
+import strformat
 
 type BenchmarkMode = enum
   bmPoints
@@ -11,6 +12,7 @@ type BenchmarkMode = enum
   bmCircfill
   bmSprite
   bmSpriteScaled
+  bmSpriteRot
 
 var mode = bmPoints
 var autoAdjust = false
@@ -26,6 +28,9 @@ toDraw[bmCirc] = 2000
 toDraw[bmCircfill] = 2000
 toDraw[bmSprite] = 1000
 toDraw[bmSpriteScaled] = 1000
+toDraw[bmSpriteRot] = 1000
+
+var avgMs = 0f
 
 proc gameInit() =
   loadSpriteSheet(0, "spritesheet.png")
@@ -106,13 +111,17 @@ proc gameDraw() =
     for i in 0..<toDraw:
       sprs(16+rnd(8), rnd(screenWidth),rnd(screenHeight), 1, 1, 2, 2)
       count += 1
+  of bmSpriteRot:
+    for i in 0..<toDraw:
+      sprRot(16+rnd(8), rnd(screenWidth),rnd(screenHeight), rnd(TAU))
+      count += 1
 
   let tend = now()
   let dt = tend - tstart
   let ms = dt.inMilliseconds
 
   setColor(0)
-  let str = $mode & " x " & $toDraw & ": " & $ms & " ms"
+  let str = &"{mode}  x {toDraw} : {avgMs:0.2f}  ms"
   print(str, 4-1, 4)
   print(str, 4+1, 4)
   print(str, 4, 4-1)
@@ -121,6 +130,8 @@ proc gameDraw() =
   print(str, 4, 4)
 
   lastMs = ms.float32
+
+  avgMs = lerp(avgMs, lastMs, 0.25f)
 
 nico.init("nico","benchmark")
 nico.createWindow("nico benchmark", 128, 128, 4, false)

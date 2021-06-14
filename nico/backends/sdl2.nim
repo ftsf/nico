@@ -7,6 +7,8 @@ import strutils
 import sequtils
 import times
 
+import strformat
+
 import nico/ringbuffer
 import nico/stb_vorbis
 
@@ -27,6 +29,8 @@ proc hash(x: Keycode): Hash =
   var h: Hash = 0
   h = h !& hash(x.int)
   result = !$h
+
+proc errorPopup*(title: string, message: string)
 
 import nimPNG
 
@@ -51,7 +55,7 @@ type
   SfxBuffer = ref object
     data: seq[float32]
     rate: float32
-    channels: range[1..2]
+    channels: int
     length: int
 
 type
@@ -123,13 +127,23 @@ when defined(android):
       discard
 else:
   when defined(debug):
-    proc debug*(args: varargs[string, `$`]) =
-      for i, s in args:
-        write(stderr, s)
-        if i != args.high:
-          write(stderr, ", ")
-      write(stderr, "\n")
-      flushFile(stderr)
+    when defined(emscripten):
+      proc debug*(args: varargs[string, `$`]) =
+        for i, s in args:
+          write(stdout, s)
+          if i != args.high:
+            write(stdout, ", ")
+        write(stdout, "\n")
+        flushFile(stdout)
+
+    else:
+      proc debug*(args: varargs[string, `$`]) =
+        for i, s in args:
+          write(stderr, s)
+          if i != args.high:
+            write(stderr, ", ")
+        write(stderr, "\n")
+        flushFile(stderr)
   else:
     template debug*(args: varargs[string, `$`]) =
       discard
@@ -221,6 +235,8 @@ keymap = [
 
 proc resetChannel*(channel: var Channel)
 
+proc loadConfig*()
+
 proc createRecordBuffer(forceClear: bool = false) =
   if window == nil:
     # this can happen later
@@ -230,13 +246,13 @@ proc createRecordBuffer(forceClear: bool = false) =
     recordFrame = newSurface(screenWidth,screenHeight)
 
     if recordSeconds <= 0:
-      recordFrames = newRingBuffer[common.Surface](1)
+      recordFrames = initRingBuffer[common.Surface](1)
     else:
-      recordFrames = newRingBuffer[common.Surface](if fullSpeedGif: recordSeconds * frameRate.int else: recordSeconds * int(frameRate / 2))
+      recordFrames = initRingBuffer[common.Surface](if fullSpeedGif: recordSeconds * frameRate.int else: recordSeconds * int(frameRate / 2))
 
 
 proc resize*(w,h: int) =
-  debug "sdl resize display: ", w, h
+  debug "nico resize: display: ", w, h
   if w == 0 or h == 0:
     return
   # calculate screenScale based on size
@@ -304,7 +320,11 @@ proc resize*(w,h: int) =
   clipMaxY = screenHeight - 1
 
   swCanvas = newSurface(screenWidth,screenHeight)
-  swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
+
+  if swCanvas32 != nil:
+    sdl.freeSurface(swCanvas32)
+
+  swCanvas32 = sdl.createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
   if swCanvas32 == nil:
     debug "error creating swCanvas32"
     raise newException(Exception, "error creating RGB surface")
@@ -431,9 +451,17 @@ proc setShaderFloat*(uniformName: string, value: float32) =
 proc resize*() =
   if window == nil:
     return
-  var windowW, windowH: cint
-  window.getWindowSize(windowW.addr, windowH.addr)
-  resize(windowW,windowH)
+
+
+  if defined(emscripten):
+    var r: sdl.Rect
+    discard getDisplayUsableBounds(0, r.addr)
+    resize(r.w,r.h)
+
+  else:
+    var windowW, windowH: cint
+    window.getWindowSize(windowW.addr, windowH.addr)
+    resize(windowW,windowH)
 
 when defined(opengl):
   proc compileShader(shaderString: string, shaderType: GLenum): GLuint =
@@ -493,18 +521,25 @@ when defined(opengl):
 
 proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = false) =
   when defined(opengl):
-    window = createWindow(title.cstring, WINDOWPOS_CENTERED, WINDOWPOS_CENTERED, (w * scale).cint, (h * scale).cint, 
-      (WINDOW_RESIZABLE or (if fullscreen: WINDOW_FULLSCREEN_DESKTOP else: 0) or WINDOW_OPENGL.cint).uint32)
+    when defined(emscripten):
+      var r: sdl.Rect
+      discard getDisplayUsableBounds(0, r.addr)
 
-    discard glSetAttribute(GLattr.GL_CONTEXT_PROFILE_MASK, GL_CONTEXT_PROFILE_CORE)
-    discard glSetAttribute(GL_CONTEXT_MAJOR_VERSION, 3)
-    discard glSetAttribute(GL_CONTEXT_MINOR_VERSION, 3)
+      window = createWindow(title.cstring, r.x, r.y, r.w, r.h, (WINDOW_RESIZABLE or WINDOW_OPENGL).uint32)
+    else:
+      window = createWindow(title.cstring, WINDOWPOS_CENTERED, WINDOWPOS_CENTERED, (w * scale).cint, (h * scale).cint, 
+        (WINDOW_RESIZABLE or (if fullscreen: WINDOW_FULLSCREEN_DESKTOP else: 0) or WINDOW_OPENGL.cint).uint32)
+
+    discard glSetAttribute(GLattr.GL_CONTEXT_PROFILE_MASK, GL_CONTEXT_PROFILE_ES)
+    discard glSetAttribute(GL_CONTEXT_MAJOR_VERSION, 2)
+    discard glSetAttribute(GL_CONTEXT_MINOR_VERSION, 0)
+
     glContext = window.glCreateContext()
-    discard glSetSwapInterval(1)
-    loadExtensions()
 
-    glDisable(GL_POLYGON_SMOOTH)
-    glHint(GL_POLYGON_SMOOTH_HINT, GL_FASTEST)
+    when not defined(emscripten):
+      loadExtensions()
+
+    discard glSetSwapInterval(1)
 
     var fragSrc: string
     if existsFile(joinPath(assetPath, "frag.glsl")):
@@ -513,9 +548,9 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
     else:
       echo "using built in fragment shader"
       fragSrc = """
-#version 330 core
-out vec4 FragColor;
-in vec2 TexCoords;
+precision mediump float;
+
+varying vec2 TexCoords;
 
 uniform bool useCRT;
 uniform sampler2D tex;
@@ -557,19 +592,25 @@ vec4 ContrastSaturationBrightness(vec4 color, float brt, float sat, float con)
 
 void main() {
      vec2 uv = TexCoords;
-     vec4 color = texture(tex, vec2(sharpen(uv.x * canvasResolution.x) / canvasResolution.x, sharpen(uv.y * canvasResolution.y) / canvasResolution.y));
+     vec4 color = texture2D(tex, vec2(sharpen(uv.x * canvasResolution.x) / canvasResolution.x, sharpen(uv.y * canvasResolution.y) / canvasResolution.y));
 
      if(useCRT) {
-       vec2 pixel = gl_FragCoord.xy / int(ceil(scale)) * 3;
+       vec2 pixel = gl_FragCoord.xy / (ceil(scale)) * 3.0;
        color = ContrastSaturationBrightness(color, 1.5, 1.2, 1.0);
 
-       int pp = int(pixel.x) % 3;
-       if(pp == 1) FragColor = color * mask1;
-       else if(pp == 2) FragColor = color * mask2;
-       else FragColor = color * mask3;
-       if(int(pixel.y) % 3 == 0) FragColor.rgb *= scanlineColor;
-    } else {
-        FragColor = color;
+       float pp = mod(pixel.x, 3.0);
+       if(pp <= 1.0) {
+         gl_FragColor = color * mask1;
+       } else if(pp <= 2.0) {
+         gl_FragColor = color * mask2;
+       } else {
+         gl_FragColor = color * mask3;
+       }
+       if(mod(pixel.y, 3.0) <= 1.0) {
+         gl_FragColor.rgb *= scanlineColor;
+       } else {
+         gl_FragColor = color;
+       }
     }
 }
 """
@@ -582,11 +623,11 @@ void main() {
     else:
       echo "using built-in vertex shader"
       vertSrc = """
-#version 330 core
+precision mediump float;
 
-layout (location = 0) in vec4 posUV;
+attribute vec4 posUV;
 
-out vec2 TexCoords;
+varying vec2 TexCoords;
 
 void main() {
     gl_Position = vec4(posUV.xy, 0, 1);
@@ -601,10 +642,24 @@ void main() {
 
   else:
     when defined(android):
-      var dm: DisplayMode
-      discard getCurrentDisplayMode(0, dm.addr)
-      window = createWindow(title.cstring, WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, dm.w, dm.h, WINDOW_FULLSCREEN)
-      debug "created window ", dm.w, dm.h
+      try:
+        discard sdl.init(INIT_VIDEO)
+        var dm: DisplayMode
+        discard getCurrentDisplayMode(0, dm.addr)
+        window = createWindow(title.cstring, WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, dm.w, dm.h, WINDOW_FULLSCREEN)
+        debug "created window ", dm.w, dm.h
+      except Exception as e:
+        echo e.getStackTrace()
+        errorPopup(&"Error: {e.name}", e.msg)
+        sdl.quit()
+        return
+
+    elif defined(emscripten):
+      var r: sdl.Rect
+      discard getDisplayUsableBounds(0, r.addr)
+
+      window = createWindow(title.cstring, r.x, r.y, r.w, r.h, (WINDOW_RESIZABLE).uint32)
+
     else:
       window = createWindow(title.cstring, WINDOWPOS_CENTERED, WINDOWPOS_CENTERED, (w * scale).cint, (h * scale).cint, 
         (WINDOW_RESIZABLE or (if fullscreen: WINDOW_FULLSCREEN_DESKTOP else: 0)).uint32)
@@ -675,10 +730,39 @@ proc loadSurfaceRGBA*(filename: string, callback: proc(surface: common.Surface))
   surface.data = cast[seq[uint8]](png.data)
   callback(surface)
 
+proc loadSurfaceFromPNG*(filename: string, callback: proc(surface: common.Surface)) =
+  var buffer = readFile(filename)
+  let ss = newStringStream(buffer)
+
+  let pngFile = parsePNG[uint8](ss, nil)
+  let pngHeader = (PNGHeader)pngFile.getChunk(IHDR)
+  ss.setPosition(0)
+
+  let colorType =  pngHeader.colorType
+
+  let png = decodePNG(ss, colorType, 8)
+
+  var surface = newSurface(png.width, png.height)
+  surface.filename = filename
+  surface.w = png.width
+  surface.h = png.height
+
+  if colorType == LCT_RGBA:
+    echo "loading RGBA image, converting to indexed using current palette ", filename
+    surface.channels = 4
+    surface.data = cast[seq[uint8]](png.data)
+    callback(surface.convertToIndexed())
+
+  elif colorType == LCT_PALETTE:
+    echo "loading paletted image ", filename
+    surface.channels = 1
+    surface.data = cast[seq[uint8]](png.data)
+    callback(surface)
+
 proc refreshSpritesheets*() =
   for i in 0..<spriteSheets.len:
     if spriteSheets[i] != nil and spriteSheets[i].filename != "":
-      loadSurfaceIndexed(joinPath(assetPath,spriteSheets[i].filename)) do(surface: common.Surface):
+      loadSurfaceFromPNG(joinPath(assetPath,spriteSheets[i].filename)) do(surface: common.Surface):
         debug "refreshed spritesheet", spriteSheets[i].filename, surface.w, surface.h, spriteSheets[i].tw, spriteSheets[i].th
         spriteSheets[i].data = surface.data
         spriteSheets[i].w = surface.w
@@ -1045,18 +1129,27 @@ proc appHandleEvent(evt: sdl.Event) =
 
   elif evt.kind == WindowEvent:
     if evt.window.event == WindowEvent_Resized:
+      echo "Resize Event ", evt.window.data1, " x ", evt.window.data2
       resize(evt.window.data1, evt.window.data2)
       when not defined(opengl):
         discard render.setRenderTarget(nil)
         discard render.setRenderDrawColor(0,0,0,255)
         discard render.renderClear()
     elif evt.window.event == WindowEvent_Size_Changed:
+      echo "Size Changed Event ", evt.window.data1, " x ", evt.window.data2
       discard
     elif evt.window.event == WindowEvent_FocusLost:
       focused = false
     elif evt.window.event == WindowEvent_FocusGained:
       focused = true
       refreshSpritesheets()
+    elif evt.window.event == WindowEvent_Shown:
+      focused = true
+      refreshSpritesheets()
+      pauseAudioDevice(audioDeviceId, 0)
+    elif evt.window.event == WindowEvent_Hidden:
+      focused = false
+      pauseAudioDevice(audioDeviceId, 1)
 
   elif evt.kind == KeyDown or evt.kind == KeyUp:
     let sym = evt.key.keysym.sym
@@ -1237,10 +1330,11 @@ proc step*() {.cdecl.} =
 
     frame += 1
     if acc > timeStep and acc < timeStep+timeStep:
-      profileBegin("draw")
-      drawFunc()
-      profileEnd()
-      flip()
+      if window != nil:
+        profileBegin("draw")
+        drawFunc()
+        profileEnd()
+        flip()
 
     for i,b in mouseButtonsDown:
       if b:
@@ -1289,8 +1383,69 @@ proc getUnmappedJoysticks*(): seq[Joystick] =
       var j = joystickOpen(i)
       result.add(j)
 
+var configInitialised = false
+
+when defined(emscripten):
+  {.emit:"""
+  #include <emscripten.h>
+  """.}
+
+when defined(emscripten):
+  proc initConfigDone*() {.exportc,cdecl.} =
+    configInitialised = true
+    echo "initConfigDone"
+
+  proc initConfig() =
+    echo "initConfig"
+    configInitialised = false
+    {.emit:"""
+    EM_ASM(
+       //create your directory where we keep our persistent data
+       FS.mkdir('/IDBFS'); 
+
+       //mount persistent directory as IDBFS
+       FS.mount(IDBFS,{},'/IDBFS');
+
+       Module.print("start file sync..");
+       //flag to check when data are synchronized
+       Module.syncdone = 0;
+
+       //populate persistent_data directory with existing persistent source data 
+      //stored with Indexed Db
+      //first parameter = "true" mean synchronize from Indexed Db to 
+      //Emscripten file system,
+      // "false" mean synchronize from Emscripten file system to Indexed Db
+      //second parameter = function called when data are synchronized
+      FS.syncfs(true, function(err) {
+                       Module.print("syncfs done");
+                       Module.print(err);
+                       assert(!err);
+                       ccall("initConfigDone", "v");
+                       Module.print("end file sync..");
+                       Module.syncdone = 1;
+      });
+    );
+    """.}
+
+  proc syncIDBFS() =
+    {.emit:"""
+    EM_ASM(
+      Module.syncdone = 0;
+      FS.syncfs(false, function(err) {
+                       assert(!err);
+                       Module.print("end file sync..");
+                       Module.syncdone = 1;
+      });
+    );
+    """.}
+
+else:
+  proc initConfig() =
+    configInitialised = true
+
 proc loadConfig*() =
-  let defaultPath = joinPath(basePath, "config.ini")
+  echo "loadConfig"
+  let defaultPath = joinPath(assetPath, "config.ini")
   let path = joinPath(writePath, "config.ini")
   try:
     config = loadConfig(path)
@@ -1310,14 +1465,27 @@ proc saveConfig*() =
   try:
     config.writeConfig(path)
     debug "saved config to " & path
+
+    when defined(emscripten):
+      syncIDBFS()
+
   except IOError:
     debug "error saving config"
 
+
 proc updateConfigValue*(section, key, value: string) =
+  if config == nil:
+    echo "updateConfigValue but config is nil"
+    return
+
   debug "updateConfigValue", key, value
   config.setSectionKey(section, key, value)
 
 proc getConfigValue*(section, key: string, default: string = ""): string =
+  if config == nil:
+    echo "getConfigValue ", section, " ", key, " but config is nil, returning default ", default
+    return default
+
   result = config.getSectionValue(section, key)
   if result == "":
     result = default
@@ -1515,8 +1683,8 @@ proc queueMixerAudio*() =
         audioClock = false
 
       nextTick -= 1
-      if nextTick <= 0 and tickFunc != nil:
-        tickFunc()
+      if nextTick <= 0 and audioTickCallback != nil:
+        audioTickCallback()
         nextTick = (sampleRate / (currentBpm.float32 / 60.0 * currentTpb.float32)).int
 
     outputSamples[i] = 0
@@ -1586,7 +1754,7 @@ proc initMixer*(wantsAudioIn = false) =
       c.lfsr = 0xfeed
       c.lfsr2 = 0x00fe
       c.glide = 0
-      c.outputBuffer = newRingBuffer[float32](1024)
+      c.outputBuffer = initRingBuffer[float32](1024)
       for j in 0..<32:
         c.wavData[j] = rand(16).uint8
 
@@ -1599,25 +1767,34 @@ proc initMixer*(wantsAudioIn = false) =
 proc init*(org: string, app: string) =
   discard setHint("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")
 
-  if sdl.init(INIT_EVERYTHING) != 0:
-    debug sdl.getError()
-    quit(1)
+  when defined(emscripten):
+    if sdl.init(INIT_VIDEO or INIT_AUDIO or INIT_JOYSTICK or INIT_GAMECONTROLLER or INIT_EVENTS) != 0:
+      debug sdl.getError()
+      quit(1)
+  else:
+    if sdl.init(INIT_EVERYTHING) != 0:
+      debug sdl.getError()
+      quit(1)
 
   # add keyboard controller
   when not defined(android):
     controllers.add(newNicoController(-1))
 
-    basePath = $sdl.getBasePath()
+    let basePath = $sdl.getBasePath()
     debug "basePath: ", basePath
 
-    assetPath = joinPath(basePath, "assets")
+    assetPath = basePath / "assets"
     debug "assetPath: ", assetPath
 
-    writePath = $sdl.getPrefPath(org,app)
+    when defined(emscripten):
+      writePath = "/IDBFS"
+    else:
+      writePath = $sdl.getPrefPath(org,app)
+
     debug "writePath: ", writePath
 
-    discard gameControllerAddMappingsFromFile(basePath & "/assets/gamecontrollerdb.txt")
-    discard gameControllerAddMappingsFromFile(writePath & "/gamecontrollerdb.txt")
+    discard gameControllerAddMappingsFromFile(assetPath / "gamecontrollerdb.txt")
+    discard gameControllerAddMappingsFromFile(writePath / "gamecontrollerdb.txt")
 
     for i in 0..numJoysticks():
       if isGameController(i):
@@ -1632,6 +1809,8 @@ proc init*(org: string, app: string) =
     writePath = $sdl.getPrefPath(org, app)
     debug "writePath: ", writePath
     controllers.add(newNicoController(-1))
+
+  initConfig()
 
   initMixer()
 
@@ -1657,28 +1836,66 @@ proc getRecordSeconds*(): int =
   else:
     return 0
 
+when defined(emscripten):
+  type em_callback_func* = proc() {.cdecl.}
+  {.push importc.}
+  proc emscripten_set_main_loop*(f: em_callback_func, fps, simulate_infinite_loop: cint)
+  proc emscripten_cancel_main_loop*()
+  {.pop.}
+
+  template mainLoop*(statement, actions: untyped): untyped =
+    proc emscLoop {.cdecl.} =
+      if not statement:
+        echo "end main loop"
+        emscripten_cancel_main_loop()
+      else:
+        actions
+
+    emscripten_set_main_loop(emscLoop, 0 ,1)
+
+proc stopLastRun*() =
+  when defined(emscripten):
+    echo "stopLastRun"
+    emscripten_cancel_main_loop()
+
 proc run*() =
-  while keepRunning:
-    step()
-    delay(0)
-  sdl.quit()
+  echo "backend.run"
+  keepRunning = true
 
-proc loadMapBinary*(index: int, filename: string) =
-  var tm: Tilemap
-  var fs = newFileStream(joinPath(assetPath,filename), fmRead)
-  if fs == nil:
-    raise newException(IOError, "Unable to open " & filename & " for reading")
+  when defined(emscripten):
+    mainLoop keepRunning:
+      if configInitialised and initFuncCalled == false:
+        echo "calling initFunc"
+        initFuncCalled = true
+        echo "initFuncCalled = true"
+        initFunc()
 
-  discard fs.readData(tm.w.addr, sizeof(int32)).int32
-  discard fs.readData(tm.h.addr, sizeof(int32)).int32
-  tm.data = newSeq[uint8](tm.w*tm.h)
-  tm.tw = 8
-  tm.th = 8
-  tm.hex = false
-  var r = fs.readData(tm.data[0].addr, tm.w * tm.h * sizeof(uint8))
-  debug "read ", r, " tiles: ", tm.w, " x", tm.h
-  fs.close()
-  tilemaps[index] = tm
+      if configInitialised:
+        step()
+
+  else:
+    while keepRunning:
+      if configInitialised and initFuncCalled == false:
+        initFunc()
+        initFuncCalled = true
+        echo "initFuncCalled = true"
+
+      if configInitialised:
+        step()
+
+      #delay(0)
+    sdl.quit()
+
+when defined(emscripten):
+  var wait = true
+
+proc waitUntilReady*() =
+  when defined(emscripten):
+    mainLoop wait:
+      echo "waiting..."
+      if configInitialised:
+        echo "ready to continue"
+        wait = false
 
 proc newSfxBuffer(filename: string): SfxBuffer =
   result = new(SfxBuffer)
@@ -1915,7 +2132,7 @@ proc setLinearFilter*(on: bool) =
   linearFilter = on
   resize()
 
-proc isWindowCreated*(): bool =
+proc hasWindow*(): bool =
   return window != nil
 
 proc errorPopup*(title: string, message: string) =

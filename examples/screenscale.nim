@@ -3,6 +3,8 @@ import strformat
 
 nico.init("nico","screenscale")
 
+var test: seq[int]
+
 proc gameInit() =
   discard
 
@@ -11,6 +13,12 @@ proc gameUpdate(dt: float32) =
     fixedSize(not fixedSize())
   if btnp(pcB):
     integerScale(not integerScale())
+
+  for i in 0..<1000:
+    test.add(i)
+
+  test = @[]
+
 
 proc gameDraw() =
   cls()
@@ -36,6 +44,8 @@ proc gameDraw() =
   print(&"fixedSize: {fixedSize()}", 4, y)
   y += 10
   print(&"integerScale: {integerScale()}", 4, y)
+  y += 10
+  print(&"mem: {getOccupiedMem()} / {getTotalMem()}", 4, y)
 
 fixedSize(false)
 integerScale(true)

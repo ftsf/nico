@@ -195,16 +195,16 @@ proc overlaps(a,b: Obj, ox,oy: int): bool =
 proc appr(val, target, amount: float): float =
   return if val > target: max(val - amount, target) else: min(val + amount, target)
 
-proc tileAt(x,y: int): uint8 =
+proc tileAt(x,y: int): int =
   return mget(x div 8, y div 8)
 
-proc isSolid(t: uint8): bool =
+proc isSolid(t: int): bool =
   return t != 0 and t != 33 and t != 5
 
-proc isSpikes(t: uint8): bool =
+proc isSpikes(t: int): bool =
   return t == 5
 
-proc isTouchingType(x,y,w,h: int, check: proc(t: uint8): bool): bool =
+proc isTouchingType(x,y,w,h: int, check: proc(t: int): bool): bool =
   if x < 0 or x + w > 127 or y < 0:
     return check(255)
   for i in max(0,(x div 8))..min(15,(x+w-1) div 8):
@@ -231,7 +231,7 @@ proc getNearObj(self: Obj, t: typedesc, x,y: int): Obj =
 method isSolid(self: Obj, ox,oy: int): bool {.base.} =
   return isTouchingType(self.pos.x+self.hitbox.x+ox, self.pos.y+self.hitbox.y+oy, self.hitbox.w, self.hitbox.h, isSolid)
 
-proc isTouchingType(self: Obj, ox,oy: int, check: proc(t: uint8): bool): bool =
+proc isTouchingType(self: Obj, ox,oy: int, check: proc(t: int): bool): bool =
   return isTouchingType(self.pos.x+self.hitbox.x+ox, self.pos.y+self.hitbox.y+oy, self.hitbox.w, self.hitbox.h, check)
 
 method collide(a,b: Obj) {.base.} =
@@ -382,7 +382,7 @@ method update(self: Bullet) =
     let x = self.pos.x div 8
     let y = (self.pos.y - 1) div 8
     let t = mget(x,y)
-    if t >= 16.uint8:
+    if t >= 16:
       mset(x,y,0)
   self.ttl -= 1
   if self.vel.y == 0 and self.ttl > 4:
@@ -638,11 +638,11 @@ proc gameInit() =
         continue
       if y == 3:
         if x < 5 or x > 10:
-          mset(x,y, (16+rnd(6)).uint8)
+          mset(x,y, (16+rnd(6)))
       if y > 16:
         let chance = if x < 5 or x > 11: 4 else: 16
         if mget(x,y-1) == 5:
-          mset(x,y, (16+rnd(6)).uint8)
+          mset(x,y, (16+rnd(6)))
         elif rnd(chance) == 0:
           if rnd(20) == 0:
             # crate
@@ -655,10 +655,10 @@ proc gameInit() =
             mset(x,y, 5)
           elif mget(x,y-1) == 0:
             # solid
-            mset(x,y, (16+rnd(6)).uint8)
+            mset(x,y, (16+rnd(6)))
           else:
             # solid
-            mset(x,y, (16+6+rnd(6)).uint8)
+            mset(x,y, (16+6+rnd(6)))
         else:
           if y > 32 and rnd(64) == 0:
             objects.add(newFloater(x*8,y*8))

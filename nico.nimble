@@ -10,15 +10,14 @@ license       = "MIT"
 requires "nim >= 1.4.0"
 requires "sdl2_nim >= 2.0.10.0"
 requires "gifenc >= 0.1.0"
-requires "webaudio >= 0.2.1"
-requires "html5_canvas >= 0.1.0"
-requires "ajax >= 0.1.1"
 requires "nimPNG"
+requires "zippy"
 
 skipDirs = @["examples","tests","android","tools"]
 installDirs = @["exampleApp"]
+installExt = @["nim"]
 
-bin = @["nicoboot"]
+bin = @["nicoboot","nicoandroid","nicosynth"]
 
 task test, "run tests":
   exec "nim c -p:. -r tests/copymem.nim"
@@ -27,40 +26,41 @@ task test, "run tests":
   exec "nim c -p:. -r tests/palette.nim"
   exec "nim c -p:. -r tests/tilemap.nim"
 
-task testjs, "compile tests with js backend":
-  # test they compile with js backend, harder to test running
-  exec "nim js -p:. tests/copymem.nim"
-  exec "nim js -p:. tests/fonts.nim"
-  exec "nim js -p:. tests/config.nim"
-  exec "nim js -p:. tests/palette.nim"
-  exec "nim js -p:. tests/tilemap.nim"
+task testemscripten, "compile tests with emscripten":
+  # test they compile with emscripten backend, harder to test running
+  exec "nim c -d:emscripten -p:. tests/copymem.nim"
+  exec "nim c -d:emscripten -p:. tests/fonts.nim"
+  exec "nim c -d:emscripten -p:. tests/config.nim"
+  exec "nim c -d:emscripten -p:. tests/palette.nim"
+  exec "nim c -d:emscripten -p:. tests/tilemap.nim"
 
 task paintout, "compile paintout example":
   exec "nim c -p:. -d:debug examples/paintout.nim"
-  exec "nim js -p:. -d:debug --lineTrace:on --stackTrace:on -o:examples/paintout.js examples/paintout.nim"
+  exec "nim c -d:emscripten -p:. -d:debug examples/paintout.nim"
 
 task platformer, "compile platformer example":
   exec "nim c -p:. -d:release --multimethods:on -o:examples/platformer examples/platformer.nim"
-  exec "nim js -p:. -d:release --multimethods:on -o:examples/platformer.js examples/platformer.nim"
+  exec "nim c -d:emscripten -p:. -d:release --multimethods:on examples/platformer.nim"
 
 task audio, "compile audio example":
   exec "nim c -p:. -d:debug -o:examples/audio examples/audio.nim"
-  exec "nim js -p:. -d:release -o:examples/audio.js examples/audio.nim"
+  exec "nim c -d:emscripten -p:. -d:release examples/audio.nim"
 
 task vertex, "compile vertex example":
   exec "nim c -p:. -d:debug -o:examples/vertex examples/vertex.nim"
-  exec "nim js -p:. -d:release -o:examples/vertex.js examples/vertex.nim"
+  exec "nim c -d:emscripten -p:. -d:release examples/vertex.nim"
 
 task gui, "compile gui example":
   exec "nim c -p:. -d:debug -o:examples/gui examples/gui.nim"
-  exec "nim js -p:. -d:release -o:examples/gui.js examples/gui.nim"
+  exec "nim c -d:emscripten -p:. -d:release examples/gui.nim"
+
+task coro, "compile coro example":
+  exec "nim c -p:. -d:debug -o:examples/gui examples/coro.nim"
+  exec "nim c -d:emscripten -p:. -d:release examples/coro.nim"
 
 task benchmark, "compile benchmark example":
   exec "nim c -p:. -d:release -d:danger -o:examples/benchmark examples/benchmark.nim"
-  exec "nim js -p:. -d:release -d:danger -o:examples/benchmark.js examples/benchmark.nim"
-
-task runbenchmark, "compile and run benchmark example":
-  exec "nim c -r -p:. -d:release -d:danger -o:examples/benchmark examples/benchmark.nim"
+  exec "nim c -d:emscripten -p:. -d:release -d:danger examples/benchmark.nim"
 
 task examples, "compile all examples":
   exec "nimble paintout"
@@ -69,9 +69,10 @@ task examples, "compile all examples":
   exec "nimble vertex"
   exec "nimble gui"
   exec "nimble benchmark"
-
-task runplatformer, "runs platformer":
-  exec "nim c -r -p:. -d:release -o:examples/platformer examples/platformer.nim"
+  exec "nimble coro"
 
 task nicosynth, "runs nicosynth":
   exec "nim c -r -p:. -d:release -o:tools/nicosynth tools/nicosynth.nim"
+
+task nicosynthWeb, "builds nicosynth for web":
+  exec "nim c -d:emscripten -p:. -d:release -o:tools/nicosynth.html tools/nicosynth.nim"

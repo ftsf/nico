@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Emscripten-Generated Code</title>
+    <title>exampleApp</title>
     <style>
         body {
             background: #000;
@@ -108,7 +108,9 @@
         monitorRunDependencies: function(left) {
           this.totalDependencies = Math.max(this.totalDependencies, left);
           Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
-        }
+        },
+        'print': function(text) { console.log('stdout: ' + text) },
+        'printErr': function(text) { console.log('stderr: ' + text) }
       };
       Module.setStatus('Downloading...');
       window.onerror = function() {
@@ -119,8 +121,6 @@
         };
       };
     </script>
-    <script async type="text/javascript" src="screenscale.js"></script>
+    {{{ SCRIPT }}}
   </body>
 </html>
-
-

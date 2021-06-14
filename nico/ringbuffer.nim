@@ -2,12 +2,11 @@ import math
 
 type
   RingBuffer*[T] = object
-    data: seq[T]
-    head, tail: int
+    data*: seq[T]
+    head*, tail*: int
     size*, length*: int
 
-
-proc newRingBuffer*[T](length: int): RingBuffer[T] =
+proc initRingBuffer*[T](length: int): RingBuffer[T] =
   let s = newSeq[T](length)
   RingBuffer[T](data: s, head: 0, tail: -1, size: 0, length: length)
 
@@ -38,18 +37,18 @@ func idx*[T](b: RingBuffer[T], i: int): int =
   else:
     floorMod((i + b.head), b.length)
 
-proc `[]`*[T](b: RingBuffer[T], i: int): T {.inline} =
+proc `[]`*[T](b: RingBuffer[T], i: int): T =
   b.data[b.idx(i)]
 
-proc `[]=`*[T](b: var RingBuffer[T], i: int, item: T) {.raises: [IndexError].} =
+proc `[]=`*[T](b: var RingBuffer[T], i: int, item: T) {.raises: [IndexDefect].} =
   ## Set an item at index (adjusted)
   let idx = b.idx(i)
   if idx == b.size: inc(b.size)
-  elif idx > b.size: raise newException(IndexError, "Index " & $idx & " out of bound")
+  elif idx > b.size: raise newException(IndexDefect, "Index " & $idx & " out of bound")
 
 proc len*[T](b: RingBuffer[T]): int =
   return b.length
-  
+
 when isMainModule:
   import unittest
 

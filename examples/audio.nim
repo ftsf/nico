@@ -94,7 +94,7 @@ proc gameInit() =
   instruments[5].init = 0
   instruments[5].change = 1
 
-  setTickFunc(musicUpdate)
+  setAudioTickCallback(musicUpdate)
 
 proc gameUpdate(dt: float32) =
   if btn(pcX):

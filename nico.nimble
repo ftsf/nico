@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.3.2"
+version       = "0.3.3"
 author        = "Jez 'Impbox' Kabanov"
 description   = "Nico Game Engine"
 license       = "MIT"
@@ -11,7 +11,7 @@ requires "nim >= 1.4.0"
 requires "sdl2_nim >= 2.0.10.0"
 requires "gifenc >= 0.1.0"
 requires "nimPNG >= 0.3.1"
-requires "zippy"
+requires "zippy >= 0.5.9"
 
 skipDirs = @["examples","tests","android","tools"]
 installDirs = @["exampleApp"]

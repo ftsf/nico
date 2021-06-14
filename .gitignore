@@ -3,3 +3,5 @@ src/nimcache/*
 *.exe
 *.js
 *.dll
+*.wasm
+*.data

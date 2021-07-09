@@ -7,7 +7,6 @@ import strutils
 import sequtils
 import times
 
-import strformat
 
 import nico/ringbuffer
 import nico/stb_vorbis

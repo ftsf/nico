@@ -1,6 +1,7 @@
 import nico/backends/common
 import tables
 import unicode
+import bitops
 
 import nico/keycodes
 export keycodes
@@ -12,6 +13,7 @@ import nico/backends/sdl2 as backend
 import os
 
 export StencilMode
+export StencilBlend
 
 export EventListener
 
@@ -219,6 +221,12 @@ proc setStencilRef*(v: Pint) =
 proc setStencilWrite*(on: bool) =
   stencilWrite = on
 
+proc setStencilWriteFail*(on: bool) =
+  stencilWriteFail = on
+
+proc setStencilOnly*(on: bool) =
+  stencilOnly = on
+
 proc stencilMode*(mode: StencilMode) =
   common.stencilMode = mode
 
@@ -230,11 +238,18 @@ proc stencilClear*(v: Pint) =
   for i in 0..<screenWidth*screenHeight:
     stencilBuffer.data[i] = v.uint8
 
+proc setStencilBlend*(blend: StencilBlend = stencilReplace) =
+  stencilBlend = blend
+
 proc stencilTest(x,y: int, nv: uint8): bool =
+  if common.stencilMode == stencilNever:
+    return false
   if common.stencilMode == stencilAlways:
     return true
   let v = stencilBuffer.get(x,y)
   case common.stencilMode:
+  of stencilNever:
+    return false
   of stencilAlways:
     return true
   of stencilEqual:
@@ -648,6 +663,28 @@ proc ditherPatternBigCheckerboard2*() =
   ## sets the dithering pattern to draw a 2x2 checkerboard
   gDitherPattern = 0b0011_0011_1100_1100
 
+proc interleaveBits(a,b: uint16): uint16 =
+  result = (a and 0b1010_1010_1010_1010) or (b and 0b0101_0101_0101_0101)
+
+const bayer4x4int: array[16, int] = [
+  0, 8, 2, 10,
+  12, 4, 14, 6,
+  3, 11, 1, 9,
+  15, 7, 13, 5
+]
+var bayer4x4: array[16, float32]
+for i in 0..<16:
+  bayer4x4[i] = bayer4x4int[i].float32 / 16f
+
+proc ditherPatternBayer*(a: float32) =
+  ## sets the dithering pattern based on an amount 0f..1f using a 4x4 bayer matrix
+  let i = clamp((a * 16f).int, 0, 16)
+  gDitherPattern = 0
+  for i in 0..<16:
+    let b = a < bayer4x4[i]
+    if b:
+      gDitherPattern = gDitherPattern or (1 shl i).uint16
+
 proc ditherPass(x,y: int): bool {.inline.} =
   let x4 = (x mod 4).uint16
   let y4 = (y mod 4).uint16
@@ -821,12 +858,35 @@ proc pset*(x,y: Pint, c: ColorId) =
   if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
     return
   if stencilTest(x,y,stencilRef):
-    if ditherPass(x,y):
-      swCanvas.set(x,y,paletteMapDraw[c].uint8)
-    elif ditherColor >= 0:
-      swCanvas.set(x,y,paletteMapDraw[ditherColor.ColorId].uint8)
+    if not stencilOnly:
+      if ditherPass(x,y):
+        swCanvas.set(x,y,paletteMapDraw[c].uint8)
+      elif ditherColor >= 0:
+        swCanvas.set(x,y,paletteMapDraw[ditherColor.ColorId].uint8)
     if stencilWrite:
+      case stencilBlend:
+      of stencilReplace:
+        stencilBuffer.set(x,y,stencilRef)
+      of stencilAdd:
+        stencilBuffer.add(x,y,stencilRef)
+      of stencilSubtract:
+        stencilBuffer.subtract(x,y,stencilRef)
+      of stencilMax:
+        stencilBuffer.blendMax(x,y,stencilRef)
+      of stencilMin:
+        stencilBuffer.blendMin(x,y,stencilRef)
+  elif stencilWriteFail:
+    case stencilBlend:
+    of stencilReplace:
       stencilBuffer.set(x,y,stencilRef)
+    of stencilAdd:
+      stencilBuffer.add(x,y,stencilRef)
+    of stencilSubtract:
+      stencilBuffer.subtract(x,y,stencilRef)
+    of stencilMax:
+      stencilBuffer.blendMax(x,y,stencilRef)
+    of stencilMin:
+      stencilBuffer.blendMin(x,y,stencilRef)
 
 proc psetFast(x,y: Pint, c: ColorId) {.inline.} =
   if ditherPass(x,y):
@@ -3029,6 +3089,14 @@ proc angleDiff*(a,b: Pfloat): Pfloat =
     r -= TAU
   return r.float32
 
+proc approach*(a, b: float32, speed: float32): float32 =
+  if b > a:
+    result = min(a + speed, b)
+  elif a > b:
+    result = max(a - speed, b)
+  else:
+    result = a
+
 converter toPint*(x: uint8): Pint =
   x.Pint
 
@@ -3114,3 +3182,10 @@ when defined(test):
       check(ceil(0.1) == 1)
       check(ceil(0) == 0)
       check(ceil(-0.1) == 0)
+
+    test "approach":
+      check(approach(0f, 1f, 0.1f) == 0.1f)
+      check(approach(1f, 0f, 0.1f) == 0.9f)
+      check(approach(0f, 1f, 1.5f) == 1.0f)
+      check(approach(0f, -1f, 1.5f) == -1.0f)
+

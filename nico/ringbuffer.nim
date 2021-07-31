@@ -49,12 +49,20 @@ proc `[]=`*[T](b: var RingBuffer[T], i: int, item: T) {.raises: [IndexDefect].} 
 proc len*[T](b: RingBuffer[T]): int =
   return b.length
 
+iterator items*[T](b: RingBuffer[T]): T =
+  for i in 0..<b.length:
+    yield b[i]
+
+iterator pairs*[T](b: RingBuffer[T]): (int,T) =
+  for i in 0..<b.length:
+    yield (i,b[i])
+
 when isMainModule:
   import unittest
 
   suite "ringbuffer":
     test "index":
-      var rb = newRingBuffer[int](3)
+      var rb = initRingBuffer[int](3)
       rb.add(0)
       rb.add(1)
       rb.add(2)
@@ -67,7 +75,7 @@ when isMainModule:
       check(rb[2] == 3)
 
     test "revIndex":
-      var rb = newRingBuffer[int](3)
+      var rb = initRingBuffer[int](3)
       rb.add(0)
       rb.add(1)
       rb.add(2)

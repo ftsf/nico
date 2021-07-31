@@ -233,6 +233,26 @@ proc set*(s: Surface, x,y: int, v: uint8) =
     return
   s.data[y * s.w + x] = v
 
+proc add*(s: Surface, x,y: int, v: uint8) =
+  if x < 0 or y < 0 or x >= s.w or y >= s.h:
+    return
+  s.data[y * s.w + x] = min(s.data[y * s.w + x].int + v.int, 255).uint8
+
+proc subtract*(s: Surface, x,y: int, v: uint8) =
+  if x < 0 or y < 0 or x >= s.w or y >= s.h:
+    return
+  s.data[y * s.w + x] = max(s.data[y * s.w + x].int - v.int, 0).uint8
+
+proc blendMax*(s: Surface, x,y: int, v: uint8) =
+  if x < 0 or y < 0 or x >= s.w or y >= s.h:
+    return
+  s.data[y * s.w + x] = max(s.data[y * s.w + x], v)
+
+proc blendMin*(s: Surface, x,y: int, v: uint8) =
+  if x < 0 or y < 0 or x >= s.w or y >= s.h:
+    return
+  s.data[y * s.w + x] = min(s.data[y * s.w + x], v)
+
 proc get*(s: Surface, x,y: int): uint8 =
   if x < 0 or y < 0 or x >= s.w or y >= s.h:
     return 0
@@ -307,9 +327,20 @@ type StencilMode* = enum
   stencilLEqual,
   stencilGEqual,
   stencilNot,
+  stencilNever,
+type StencilBlend* = enum
+  stencilReplace,
+  stencilAdd,
+  stencilSubtract,
+  stencilMax,
+  stencilMin,
+
 var stencilMode*: StencilMode
 var stencilWrite*: bool
+var stencilWriteFail*: bool # if true, writes to stencil buffer when fails to write
+var stencilOnly*: bool # if true, only writes to stencil buffer, not screen
 var stencilRef*: uint8
+var stencilBlend*: StencilBlend
 
 var targetScreenWidth* = 128
 var targetScreenHeight* = 128

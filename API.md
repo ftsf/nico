@@ -500,6 +500,7 @@ Resets display palette mapping
 
 ### Dithering
 `ditherPattern(pattern: uint16 = 0b1111_1111_1111_1111)`
+
 Sets the current dither pattern for subsequent draw calls, default pattern is no dithering.
 Each bit specifies a pixel in the 4x4 dithering pattern.
 ```
@@ -508,6 +509,98 @@ Each bit specifies a pixel in the 4x4 dithering pattern.
 8 9 A B
 C D E F
 ```
+
+---
+
+`setDitherColor(c: Pint = -1)`
+
+Sets the color index to be used for the off bits in the dither pattern, -1 = do no draw
+
+---
+
+`ditherPatternBayer(a: float32)`
+
+Sets the dither pattern based on a 4x4 bayer matrix, 1 will be fully opaque, 0 will be not be drawn, between 0 and 1 will be dithered at different intensities.
+
+### Stencil
+
+Nico features a powerful 8 bit stencil buffer, this allows you to control where drawing will occur and read and write extra non-visible data to the screen.
+
+You can use this to implement a 3D depth buffer or draw where you want lighting to occur for example.
+
+`stencilSet(x,y,v: Pint)`
+
+sets a pixel on the stencil buffer to a value in the range 0..255
+
+---
+
+`stencilGet(x,y): uint8`
+
+returns the value from the stencil buffer at x,y
+
+---
+
+`setStencilRef(v: Pint)`
+
+sets the reference value for the stencil buffer, this is used for comparisons during stencil tests
+
+---
+
+`setStencilWrite(on: bool)`
+
+sets whether we should write to the stencil buffer or not when drawing to the screen
+
+---
+
+`setStencilWriteFail(on: bool)`
+
+sets whether we should write to the stencil buffer when we fail to draw to the screen (eg, because our drawing was stencilled out)
+
+---
+
+`setStencilOnly(on: bool)`
+
+sets whether we should only write to the stencil buffer and not the screen, useful for when you want to draw sprites or primitives to the stencil buffer but not have them visible
+
+---
+
+`stencilMode(mode: StencilMode)`
+
+sets the comparison test used when deciding if the drawing operation will be stencilled, this is comparing the stencil reference value (see `setStencilRef`) to the value already in the stencil buffer
+
+```nim
+type StencilMode* = enum
+  stencilAlways,
+  stencilEqual,
+  stencilLess,
+  stencilGreater,
+  stencilLEqual,
+  stencilGEqual,
+  stencilNot,
+  stencilNever,
+```
+
+---
+
+`stencilClear(v: Pint = 0)`
+
+clears the stencil buffer to the specified value
+
+---
+
+`setStencilBlend(blend: StencilBlend = stencilReplace)`
+
+sets the blending mode used when drawing to the stencil buffer
+
+```nim
+type StencilBlend* = enum
+  stencilReplace,
+  stencilAdd,
+  stencilSubtract,
+  stencilMax,
+  stencilMin,
+```
+
 ### Camera
 `setCamera(x,y: int = 0)`
 Sets the camera offset for drawing
@@ -599,7 +692,23 @@ Load audio file into music slot `index`. The file will be decoded and streamed o
 
 ## Math
 
+`approach(a,b: T, speed: float32): T`
+
+returns a moving towards b at speed, a will not pass b.
+
+eg.
+
+```nim
+approach(0f, 1f, 0.1f) # 0.1f
+approach(0.999f, 1f, 0.1f) # 1.0f
+approach(1f, -1f, 10f) # -1f
+```
+
+---
+
+
 `wrap(x,t: int): int`
+
 Wraps an integer `x` by `t` similar to `mod` but more practically handling negative `x`.
 ```
 wrap(0,4) == 0

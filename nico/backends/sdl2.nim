@@ -1622,7 +1622,7 @@ proc process(self: var Channel): float32 =
           discard stb_vorbis_seek_frame(self.musicFile, 0)
         else:
           self.resetChannel()
-
+    self.outvalue = o * musicVolume
     return o * musicVolume
   of channelCallback:
     if self.callbackStereo or audioSampleId mod 2 == 0:
@@ -1991,6 +1991,16 @@ proc music*(channel: AudioChannelId, index: int, loop: int = -1) =
   audioChannels[channel].musicBuffer = 0
   audioChannels[channel].musicStereo = info.channels == 2
   audioChannels[channel].musicSampleRate = info.samplerate.float32
+
+proc musicSeek*(channel: AudioChannelId, pos: int) =
+  if audioChannels[channel].musicFile != nil:
+    discard stb_vorbis_seek(audioChannels[channel].musicFile, pos.cuint)
+
+proc musicGetPos*(channel: AudioChannelId): int =
+  if audioChannels[channel].musicFile != nil:
+    return stb_vorbis_get_sample_offset(audioChannels[channel].musicFile).int
+  else:
+    return -1
 
 proc volume*(channel: AudioChannelId, volume: int) =
   audioChannels[channel].gain = (volume.float32 / 255.0)

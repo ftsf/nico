@@ -60,6 +60,9 @@ export glide
 export wavData
 export pitchbend
 export pitch
+export volume
+export musicGetPos
+export musicSeek
 
 # shader stuff
 export setShaderBool

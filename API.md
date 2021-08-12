@@ -688,7 +688,37 @@ type SynthShape = enum
 ### Music
 
 `loadMusic(index: 0..63, filename: string)`
+
 Load audio file into music slot `index`. The file will be decoded and streamed on demand.
+Nico only supports Ogg Vorbis files.
+
+---
+
+`music(channel: 0..15, index: -1..63, loop: int = -1)`
+
+Plays the music loaded into `index` on `channel`.
+If `index` is -1 it will stop the music playing on `channel`.
+
+You can specify the number of times to loop, -1 means loop forever.
+
+---
+
+`getMusic(channel: 0..15): int`
+
+returns the index of the music playing on `channel`.
+
+---
+
+`musicSeek(channe: 0..15, pos: int)`
+
+Jump to location `pos` in music file on `channel`.
+
+---
+
+`musicGetPos*(channel: 0..15): int`
+
+Return the position of the music on `channel`.
+
 
 ## Math
 

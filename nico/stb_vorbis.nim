@@ -22,6 +22,9 @@ proc stb_vorbis_get_samples_short_interleaved*(f: Vorbis, channels: cint, buffer
 proc stb_vorbis_get_samples_float_interleaved*(f: Vorbis, channels: cint, buffer: ptr float32, num_floats: cint): cint {.importc, noconv.}
 proc stb_vorbis_close*(f: Vorbis) {.importc, noconv.}
 proc stb_vorbis_seek_frame*(f: Vorbis, frame: cuint): cint {.importc, noconv.}
+proc stb_vorbis_seek*(f: Vorbis, sample: cuint): cint {.importc, noconv.}
+proc stb_vorbis_get_file_offset*(f: Vorbis): cuint {.importc, noconv.}
+proc stb_vorbis_get_sample_offset*(f: Vorbis): cint {.importc, noconv.}
 
 when defined(linux) and not defined(android):
     {.passL: "-lm".}

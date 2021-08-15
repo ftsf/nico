@@ -1780,6 +1780,8 @@ proc init*(org: string, app: string) =
     debug "writePath: ", writePath
     controllers.add(newNicoController(-1))
 
+  stopTextInput()
+
   initConfig()
 
   initMixer()

@@ -3117,7 +3117,13 @@ proc angleDiff*(a,b: Pfloat): Pfloat =
     r -= TAU
   return r.float32
 
-proc approach*(a, b: float32, speed: float32): float32 =
+proc remove*[T](a: var seq[T], v: T) =
+  ## remove item with value of v from sequence a
+  let i = a.find(v)
+  if i != -1:
+    a.delete(i)
+
+proc approach*[T](a, b: T, speed: T): T =
   if b > a:
     result = min(a + speed, b)
   elif a > b:

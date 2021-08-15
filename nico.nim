@@ -410,6 +410,7 @@ proc flr*(x: Pfloat): Pfloat
 proc ceil*(x: Pfloat): Pfloat =
   -flr(-x)
 proc lerp*[T](a,b: T, t: Pfloat): T
+proc lerpSnap*[T](a,b: T, t: Pfloat, threshold = 0.1f): T
 
 proc rnd*[T: Natural](x: T): T
 proc rnd*[T](a: openarray[T]): T
@@ -1356,6 +1357,17 @@ proc flr*(x: Pfloat): Pfloat =
 
 proc lerp[T](a, b: T, t: Pfloat): T =
   return a + (b - a) * t
+
+proc lerpSnap*[T](a, b: T, t: Pfloat, threshold = 0.1f): T =
+  # lerp and then snap once within threshold
+  result = a + (b - a) * t
+  when T is array:
+    for i in 0..<result.len:
+      if abs(result[i] - b[i]) < threshold:
+        result[i] = b[i]
+  else:
+    if abs(result - b) < threshold.T:
+      result = b
 
 proc orient2d(ax,ay,bx,by,cx,cy: Pint): int =
   return (bx - ax) * (cy - ay) - (by - ay) * (cx-ax)

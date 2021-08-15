@@ -145,11 +145,11 @@ type RenderStyle* = enum
   rsFillBar
 
 type RenderStatus* = enum
-  rsDefault
-  rsPrimary
-  rsGood
-  rsWarning
-  rsDanger
+  Default
+  Primary
+  Good
+  Warning
+  Danger
 
 type RenderData = object
   kind: RenderType
@@ -181,18 +181,41 @@ type GuiSkin* = object
   fillBarOutline*: int
 
 var skin: array[RenderStatus, GuiSkin]
-skin[rsDefault].textFlat = 1
-skin[rsDefault].textTitlebar = 7
-skin[rsDefault].fillTitlebar = 12
-skin[rsDefault].fillFlat = 13
-skin[rsDefault].fillInset = 5
-skin[rsDefault].outlineFlat = 5
-skin[rsDefault].outlineLit = 6
-skin[rsDefault].outlineDark = 1
-skin[rsDefault].outlineFocus = 10
-skin[rsDefault].fillBar = 12
-skin[rsDefault].fillBarOutline = 1
+skin[Default].textFlat = 1
+skin[Default].textTitlebar = 7
+skin[Default].fillTitlebar = 12
+skin[Default].fillFlat = 13
+skin[Default].fillInset = 5
+skin[Default].outlineFlat = 5
+skin[Default].outlineLit = 6
+skin[Default].outlineDark = 1
+skin[Default].outlineFocus = 10
+skin[Default].fillBar = 12
+skin[Default].fillBarOutline = 1
 
+skin[Primary].textFlat = 12
+skin[Primary].textTitlebar = 7
+skin[Primary].fillTitlebar = 12
+skin[Primary].fillFlat = 13
+skin[Primary].fillInset = 5
+skin[Primary].outlineFlat = 5
+skin[Primary].outlineLit = 6
+skin[Primary].outlineDark = 1
+skin[Primary].outlineFocus = 10
+skin[Primary].fillBar = 12
+skin[Primary].fillBarOutline = 1
+
+skin[Warning].textFlat = 9
+skin[Warning].textTitlebar = 7
+skin[Warning].fillTitlebar = 12
+skin[Warning].fillFlat = 13
+skin[Warning].fillInset = 5
+skin[Warning].outlineFlat = 5
+skin[Warning].outlineLit = 6
+skin[Warning].outlineDark = 1
+skin[Warning].outlineFocus = 10
+skin[Warning].fillBar = 12
+skin[Warning].fillBarOutline = 1
 
 proc boxDraw(x,y,w,h: int, fill,outline: int) =
   setColor(fill)
@@ -264,6 +287,10 @@ var guiBoxDrawFunc: GuiBoxDrawFunc = proc(x,y,w,h: int, style: RenderStyle, stat
     hline(x+1,y,x+w-2)
     setColor(skin[status].outlineLit)
     hline(x+1,y+h-1,x+w-2)
+
+    if focus:
+      setColor(skin[status].outlineFocus)
+      hline(x+1,y+h-1,x+w-2)
   else:
     discard
 
@@ -297,6 +324,7 @@ var
   nextW = -1
   nextH = -1
   nextOrder = 0
+  nextStatus = Default
 var lineStart = 0
 
 var sameLine = false
@@ -317,6 +345,9 @@ var windowScroll: string = ""
 
 var currentElement: int
 var activeElement: int
+var dragElement: int
+var textInputElement: int
+var textInputEventListener: EventListener
 var hoveredElement: int
 var hoveredWindow: string
 
@@ -331,6 +362,9 @@ proc guiHoveredElement*(): int =
 
 proc guiActiveElement*(): int =
   return activeElement
+
+proc guiSetStatus*(status: RenderStatus) =
+  nextStatus = status
 
 var renderData: seq[RenderData]
 
@@ -388,6 +422,9 @@ proc guiStartFrame*() =
   currentElement = 0
 
   if not mousebtn(0) and not mousebtnup(0):
+    dragElement = 0
+
+  if mousebtnp(0):
     activeElement = 0
 
   hoveredElement = 0
@@ -395,6 +432,7 @@ proc guiStartFrame*() =
   nextY = vPadding
   nextW = -1
   nextH = -1
+  nextStatus = Default
   renderData.setLen(0)
   sameLine = false
   disableClipping = false
@@ -462,11 +500,19 @@ proc guiEnd*()
 proc guiSetSameLine*(on: bool) = # next widget will be on the same line
   sameLine = on
 
+proc guiPos*(x,y: int) = # next widget will be at x,y
+  nextX = x
+  nextY = y
+
 proc guiSize*(w,h: int = -1) = # next widget will have specified size, -1 = auto size on axis
   if w != -1:
     nextW = w
   if h != -1:
     nextH = h
+
+proc guiWindowOpen*(name: string): bool =
+  if windowData.hasKey(name):
+    return windowData[name].open
 
 proc guiGetCursor*(): (int,int) =
   result = (nextX,nextY)
@@ -481,9 +527,9 @@ proc guiPreAdvance(rect: var Rect) =
   if noAdvance:
     return
 
-  debugRect(rect)
-  debugRect(windowData[currentWindow].rect.inflate(1), 11)
-  debugRect(windowData[currentWindow].contentArea.inflate(1), 12)
+  #debugRect(rect)
+  #debugRect(windowData[currentWindow].rect.inflate(1), 11)
+  #debugRect(windowData[currentWindow].contentArea.inflate(1), 12)
   # moves cursor to next line if not enough space for rect, if not already at start of line
   if sameLine:
     if nextX == windowData[currentWindow].rect.x + hPadding:
@@ -528,15 +574,23 @@ proc guiNewLine*() =
   if currentWindow != "":
     nextX = windowData[currentWindow].rect.x + hPadding
 
-template guiHorizontal*(height: int = -1, body: untyped): untyped =
-  if height != -1:
-    guiSetLineHeight(height)
-  #guiBasicBox(windowData[currentWindow].paddedWidth(), lineHeight, rsInset)
+template guiHorizontal*(body: untyped): untyped =
+  let startX = nextX
+  let startY = nextY
   guiSetSameLine(true)
   body
   guiSetSameLine(false)
-  nextY += lineHeight + vSpacing
-  nextX = windowData[currentWindow].rect.x + hPadding
+  guiAdvance(makeRect(startX, startY, 0, lineHeight))
+
+template guiHorizontal*(height: int = -1, body: untyped): untyped =
+  let startX = nextX
+  let startY = nextY
+  if height != -1:
+    guiSetLineHeight(height)
+  guiSetSameLine(true)
+  body
+  guiSetSameLine(false)
+  guiAdvance(makeRect(startX, startY, 0, lineHeight))
   guiSetLineHeight(-1)
 
 template guiNoAdvance*(body: untyped): untyped =
@@ -563,8 +617,13 @@ proc getNextHeight(default = -1): int =
     return default
   return nextH
 
+proc getBoxRect*(padding = false): Rect =
+  let w = getNextWidth()
+  let h = getNextHeight() + hPadding * 2
+  return makeRect(nextX, nextY, w, h)
+
 proc guiBasicBox*(rect: Rect, style: RenderStyle = rsFlat): Rect {.discardable} =
-  addRenderData(RenderData(kind: rtBox, rect: rect, style: style))
+  addRenderData(RenderData(kind: rtBox, rect: rect, style: style, status: nextStatus))
   return rect
 
 proc guiBasicBox*(w = -1, h = -1, style: RenderStyle = rsFlat): Rect {.discardable} =
@@ -577,7 +636,7 @@ proc guiBasicBox*(w = -1, h = -1, style: RenderStyle = rsFlat): Rect {.discardab
   if nextH != -1:
     h = nextH
   let rect = makeRect(nextX, nextY, w, h)
-  addRenderData(RenderData(kind: rtBox, rect: rect, style: style))
+  addRenderData(RenderData(kind: rtBox, rect: rect, style: style, status: nextStatus))
   return rect
 
 proc getTextRect*(text: string, padding = false): Rect =
@@ -598,12 +657,12 @@ proc guiBasicText*(text: string, style: RenderStyle = rsFlat, align = alignDefau
     w = windowData[currentWindow].paddedWidth()
 
   let rect = makeRect(nextX, nextY, w, h)
-  addRenderData(RenderData(kind: rtText, data: text, rect: rect, style: style, align: align))
+  addRenderData(RenderData(kind: rtText, data: text, rect: rect, style: style, align: align, status: nextStatus))
   return rect
 
 proc guiBasicTextBox*(text: string, style: RenderStyle = rsFlat, align = alignDefault, focus = false, rect: Rect): Rect {.discardable} =
-  addRenderData(RenderData(kind: rtBox, rect: rect, style: style, focus: focus))
-  addRenderData(RenderData(kind: rtText, data: text, rect: rect.addPadding(1,1), style: style, focus: focus, align: align))
+  addRenderData(RenderData(kind: rtBox, rect: rect, style: style, focus: focus, status: nextStatus))
+  addRenderData(RenderData(kind: rtText, data: text, rect: rect.addPadding(1,1), style: style, focus: focus, align: align, status: nextStatus))
   return rect
 
 proc guiBasicTextBox*(text: string, style: RenderStyle = rsFlat, align = alignDefault, focus = false): Rect {.discardable} =
@@ -617,8 +676,8 @@ proc guiBasicTextBox*(text: string, style: RenderStyle = rsFlat, align = alignDe
     rect.w = nextW
   if nextH != -1:
     rect.h = nextH
-  addRenderData(RenderData(kind: rtBox, rect: rect, style: style, focus: focus))
-  addRenderData(RenderData(kind: rtText, data: text, rect: rect.addPadding(1,1), style: style, focus: focus, align: align))
+  addRenderData(RenderData(kind: rtBox, rect: rect, style: style, focus: focus, status: nextStatus))
+  addRenderData(RenderData(kind: rtText, data: text, rect: rect.addPadding(1,1), style: style, focus: focus, align: align, status: nextStatus))
   return rect
 
 # widgets
@@ -630,7 +689,7 @@ proc guiLabel*(label: string) =
   if nextH != -1:
     rect.h = nextH
   guiPreAdvance(rect)
-  addRenderData(RenderData(kind: rtText, data: label, rect: rect))
+  addRenderData(RenderData(kind: rtText, data: label, rect: rect, status: nextStatus))
   guiAdvance(rect)
   guiResetOverrides()
 
@@ -651,7 +710,7 @@ proc guiButton*(label: string, box = true): bool =
   let (mx,my) = mouse()
   let focus = windowDrag == "" and windowScroll == "" and windowResize == "" and pointInRect(mx,my, rect.scrollCurrentWindow().clipCurrentWindow())
   if box:
-    guiBasicTextBox(label, if activeElement == currentElement: rsInset else: rsOutset, focus = focus, align = alignCenter)
+    guiBasicTextBox(label, if dragElement == currentElement: rsInset else: rsOutset, focus = focus, align = alignCenter)
   else:
     guiBasicText(label, rsFlat, align = alignLeft)
 
@@ -659,8 +718,9 @@ proc guiButton*(label: string, box = true): bool =
     hoveredElement = currentElement
   if focus and mousebtnp(0):
     activeElement = currentElement
+    dragElement = currentElement
 
-  if activeElement == currentElement and focus and mousebtnup(0):
+  if dragElement == currentElement and focus and mousebtnup(0):
     result = true
 
   guiAdvance(rect)
@@ -673,23 +733,21 @@ proc guiToggle*(label: string, val: var bool): bool {.discardable} =
   guiPreAdvance(rect)
   let (mx,my) = mouse()
   let focus = windowDrag == "" and windowScroll == "" and windowResize == "" and pointInRect(mx,my, rect.scrollCurrentWindow().clipCurrentWindow())
-  guiBasicTextBox(" " & label, if val or activeElement == currentElement: rsInset else: rsOutset, focus = focus, align = alignLeft)
+  guiBasicTextBox(" " & label, if val or dragElement == currentElement: rsInset else: rsOutset, focus = focus, align = alignLeft)
   guiBasicBox(rect.rightSplit(10).setSize(6,6).offset(x = -hPadding, y = 2), if val: rsCheckboxChecked else: rsCheckboxUnchecked)
 
   if focus:
     hoveredElement = currentElement
   if focus and mousebtnp(0):
     activeElement = currentElement
+    dragElement = currentElement
 
-  if activeElement == currentElement and focus and mousebtnup(0):
+  if dragElement == currentElement and focus and mousebtnup(0):
     val = not val
     result = true
 
   guiAdvance(rect)
   guiResetOverrides()
-
-#proc guiSlider*(label: string, val: var float32): bool {.discardable.}
-#proc guiSlider*(label: string, val: var int): bool {.discardable.}
 
 proc guiBegin*(name: string = "", titleBar = true, resizable = true, movable = true, scrollable = true): bool =
   currentElement += 1
@@ -716,6 +774,7 @@ proc guiBegin*(name: string = "", titleBar = true, resizable = true, movable = t
       hoveredWindow = name
 
       if mousebtnp(0):
+        dragElement = currentElement
         activeElement = currentElement
 
     # draw window frame
@@ -840,10 +899,11 @@ proc guiDrag*[T](name: string, val: var T, min: T = T.low, max: T = T.high, spee
     hoveredElement = currentElement
   if focus and mousebtnp(0):
     activeElement = currentElement
+    dragElement = currentElement
     when T is SomeInteger:
       dragIntTmp = val.float32
 
-  if activeElement == currentElement:
+  if dragElement == currentElement:
     var speed = speed
     if key(K_LSHIFT) and key(K_LCTRL):
       speed *= 0.01f
@@ -878,6 +938,7 @@ proc guiDrag*[T](name: string, val: var T, default: T, min: T = T.low, max: T = 
   if focus:
     hoveredElement = currentElement
   if focus and mousebtnp(0):
+    dragElement = currentElement
     activeElement = currentElement
     when T is SomeInteger:
       dragIntTmp = val.float32
@@ -885,7 +946,7 @@ proc guiDrag*[T](name: string, val: var T, default: T, min: T = T.low, max: T = 
     # reset to default value when right clicking
     val = default
 
-  if activeElement == currentElement:
+  if dragElement == currentElement:
     var speed = speed
     if key(K_LSHIFT) and key(K_LCTRL):
       speed *= 0.01f
@@ -903,7 +964,7 @@ proc guiDrag*[T](name: string, val: var T, default: T, min: T = T.low, max: T = 
 
   guiAdvance(rect)
 
-proc guiSlider*[T](name: string, val: var T, min: T, max: T): bool {.discardable.} =
+proc guiSlider*[T](name: string, val: var T, default: T = default(T), min: T, max: T, showDefault = false): bool {.discardable.} =
   currentElement += 1
   let rect = guiBasicBox(h = lineHeight + vPadding * 2, style = rsInset)
   let range = max - min
@@ -924,45 +985,11 @@ proc guiSlider*[T](name: string, val: var T, min: T, max: T): bool {.discardable
   if focus:
     hoveredElement = currentElement
   if focus and mousebtnp(0):
-    activeElement = currentElement
-
-  if activeElement == currentElement:
-    let fillAmount = clamp01((mx - drawRect.x).float32 / drawRect.w.float32)
-    if key(K_LSHIFT):
-      let tval = lerp(min.float32, max.float32, fillAmount).T
-      val = lerp(val.float32, tval.float32, 0.1f).T
-    else:
-      val = lerp(min.float32, max.float32, fillAmount).T
-    result = true
-
-  guiAdvance(rect)
-
-proc guiSlider*[T](name: string, val: var T, default: T, min: T, max: T): bool {.discardable.} =
-  currentElement += 1
-  let rect = guiBasicBox(h = lineHeight + vPadding * 2, style = rsInset)
-  let range = max - min
-  let fillAmount = (val - min).float32 / range.float32
-  guiBasicBox(h = lineHeight + vPadding * 2, w = (rect.w.float32 * fillAmount).int, style = rsFillBar)
-  let oldNextY = nextY
-  nextY += vPadding
-  guiBasicText(&" {name}", rsFlat, align = alignLeft)
-  when T is SomeFloat:
-    guiBasicText(&"{val:0.2f} ", rsFlat, align = alignRight)
-  else:
-    guiBasicText(&"{val} ", rsFlat, align = alignRight)
-  nextY = oldNextY
-
-  let (mx,my) = mouse()
-  let drawRect = rect.scrollCurrentWindow().clipCurrentWindow()
-  let focus = windowDrag == "" and windowScroll == "" and windowResize == "" and pointInRect(mx,my, drawRect)
-  if focus:
-    hoveredElement = currentElement
-  if focus and mousebtnp(0):
-    activeElement = currentElement
+    dragElement = currentElement
   if focus and mousebtnp(2):
     val = default
 
-  if activeElement == currentElement:
+  if dragElement == currentElement:
     let fillAmount = clamp01((mx - drawRect.x).float32 / drawRect.w.float32)
     if key(K_LSHIFT):
       let tval = lerp(min.float32, max.float32, fillAmount).T
@@ -972,17 +999,26 @@ proc guiSlider*[T](name: string, val: var T, default: T, min: T, max: T): bool {
     result = true
 
   guiAdvance(rect)
+
+var multiSliderIndex = 0
+
+proc guiMultiSliderLastIndex*(): int =
+  return multiSliderIndex
 
 proc guiMultiSlider*[T](vals: var openArray[T], min: T, max: T): bool {.discardable.} =
   # multiple sliders that can be tweaked by dragging over them
   currentElement += 1
   # label
   let (mx,my) = mouse()
+  assert(min < max)
   let range = max - min
   lineHeight = 4
+  var index = 0
+  multiSliderIndex = -1
   for val in vals.mitems:
+    val = clamp(val, min, max)
     let rect = guiBasicBox(h = lineHeight + vPadding * 2, style = rsInset)
-    let fillAmount = (val - min).float32 / range.float32
+    let fillAmount = clamp01((val - min).float32 / range.float32)
     # fillbar
     guiBasicBox(h = lineHeight + vPadding * 2, w = (rect.w.float32 * fillAmount).int, style = rsFillBar)
     let oldNextY = nextY
@@ -990,18 +1026,22 @@ proc guiMultiSlider*[T](vals: var openArray[T], min: T, max: T): bool {.discarda
     let drawRect = rect.scrollCurrentWindow().clipCurrentWindow()
     let focus = windowDrag == "" and windowScroll == "" and windowResize == "" and pointInRect(mx,my, drawRect)
     if focus:
+      multiSliderIndex = index
       hoveredElement = currentElement
     if focus and mousebtnp(0):
+      dragElement = currentElement
       activeElement = currentElement
 
-    if activeElement == currentElement and focus:
+    if dragElement == currentElement and focus:
       let fillAmount = clamp01((mx - drawRect.x).float32 / drawRect.w.float32)
       if key(K_LSHIFT):
         let tval = lerp(min.float32, max.float32, fillAmount).T
         val = lerp(val.float32, tval.float32, 0.1f).T
       else:
         val = lerp(min.float32, max.float32, fillAmount).T
+      multiSliderIndex = index
       result = true
+    index += 1
     guiAdvanceNoSpace(rect)
   lineHeight = fontHeight()
   guiAdvance(makeRect(0,0,0,0))
@@ -1011,6 +1051,7 @@ proc guiMultiSliderV*[T](vals: var openArray[T], min: T, max: T): bool {.discard
   currentElement += 1
   # label
   let (mx,my) = mouse()
+  assert(min < max)
   let range = max - min
   let contentWidth = getNextWidth()
   let colWidth = contentWidth div vals.len
@@ -1020,9 +1061,12 @@ proc guiMultiSliderV*[T](vals: var openArray[T], min: T, max: T): bool {.discard
 
   let contentRect = makeRect(nextX, nextY, contentWidth, colHeight)
 
+  multiSliderIndex = -1
+  var index = 0
   for val in vals.mitems:
+    val = clamp(val, min, max)
     let colRect = makeRect(nextX, nextY, colWidth, colHeight)
-    let fillAmount = (val - min).float32 / range.float32
+    let fillAmount = clamp01((val - min).float32 / range.float32)
     let fillHeight = (colRect.h.float32 * fillAmount).int
     let fillRect = makeRect(nextX, nextY + colHeight - fillHeight, colWidth, fillHeight)
     guiBasicBox(colRect, style = rsInset)
@@ -1031,11 +1075,13 @@ proc guiMultiSliderV*[T](vals: var openArray[T], min: T, max: T): bool {.discard
     let drawRect = colRect.scrollCurrentWindow().clipCurrentWindow()
     let focus = windowDrag == "" and windowScroll == "" and windowResize == "" and pointInRect(mx,my, drawRect)
     if focus:
+      multiSliderIndex = index
       hoveredElement = currentElement
     if focus and mousebtnp(0):
+      dragElement = currentElement
       activeElement = currentElement
 
-    if activeElement == currentElement and focus:
+    if dragElement == currentElement and focus:
       let fillAmount = clamp01(1.0f - ((my - drawRect.y).float32 / drawRect.h.float32))
       if key(K_LSHIFT):
         let tval = lerp(min.float32, max.float32, fillAmount).T
@@ -1044,6 +1090,7 @@ proc guiMultiSliderV*[T](vals: var openArray[T], min: T, max: T): bool {.discard
         val = lerp(min.float32, max.float32, fillAmount).T
       result = true
     nextX += colWidth
+    index += 1
 
   nextX = oldNextX
 
@@ -1074,12 +1121,13 @@ proc guiSlider2D*[T](name: string, x,y: var T, minx,miny: T = T.low, maxx,maxy: 
   if focus:
     hoveredElement = currentElement
   if focus and mousebtnp(0):
+    dragElement = currentElement
     activeElement = currentElement
     when T is SomeInteger:
       dragIntTmp = x.float32
       dragIntTmp2 = y.float32
 
-  if activeElement == currentElement:
+  if dragElement == currentElement:
     #let fillAmount = clamp01((mx - drawRect.x).float32 / drawRect.w.float32)
     let fillAmountX = clamp01((mx - drawRect.x).float32 / drawRect.w.float32)
     let fillAmountY = clamp01((my - drawRect.y).float32 / drawRect.h.float32)
@@ -1100,7 +1148,10 @@ proc guiOption*[T](name: string, val: var T, options: seq[T]): bool {.discardabl
   # dropdown for arbitary options
   currentElement += 1
 
-  let rect = guiBasicBox(h = lineHeight + vPadding * 2, style = rsBasic)
+  var rect = getBoxRect()
+  guiPreAdvance(rect)
+
+  guiBasicBox(rect, style = rsBasic)
   let oldNextY = nextY
   let oldNextX = nextX
   nextY += vPadding
@@ -1118,9 +1169,10 @@ proc guiOption*[T](name: string, val: var T, options: seq[T]): bool {.discardabl
   if focus:
     hoveredElement = currentElement
   if focus and mousebtnp(0):
+    dragElement = currentElement
     activeElement = currentElement
 
-  if activeElement == currentElement:
+  if dragElement == currentElement:
     result = true
     # show popup selector
     nextOrder = 999
@@ -1163,9 +1215,10 @@ proc guiOption*[T](name: string, val: var SomeInteger, options: openarray[T]): b
   if focus:
     hoveredElement = currentElement
   if focus and mousebtnp(0):
+    dragElement = currentElement
     activeElement = currentElement
 
-  if activeElement == currentElement:
+  if dragElement == currentElement:
     result = true
     # show popup selector
     nextOrder = 999
@@ -1208,9 +1261,10 @@ proc guiOption*[T](name: string, val: var T): bool {.discardable.} =
   if focus:
     hoveredElement = currentElement
   if focus and mousebtnp(0):
+    dragElement = currentElement
     activeElement = currentElement
 
-  if activeElement == currentElement:
+  if dragElement == currentElement:
     result = true
     # show popup selector
     nextOrder = 999
@@ -1230,6 +1284,70 @@ proc guiOption*[T](name: string, val: var T): bool {.discardable.} =
   nextY = oldNextY
 
   guiAdvance(rect)
+
+proc guiTextField*(name: string, val: var string, default: string = ""): bool {.discardable.} =
+  currentElement += 1
+
+  var rect = getBoxRect()
+  guiPreAdvance(rect)
+
+  guiBasicBox(rect = rect, style = rsBasic)
+  let oldNextY = nextY
+  let oldNextX = nextX
+  nextY += vPadding
+  if name == "":
+    guiBasicTextBox(&"{val} ", rsInset, align = alignLeft, rect = rect, focus = textInputElement == currentElement)
+  else:
+    guiBasicTextBox(&" {name}", rsBasic, align = alignLeft, rect = rect.leftHalf())
+    guiBasicTextBox(val, rsInset, align = alignLeft, rect = rect.rightHalf())
+  nextX = oldNextX
+  nextY = oldNextY
+
+  let (mx,my) = mouse()
+  let drawRect = rect.scrollCurrentWindow().clipCurrentWindow()
+  let focus = windowDrag == "" and windowScroll == "" and windowResize == "" and pointInRect(mx,my, drawRect)
+  if focus:
+    hoveredElement = currentElement
+  if focus and mousebtnp(0):
+    activeElement = currentElement
+    textInputElement = currentElement
+    startTextInput()
+    var textptr = val.addr
+    if textInputEventListener != nil:
+      removeEventListener(textInputEventListener)
+    echo "enabling text input"
+    textInputEventListener = addEventListener(proc(e: Event): bool =
+      if e.kind == ekTextInput:
+        echo "got text event ", e.text
+        textptr[] &= e.text
+        return true
+      if e.kind == ekTextEditing:
+        echo "got text editing event ", e.text
+        return true
+      if e.kind == ekKeyDown:
+        if e.keycode == K_BACKSPACE:
+          if textptr[].len > 0:
+            textptr[].setLen(textptr[].len - 1)
+          return true
+    )
+
+  if textInputElement == currentElement:
+    if activeElement != currentElement:
+      stopTextInput()
+      textInputElement = 0
+      echo "disabling text input"
+      if textInputEventListener != nil:
+        removeEventListener(textInputEventListener)
+
+  if focus and mousebtnp(2):
+    val = default
+    result = true
+
+  nextX = oldNextX
+  nextY = oldNextY
+
+  guiAdvance(rect)
+
 
 proc guiEnd*() =
   discard

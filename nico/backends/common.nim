@@ -16,7 +16,7 @@ export Scancode
 const maxPaletteSize* = 256
 const nAudioChannels* = 16
 const deadzone* = int16.high div 2
-const gifScale* = 2
+var gifScale* = 2
 const maxPlayers* = 4
 const recordingEnabled* = true
 const musicBufferSize* = 4096

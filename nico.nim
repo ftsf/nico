@@ -3042,6 +3042,9 @@ proc setAssetPath*(path: string) =
   else:
     assetPath = path & "/"
 
+proc setGifScale*(gs: int = 2) =
+  gifScale = gs
+
 proc bpm*(newBpm: Natural) =
   ## sets the beats per minute
   currentBpm = newBpm

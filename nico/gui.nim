@@ -343,7 +343,7 @@ proc labelStep*(G: Gui, text: string, x,y,w,h: int, step: int, box: bool = false
       G.drawBoxFunc(G,x,y,w,h)
     setColor(G.colorSets[G.outcome].textFlat)
     let nLines = text.countLines()
-    richPrint(text, x + (if G.center: w div 2 else: 0), y + (if G.center: h div 2 - (fontHeight() * nLines) div 2 else: 0), if G.center: taCenter else: taLeft, false, step)
+    richPrint(text, x + (if G.center: w div 2 else: 0), y + (if G.center: h div 2 - (fontHeight() * nLines) div 2 else: 0), if G.center: taCenter else: taLeft, step = step)
 
   if G.e.kind == gMouseMove:
     if G.downElement == 0 and pointInRect(G.e.x, G.e.y, x, y, w, h):
@@ -378,11 +378,11 @@ proc drawGuiString(G: Gui, text: string, x,y,w,h: int, style: GuiStyle = gFlat, 
   )
   let nLines = text.countLines()
   if ta == taCenter:
-    richPrint(text, x + w div 2, y + (if va == taCenter: h div 2 - (fontHeight() * nLines) div 2 else: G.vPadding), ta, false, -1)
+    richPrint(text, x + w div 2, y + (if va == taCenter: h div 2 - (fontHeight() * nLines) div 2 else: G.vPadding), ta)
   elif ta == taLeft:
-    richPrint(text, x + G.hPadding, y + (if va == taCenter: h div 2 - (fontHeight() * nLines) div 2 else: G.vPadding), ta, false, -1)
+    richPrint(text, x + G.hPadding, y + (if va == taCenter: h div 2 - (fontHeight() * nLines) div 2 else: G.vPadding), ta)
   elif ta == taRight:
-    richPrint(text, x + w - G.hPadding, y + (if va == taCenter: h div 2 - (fontHeight() * nLines) div 2 else: G.vPadding), ta, false, -1)
+    richPrint(text, x + w - G.hPadding, y + (if va == taCenter: h div 2 - (fontHeight() * nLines) div 2 else: G.vPadding), ta)
 
 proc xyarea*[T](G: Gui, xval,yval: var T, x,y,w,h: int, draw: GuiDrawProc): bool =
   G.element += 1

@@ -13,6 +13,7 @@
    * [Tilemap](#tilemap)
    * [Palettes](#palettes)
    * [Dithering](#dithering)
+   * [Stencil](#stencil)
    * [Camera](#camera)
    * [Misc Graphics](#misc-graphics)
  * [Audio](#audio)

@@ -854,13 +854,13 @@ proc getColor*(): ColorId =
   ## returns the current color
   return currentColor
 
-proc pset*(x,y: Pint, c: ColorId) =
+proc pset*(x,y: Pint, c: ColorId) {.inline.} =
   ## sets a pixel to the color c
   let x = x-cameraX
   let y = y-cameraY
   if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
     return
-  if stencilTest(x,y,stencilRef):
+  if c >= 0 and stencilTest(x,y,stencilRef):
     if not stencilOnly:
       if ditherPass(x,y):
         swCanvas.set(x,y,paletteMapDraw[c].uint8)
@@ -878,6 +878,21 @@ proc pset*(x,y: Pint, c: ColorId) =
         stencilBuffer.blendMax(x,y,stencilRef)
       of stencilMin:
         stencilBuffer.blendMin(x,y,stencilRef)
+  elif c < 0 and stencilTest(x,y,stencilRef):
+    # special mode to only draw to stencil with negative of color value
+    # eg. drawing with color -1 will write 1 (blended) to the stencil buffer and not draw to screen
+    let cref = (-c).uint8
+    case stencilBlend:
+    of stencilReplace:
+      stencilBuffer.set(x,y,cref)
+    of stencilAdd:
+      stencilBuffer.add(x,y,cref)
+    of stencilSubtract:
+      stencilBuffer.subtract(x,y,cref)
+    of stencilMax:
+      stencilBuffer.blendMax(x,y,cref)
+    of stencilMin:
+      stencilBuffer.blendMin(x,y,cref)
   elif stencilWriteFail:
     case stencilBlend:
     of stencilReplace:
@@ -955,20 +970,15 @@ proc pgetRGB*(x,y: Pint): (uint8,uint8,uint8) =
   return palCol(swCanvas.data[y*swCanvas.w+x].ColorId)
 
 proc rectfill*(x1,y1,x2,y2: Pint) =
-  ## draws a hollow rectangle from two points
+  ## draws a filled rectangle from two points
   let minx = min(x1,x2)
   let maxx = max(x1,x2)
   let miny = min(y1,y2)
   let maxy = max(y1,y2)
 
-  if common.stencilMode == stencilAlways:
-    for y in max(miny-cameraY,clipMinY)..min(maxy-cameraY,clipMaxY):
-      for x in max(minx-cameraX,clipMinX)..min(maxx-cameraX,clipMaxX):
-        psetFast(x,y,currentColor)
-  else:
-    for y in max(miny,clipMinY)..min(maxy,clipMaxY):
-      for x in max(minx,clipMinX)..min(maxx,clipMaxX):
-        pset(x,y)
+  for y in max(miny,clipMinY)..min(maxy,clipMaxY):
+    for x in max(minx,clipMinX)..min(maxx,clipMaxX):
+      pset(x,y,currentColor)
 
 proc rrectfill*(x1,y1,x2,y2: Pint, r: Pint = 1) =
   ## draws a filled rounded rectangle from two points, r specifies radius

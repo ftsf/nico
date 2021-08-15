@@ -335,12 +335,12 @@ type StencilBlend* = enum
   stencilMax,
   stencilMin,
 
-var stencilMode*: StencilMode
-var stencilWrite*: bool
-var stencilWriteFail*: bool # if true, writes to stencil buffer when fails to write
-var stencilOnly*: bool # if true, only writes to stencil buffer, not screen
-var stencilRef*: uint8
-var stencilBlend*: StencilBlend
+var stencilMode*: StencilMode = stencilEqual
+var stencilWrite*: bool = false
+var stencilWriteFail*: bool = false # if true, writes to stencil buffer when fails to write
+var stencilOnly*: bool = false # if true, only writes to stencil buffer, not screen
+var stencilRef*: uint8 = 0
+var stencilBlend*: StencilBlend = stencilReplace
 
 var targetScreenWidth* = 128
 var targetScreenHeight* = 128

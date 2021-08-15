@@ -94,29 +94,51 @@ Returns true as the button `b` is pressed and again every `repeat` frames while 
 
 ---
 
+`anybtnp(): bool`
+
+Returns true as any button is pressed by any player.
 
 ---
 
-*Also available are versions which take a player id*
+*Also available are versions which take a player id, you should use this if you're making a local multiplayer game*
+
 `btn(b: NicoButton, player: int): bool`
+
 Returns true while the button `b` is held down by `player`
 
 ---
 
 `btnp(b: NicoButton, player: int): bool`
+
 Returns true as the button `b` is pressed by `player`
 
 ---
 
 `btnup(b: NicoButton, player: int): bool`
+
 Returns true as the button `b` is released by `player`
 
 ---
 
 `btnpr(b: NicoButton, player: int, repeat: int = 48): bool`
+
 Returns true as the button `b` is pressed and again every `repeat` frames while held down by `player`.
 
 ---
+
+`anybtnp(player: int): bool`
+
+Returns true as any button is pressed by `player`, useful for assigning controllers to players.
+
+```nim
+for pid in 0..<4:
+  if anybtnp(pid):
+    # controller with pid pressed a button, assign them to an unassigned player
+    for player in players:
+      if player.pid != -1:
+        player.pid = pid
+        return
+```
 
 
 ### Joysticks

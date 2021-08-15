@@ -764,6 +764,18 @@ proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool =
     return false
   return controllers[player].btnpr(b, repeat)
 
+proc anybtnp*(): bool =
+  ## returns true if any key pressed
+  for c in controllers:
+    if c.anybtnp():
+      return true
+
+proc anybtnp*(player: range[0..maxPlayers]): bool =
+  ## returns true if any key pressed
+  if player > controllers.high:
+    return false
+  return controllers[player].anybtnp()
+
 proc key*(k: Keycode): bool =
   ## returns true if key is down
   keysDown.hasKey(k) and keysDown[k] != 0

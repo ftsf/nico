@@ -128,6 +128,15 @@ proc btnp*(self: NicoController, button: NicoButton): bool =
     return self.buttons[button] == 2 or self.axisp(pcYAxis, 1.0)
   return self.buttons[button] == 2
 
+proc anybtnp*(self: NicoController): bool =
+  for b in self.buttons.low..self.buttons.high:
+    if self.buttons[b] == 2:
+      return true
+  for axis in pcXAxis..pcYAxis:
+    if abs(self.axis(axis)) > self.deadzone:
+      return true
+  return false
+
 proc btnup*(self: NicoController, button: NicoButton): bool =
   return self.buttons[button] == -1
 

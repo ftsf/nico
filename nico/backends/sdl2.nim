@@ -214,7 +214,7 @@ keymap = [
   @[SCANCODE_RIGHT.int, SCANCODE_D.int], # right
   @[SCANCODE_UP.int,    SCANCODE_W.int], # up
   @[SCANCODE_DOWN.int,  SCANCODE_S.int], # down
-  @[SCANCODE_Z.int], # A
+  @[SCANCODE_Z.int, SCANCODE_Y.int], # A
   @[SCANCODE_X.int], # B
   @[SCANCODE_LSHIFT.int, SCANCODE_RSHIFT.int], # X
   @[SCANCODE_C.int], # Y

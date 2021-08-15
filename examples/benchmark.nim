@@ -13,6 +13,7 @@ type BenchmarkMode = enum
   bmSprite
   bmSpriteScaled
   bmSpriteRot
+  bmTrifill
 
 var mode = bmPoints
 var autoAdjust = false
@@ -29,6 +30,7 @@ toDraw[bmCircfill] = 2000
 toDraw[bmSprite] = 1000
 toDraw[bmSpriteScaled] = 1000
 toDraw[bmSpriteRot] = 1000
+toDraw[bmTrifill] = 1000
 
 var avgMs = 0f
 
@@ -114,6 +116,11 @@ proc gameDraw() =
   of bmSpriteRot:
     for i in 0..<toDraw:
       sprRot(16+rnd(8), rnd(screenWidth),rnd(screenHeight), rnd(TAU))
+      count += 1
+  of bmTrifill:
+    for i in 0..<toDraw:
+      setColor(8+rnd(8))
+      trifill(rnd(screenWidth),rnd(screenHeight),rnd(screenWidth),rnd(screenHeight),rnd(screenWidth),rnd(screenHeight))
       count += 1
 
   let tend = now()

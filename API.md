@@ -529,6 +529,12 @@ Nico features a powerful 8 bit stencil buffer, this allows you to control where 
 
 You can use this to implement a 3D depth buffer or draw where you want lighting to occur for example.
 
+The stencil buffer defaults to all 0, and by default drawing operations will only draw where the stencil buffer == 0.
+You can also draw to the stencil buffer only by drawing with negative colors. eg.
+`setColor(-1); circfill(x,y,8)` will draw a filled circle of 1 to the stencil buffer but not draw to the screen.
+
+---
+
 `stencilSet(x,y,v: Pint)`
 
 sets a pixel on the stencil buffer to a value in the range 0..255

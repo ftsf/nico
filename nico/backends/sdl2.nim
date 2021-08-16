@@ -1750,7 +1750,7 @@ proc init*(org: string, app: string) =
   when not defined(android):
     controllers.add(newNicoController(-1))
 
-    let basePath = $sdl.getBasePath()
+    basePath = $sdl.getBasePath()
     debug "basePath: ", basePath
 
     assetPath = basePath / "assets"

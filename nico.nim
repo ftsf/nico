@@ -127,6 +127,7 @@ export toPfloat
 
 export setKeyMap
 
+export basePath
 export assetPath
 export writePath
 
@@ -308,7 +309,7 @@ export showMouse
 ## Drawing API
 
 # pixels
-proc pset*(x,y: Pint)
+proc pset*(x,y: Pint) {.inline.}
 proc pget*(x,y: Pint): ColorId
 proc pgetRGB*(x,y: Pint): (uint8,uint8,uint8)
 proc sset*(x,y: Pint, c: int = -1)
@@ -419,8 +420,8 @@ proc rnd*[T](x: HSlice[T,T]): T
 
 ## Internal functions
 
-proc psetRaw*(x,y: int, c: Pint) {.inline.}
-proc psetRaw*(x,y: int) {.inline.}
+proc psetRaw*(x,y: Pint, c: ColorId) {.inline.}
+proc psetRaw*(x,y: Pint) {.inline.}
 
 proc fps*(fps: int) =
   ## sets the frame rate in frames per second
@@ -867,10 +868,9 @@ proc getColor*(): ColorId =
   ## returns the current color
   return currentColor
 
-proc pset*(x,y: Pint, c: ColorId) {.inline.} =
+proc psetRaw*(x,y: Pint, c: ColorId) =
   ## sets a pixel to the color c
-  let x = x-cameraX
-  let y = y-cameraY
+  ## does not apply camera offset
   if x < clipMinX or y < clipMinY or x > clipMaxX or y > clipMaxY:
     return
   if c >= 0 and stencilTest(x,y,stencilRef):
@@ -919,32 +919,17 @@ proc pset*(x,y: Pint, c: ColorId) {.inline.} =
     of stencilMin:
       stencilBuffer.blendMin(x,y,stencilRef)
 
-proc psetFast(x,y: Pint, c: ColorId) {.inline.} =
-  if ditherPass(x,y):
-    swCanvas.set(x,y,paletteMapDraw[c].uint8)
-  elif ditherColor >= 0:
-    swCanvas.set(x,y,paletteMapDraw[ditherColor.ColorId].uint8)
-  if stencilWrite:
-    stencilBuffer.set(x,y,stencilRef)
+proc psetRaw*(x,y: Pint) =
+  ## sets a pixel to current color, (unsafe, does not check for bounds)
+  psetRaw(x,y,currentColor)
+
+proc pset*(x,y: Pint, c: ColorId) =
+  ## sets a pixel to the color c
+  psetRaw(x-cameraX, y-cameraY, c)
 
 proc pset*(x,y: Pint) =
   ## sets a pixel to the current color
   pset(x,y,currentColor)
-
-proc psetRaw*(x,y: int, c: Pint) =
-  ## sets a pixel to color c, (unsafe, does not check for bounds)
-  # relies on you not going outside the buffer bounds
-  if stencilTest(x,y,stencilRef):
-    if ditherPass(x,y):
-      swCanvas.set(x,y,c.uint8)
-    elif ditherColor >= 0:
-      swCanvas.set(x,y,ditherColor.uint8)
-    if stencilWrite:
-      stencilBuffer.set(x,y,stencilRef)
-
-proc psetRaw*(x,y: int) =
-  ## sets a pixel to current color, (unsafe, does not check for bounds)
-  psetRaw(x,y,currentColor)
 
 proc ssetSafe*(x,y: Pint, c: int = -1) =
   ## set the color for a pixel on the spritesheet, does nothing if out of bounds
@@ -984,14 +969,14 @@ proc pgetRGB*(x,y: Pint): (uint8,uint8,uint8) =
 
 proc rectfill*(x1,y1,x2,y2: Pint) =
   ## draws a filled rectangle from two points
-  let minx = min(x1,x2)
-  let maxx = max(x1,x2)
-  let miny = min(y1,y2)
-  let maxy = max(y1,y2)
+  let minx = min(x1,x2) - cameraX
+  let maxx = max(x1,x2) - cameraX
+  let miny = min(y1,y2) - cameraY
+  let maxy = max(y1,y2) - cameraY
 
   for y in max(miny,clipMinY)..min(maxy,clipMaxY):
     for x in max(minx,clipMinX)..min(maxx,clipMaxX):
-      pset(x,y,currentColor)
+      psetRaw(x,y,currentColor)
 
 proc rrectfill*(x1,y1,x2,y2: Pint, r: Pint = 1) =
   ## draws a filled rounded rectangle from two points, r specifies radius
@@ -1595,10 +1580,8 @@ proc fontBlit(font: Font, srcRect, dstRect: Rect, color: ColorId) =
         continue
       if dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY:
         continue
-      if font.data[sy * font.w + sx] == 1 and ditherPass(dx.int,dy.int):
-        swCanvas.data[dy * swCanvas.w + dx] = currentColor.uint8
-      elif ditherColor >= 0:
-        swCanvas.data[dy * swCanvas.w + dx] = ditherColor.uint8
+      if font.data[sy * font.w + sx] == 1:
+        pset(dx,dy,currentColor)
 
       sx += 1.0 * (sw/dw)
       dx += 1.0
@@ -1628,11 +1611,9 @@ proc blitFastRaw(src: Surface, sx,sy, dx,dy, w,h: Pint) =
         dxi += 1
         sxi += 1
         continue
-      if ditherPass(dxi,dyi):
-        let srcCol = src.data[syi * src.w + sxi]
-        swCanvas.data[dyi * swCanvas.w + dxi] = srcCol
-      elif ditherColor >= 0:
-        swCanvas.data[dyi * swCanvas.w + dxi] = ditherColor.uint8
+      let srcCol = src.data[syi * src.w + sxi].ColorId
+      if not paletteTransparent[srcCol]:
+        psetRaw(dxi,dyi,srcCol)
       sxi += 1
       dxi += 1
     syi += 1
@@ -1663,12 +1644,9 @@ proc blitFastRaw*(sx,sy, dx,dy, w,h: Pint) =
         dxi += 1
         sxi += 1
         continue
-      if ditherPass(dxi,dyi):
-        let srcCol = spritesheet.data[syi * srcw + sxi]
-        swCanvas.data[dyi * swCanvas.w + dxi] = srcCol
-      elif ditherColor >= 0:
-        swCanvas.data[dyi * swCanvas.w + dxi] = ditherColor.uint8
-
+      let srcCol = spritesheet.data[syi * srcw + sxi].ColorId
+      if not paletteTransparent[srcCol]:
+        psetRaw(dxi, dyi, paletteMapDraw[srcCol])
       sxi += 1
       dxi += 1
     syi += 1
@@ -1676,7 +1654,7 @@ proc blitFastRaw*(sx,sy, dx,dy, w,h: Pint) =
     sxi = sx
     dxi = dx
 
-proc blitFast(src: Surface, sx,sy, dx,dy, w,h: Pint) =
+proc blitFast(src: Surface, sx,sy, dx,dy, w,h: Pint) {.inline.} =
   # used for tile drawing, no stretch or flipping
   var sxi = sx
   var syi = sy
@@ -1696,13 +1674,9 @@ proc blitFast(src: Surface, sx,sy, dx,dy, w,h: Pint) =
         dxi += 1
         sxi += 1
         continue
-      if ditherPass(dxi,dyi):
-        let srcCol = src.data[syi * src.w + sxi]
-        if not paletteTransparent[srcCol]:
-          swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol].uint8
-      elif ditherColor >= 0:
-        swCanvas.data[dyi * swCanvas.w + dxi] = ditherColor.uint8
-
+      let srcCol = src.data[syi * src.w + sxi].ColorId
+      if not paletteTransparent[srcCol]:
+        psetRaw(dxi, dyi, paletteMapDraw[srcCol])
       sxi += 1
       dxi += 1
     syi += 1
@@ -1759,8 +1733,6 @@ proc blitFastRot(src: Surface, srcRect: Rect, centerX, centerY: Pint, radians: f
       if dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY:
         continue
 
-      let dstIndex = dy * swCanvas.w + dx
-
       let
         rx = x.float32 - dstCenterX
         ry = y.float32 - dstCenterY
@@ -1774,12 +1746,9 @@ proc blitFastRot(src: Surface, srcRect: Rect, centerX, centerY: Pint, radians: f
         sx = srcRect.x + rsx
         sy = srcRect.y + rsy
 
-      if ditherPass(dx,dy):
-        let srcCol = src.data[sy * src.w + sx]
-        if not paletteTransparent[srcCol]:
-          swCanvas.data[dstIndex] = paletteMapDraw[srcCol].uint8
-      elif ditherColor >= 0:
-        swCanvas.data[dstIndex] = ditherColor.uint8
+      let srcCol = src.data[sy * src.w + sx].ColorId
+      if not paletteTransparent[srcCol]:
+        psetRaw(dx, dy, paletteMapDraw[srcCol])
 
 proc blitFastRot90(src: Surface, srcRect: Rect, dx, dy: Pint, rotations: int) =
   # no stretch or flipping, but allows 90,180,270 degree rotation
@@ -1820,12 +1789,9 @@ proc blitFastRot90(src: Surface, srcRect: Rect, dx, dy: Pint, rotations: int) =
         sx = dstH - 1 - y
         sy = x
 
-      if ditherPass(dx,dy):
-        let srcCol = src.data[(srcRect.y + sy) * src.w + (srcRect.x + sx)]
-        if not paletteTransparent[srcCol]:
-          swCanvas.data[dstIndex] = paletteMapDraw[srcCol].uint8
-      elif ditherColor >= 0:
-        swCanvas.data[dstIndex] = ditherColor.uint8
+      let srcCol = src.data[(srcRect.y + sy) * src.w + (srcRect.x + sx)].ColorId
+      if not paletteTransparent[srcCol]:
+        psetRaw(dx, dy, paletteMapDraw[srcCol])
 
 proc blitFastFlip(src: Surface, sx,sy, dx,dy, w,h: Pint, hflip, vflip: bool) =
   # used for tile drawing, no stretch
@@ -1851,12 +1817,10 @@ proc blitFastFlip(src: Surface, sx,sy, dx,dy, w,h: Pint, hflip, vflip: bool) =
         dxi += 1
         sxi += xi
         continue
-      if ditherPass(dxi,dyi):
-        let srcCol = src.data[syi * src.w + sxi]
-        if not paletteTransparent[srcCol]:
-          swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol].uint8
-      elif ditherColor >= 0:
-        swCanvas.data[dyi * swCanvas.w + dxi] = ditherColor.uint8
+
+      let srcCol = src.data[syi * src.w + sxi].ColorId
+      if not paletteTransparent[srcCol]:
+        psetRaw(dxi,dyi,paletteMapDraw[srcCol])
 
       sxi += xi
       dxi += 1
@@ -1890,12 +1854,10 @@ proc blitFastFlipShift(src: Surface, sx,sy, dx,dy, w,h: Pint, ox,oy: Pint, hflip
         dxi += 1
         sxi += xi
         continue
-      if ditherPass(dxi,dyi):
-        let srcCol = src.data[(startsy + wrap(syi + oy, h)) * src.w + (startsx + wrap(sxi + ox, w))]
-        if not paletteTransparent[srcCol]:
-          swCanvas.data[dyi * swCanvas.w + dxi] = paletteMapDraw[srcCol].uint8
-      elif ditherColor >= 0:
-        swCanvas.data[dyi * swCanvas.w + dxi] = ditherColor.uint8
+
+      let srcCol = src.data[(startsy + wrap(syi + oy, h)) * src.w + (startsx + wrap(sxi + ox, w))].ColorId
+      if not paletteTransparent[srcCol]:
+        pset(dxi,dyi,paletteMapDraw[srcCol])
 
       sxi += xi
       dxi += 1
@@ -1904,104 +1866,50 @@ proc blitFastFlipShift(src: Surface, sx,sy, dx,dy, w,h: Pint, ox,oy: Pint, hflip
     sxi = startsx
     dxi = dx
 
-proc blit(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = false) =
-  # if dstrect doesn't overlap clipping rect, skip it
-  if not overlap(dstrect, clippingRect):
-    return
-
-  var dx = dstRect.x.float32
-  var dy = dstRect.y.float32
-  var dw = dstRect.w.float32
-  var dh = dstRect.h.float32
-
-  var sx = srcRect.x.float32
-  var sy = srcRect.y.float32
-  var sw = srcRect.w.float32
-  var sh = srcRect.h.float32
-
-  if vflip:
-    dy = dy + (dstRect.h - 1).float32
-    sy = sy + (srcRect.h - 1).float32
-
-  for y in 0..dstRect.h-1:
-    if hflip:
-      sx = (srcRect.x + srcRect.w-1).float32
-      dx = (dstRect.x + dstRect.w-1).float32
-    else:
-      sx = srcRect.x.float32
-      dx = dstRect.x.float32
-    for x in 0..dstRect.w-1:
-      if sx < 0 or sy < 0 or sx > src.w-1 or sy > src.h-1:
-        continue
-      if not (dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY):
-        if ditherPass(dx.int,dy.int):
-          let srcCol = src.data[sy.int * src.w + sx.int]
-          if not paletteTransparent[srcCol]:
-            swCanvas.data[dy.int * swCanvas.w + dx.int] = paletteMapDraw[srcCol].uint8
-        elif ditherColor >= 0:
-          swCanvas.data[dy.int * swCanvas.w + dx.int] = paletteMapDraw[ditherColor.ColorId].uint8
-
-      if hflip:
-        sx -= 1.0 * (sw/dw)
-        dx -= 1.0
-      else:
-        sx += 1.0 * (sw/dw)
-        dx += 1.0
-    if vflip:
-      sy -= 1.0 * (sh/dh)
-      dy -= 1.0
-    else:
-      sy += 1.0 * (sh/dh)
-      dy += 1.0
-
 proc blitStretch(src: Surface, srcRect, dstRect: Rect, hflip, vflip: bool = false) =
   # if dstrect doesn't overlap clipping rect, skip it
   if not overlap(dstrect, clippingRect):
     return
 
-  var dx = dstRect.x.float32
-  var dy = dstRect.y.float32
-  var dw = dstRect.w.float32
-  var dh = dstRect.h.float32
+  var dx = dstRect.x
+  var dy = dstRect.y
+  var dw = dstRect.w
+  var dh = dstRect.h
 
   var sx = srcRect.x.float32
   var sy = srcRect.y.float32
   var sw = srcRect.w.float32
   var sh = srcRect.h.float32
 
+  let sxinc = sw / dw.float32 * (if hflip: -1f else: 1f)
+  let syinc = sh / dh.float32 * (if vflip: -1f else: 1f)
+
   if vflip:
-    dy = dy + (dstRect.h - 1).float32
-    sy = sy + (srcRect.h - 1).float32
+    sy = (srcRect.y + srcRect.h - 1).float32
 
   for y in 0..dstRect.h-1:
     if hflip:
-      sx = (srcRect.x + srcRect.w-1).float32
-      dx = (dstRect.x + dstRect.w-1).float32
+      sx = (srcRect.x + srcRect.w - 1).float32
     else:
       sx = srcRect.x.float32
-      dx = dstRect.x.float32
-    for x in 0..dstRect.w-1:
-      if sx < 0 or sy < 0 or sx > src.w-1 or sy > src.h-1:
-        continue
-      if not (dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY or sx < 0 or sy < 0 or sx >= src.w or sy >= src.h):
-        let srcCol = src.data[sy.int * src.w + sx.int]
-        if ditherPass(dx.int,dy.int) and not paletteTransparent[srcCol]:
-          swCanvas.data[dy * swCanvas.w + dx] = paletteMapDraw[srcCol].uint8
-        elif ditherColor >= 0:
-          swCanvas.data[dy * swCanvas.w + dx] = paletteMapDraw[ditherColor.ColorId].uint8
 
-      if hflip:
-        sx -= 1.0 * (sw/dw)
-        dx -= 1.0
-      else:
-        sx += 1.0 * (sw/dw)
-        dx += 1.0
-    if vflip:
-      sy -= 1.0 * (sh/dh)
-      dy -= 1.0
-    else:
-      sy += 1.0 * (sh/dh)
-      dy += 1.0
+    let syi = if vflip: ceil(sy).int else: flr(sy).int
+
+    dx = dstRect.x
+    for x in 0..dstRect.w-1:
+      let sxi = if hflip: ceil(sx).int else: flr(sx).int
+      if sxi < 0 or syi < 0 or sxi > src.w-1 or syi > src.h-1:
+        continue
+
+      if not (dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY):
+        let srcCol = src.data[syi * src.w + sxi].ColorId
+        if not paletteTransparent[srcCol]:
+          psetRaw(dx,dy,paletteMapDraw[srcCol])
+
+      sx += sxinc
+      dx += 1
+    sy += syinc
+    dy += 1
 {.pop.}
 
 proc mset*(tx,ty: Pint, t: int) =
@@ -2470,12 +2378,6 @@ proc sprRot90*(spr: Pint, x,y: Pint, rotations: int, w,h: Pint = 1) =
   let src = getSprRect(spr, w, h)
   blitFastRot90(spritesheet, src, x, y, rotations)
 
-proc sprBlit*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
-  # draw a sprite
-  let src = getSprRect(spr, w, h)
-  let dst: Rect = ((x-cameraX).int,(y-cameraY).int,src.w,src.h)
-  blit(spritesheet, src, dst)
-
 proc sprBlitFast*(spr: Pint, x,y: Pint, w,h: Pint = 1) =
   # draw a sprite
   let src = getSprRect(spr, w, h)
@@ -2570,7 +2472,7 @@ proc sprss*(spr: Pint, x,y: Pint, w,h: Pint = 1, dw,dh: Pint, hflip, vflip: bool
   ## draw a scaled sprite
   var src = getSprRect(spr, w, h)
   var dst: Rect = ((x-cameraX).int,(y-cameraY).int,dw.int,dh.int)
-  blit(spritesheet, src, dst, hflip, vflip)
+  blitStretch(spritesheet, src, dst, hflip, vflip)
 
 proc drawTile(spr: Pint, x,y: Pint) =
   var src = getSprRect(spr.Pint)

@@ -11,6 +11,7 @@ type BenchmarkMode = enum
   bmCirc
   bmCircfill
   bmSprite
+  bmSpriteIntScaled
   bmSpriteScaled
   bmSpriteRot
   bmTrifill
@@ -18,6 +19,8 @@ type BenchmarkMode = enum
 var mode = bmPoints
 var autoAdjust = false
 var lastMs: float32
+
+var useClip = false
 
 var toDraw: array[BenchmarkMode, int]
 toDraw[bmPoints] = 50000
@@ -28,16 +31,30 @@ toDraw[bmRectfill] = 2000
 toDraw[bmCirc] = 2000
 toDraw[bmCircfill] = 2000
 toDraw[bmSprite] = 1000
+toDraw[bmSpriteIntScaled] = 1000
 toDraw[bmSpriteScaled] = 1000
 toDraw[bmSpriteRot] = 1000
 toDraw[bmTrifill] = 1000
 
 var avgMs = 0f
 
+var time = 0f
+
+var cx = 0
+var cy = 0
+
 proc gameInit() =
   loadSpriteSheet(0, "spritesheet.png")
 
 proc gameUpdate(dt: float32) =
+  time += dt
+
+  cx = (sin(time / 5f) * 32f).int
+  cy = (sin(time / 3f) * 32f).int
+
+  if keyp(K_c):
+    useClip = not useClip
+
   if btn(pcLeft) and toDraw[mode] > 0:
     toDraw[mode] -= 10
   if btn(pcRight):
@@ -58,13 +75,17 @@ proc gameUpdate(dt: float32) =
       if toDraw[mode] > 100:
         toDraw[mode] -= 100
 
-
 proc gameDraw() =
   cls()
   let tstart = now()
   var count = 0
 
   let toDraw = toDraw[mode]
+
+  setCamera(cx,cy)
+
+  if useClip:
+    clip(10,10,screenWidth-1-20,screenHeight-1-20)
 
   case mode:
   of bmPoints:
@@ -109,9 +130,13 @@ proc gameDraw() =
     for i in 0..<toDraw:
       spr(16+rnd(8), rnd(screenWidth),rnd(screenHeight))
       count += 1
-  of bmSpriteScaled:
+  of bmSpriteIntScaled:
     for i in 0..<toDraw:
       sprs(16+rnd(8), rnd(screenWidth),rnd(screenHeight), 1, 1, 2, 2)
+      count += 1
+  of bmSpriteScaled:
+    for i in 0..<toDraw:
+      sprss(16+rnd(8), rnd(screenWidth),rnd(screenHeight), 1, 1, 4+rnd(32), 4+rnd(32))
       count += 1
   of bmSpriteRot:
     for i in 0..<toDraw:
@@ -126,6 +151,15 @@ proc gameDraw() =
   let tend = now()
   let dt = tend - tstart
   let ms = dt.inMilliseconds
+
+  clip()
+  setCamera()
+  setColor(1)
+  box(-cx,-cy,screenWidth, screenHeight)
+  if useClip:
+    setColor(8)
+    box(10,10,screenWidth-20, screenHeight-20)
+
 
   setColor(0)
   let str = &"{mode}  x {toDraw} : {avgMs:0.2f}  ms"

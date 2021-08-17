@@ -16,8 +16,8 @@ import math
 
 when defined(opengl):
   import opengl
-import sdl2/sdl except Keycode, Scancode
-from sdl2/sdl import nil
+import sdl2_nim/sdl except Keycode, Scancode
+from sdl2_nim/sdl import nil
 
 proc toNicoKeycode(x: sdl.Keycode): Keycode =
   return (Keycode)(x)

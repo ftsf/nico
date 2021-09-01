@@ -718,14 +718,17 @@ proc loadSurfaceFromPNG*(filename: string, callback: proc(surface: common.Surfac
   surface.h = pngInfo.height
 
   if pngInfo.mode.colorType == LCT_RGBA:
-    echo "loading RGBA image, converting to indexed using current palette ", filename
+    debug "loading RGBA image, converting to indexed using current palette ", filename
     surface.channels = 4
     surface.data = cast[seq[uint8]](png.pixels)
     callback(surface.convertToIndexed())
 
   elif pngInfo.mode.colorType == LCT_PALETTE:
-    echo "loading paletted image ", filename
+    debug "loading paletted image ", filename
     surface.channels = 1
+    surface.palette = @[]
+    for i, c in pngInfo.mode.palette:
+      surface.palette.add((c.r.uint8, c.g.uint8, c.b.uint8))
     surface.data = cast[seq[uint8]](png.pixels)
     callback(surface)
 

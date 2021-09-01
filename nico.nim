@@ -447,12 +447,16 @@ proc loadPaletteFromImage*(filename: string): Palette =
     if surface == nil:
       loaded = true
       raise newException(IOError, "Error loading palette image: " & filename)
+    var surface = surface
+    if surface.channels != 4:
+      surface = surface.convertToRGBA()
     var nColors = 0
+    let stride = surface.w * surface.channels
     for y in 0..<surface.h:
       for x in 0..<surface.w:
-        let r = surface.data[y * surface.w * 4 + x * 4 + 0]
-        let g = surface.data[y * surface.w * 4 + x * 4 + 1]
-        let b = surface.data[y * surface.w * 4 + x * 4 + 2]
+        let r = surface.data[(y * stride) + (x * surface.channels) + 0]
+        let g = surface.data[(y * stride) + (x * surface.channels) + 1]
+        let b = surface.data[(y * stride) + (x * surface.channels) + 2]
         palette.data[nColors] = RGB(r,g,b)
         nColors += 1
     palette.size = nColors
@@ -478,7 +482,7 @@ proc loadPaletteFromGPL*(filename: string): Palette =
     if line.len == 0:
       continue
     var r,g,b: int
-    if scanf(line, "$s$i $s$i $s$i", r,g,b):
+    if scanf(line, "$s$i$s$i$s$i", r,g,b):
       result.data[i-1] = RGB(r,g,b)
       result.size += 1
       if i > maxPaletteSize:

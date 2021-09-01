@@ -221,6 +221,7 @@ type
 
 type
   Surface* = ref object
+    palette*: seq[tuple[r,g,b: uint8]]
     data*: seq[uint8]
     channels*: int
     w*,h*: int
@@ -232,6 +233,14 @@ proc set*(s: Surface, x,y: int, v: uint8) =
   if x < 0 or y < 0 or x >= s.w or y >= s.h:
     return
   s.data[y * s.w + x] = v
+
+proc set*(s: Surface, x,y: int, v: tuple[r,g,b,a: uint8]) =
+  if x < 0 or y < 0 or x >= s.w or y >= s.h:
+    return
+  s.data[y * s.w * 4 + x * 4 + 0] = v[0]
+  s.data[y * s.w * 4 + x * 4 + 1] = v[1]
+  s.data[y * s.w * 4 + x * 4 + 2] = v[2]
+  s.data[y * s.w * 4 + x * 4 + 3] = v[3]
 
 proc add*(s: Surface, x,y: int, v: uint8) =
   if x < 0 or y < 0 or x >= s.w or y >= s.h:
@@ -475,6 +484,17 @@ proc convertToRGBA*(src: Surface, abgrPixels: pointer, dpitch, w,h: cint) =
       abgrPixels[y*dpitch+(x*4)+1] = c.g
       abgrPixels[y*dpitch+(x*4)+2] = c.b
       abgrPixels[y*dpitch+(x*4)+3] = 255
+
+proc convertToRGBA*(src: Surface): Surface =
+  # converts indexed to RGBA
+  assert(src.channels == 1)
+  assert(src.palette.len > 0)
+  result = newSurfaceRGBA(src.w, src.h)
+  for y in 0..<src.h:
+    for x in 0..<src.w:
+      let index = src.get(x,y)
+      let c = src.palette[index]
+      result.set(x,y,(c.r,c.g,c.b,255'u8))
 
 proc mapRGB*(r,g,b: uint8): ColorId =
   for i,v in currentPalette.data:

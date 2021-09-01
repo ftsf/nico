@@ -112,6 +112,7 @@ export shuffle
 import times
 import strscans
 import strutils
+import parseutils
 
 ## Public API
 
@@ -464,28 +465,36 @@ proc loadPaletteFromImage*(filename: string): Palette =
 
 proc loadPaletteFromGPL*(filename: string): Palette =
   ## returns a palette from a GPL (GIMP PALETTE) file
-  var data = backend.readFile(joinPath(assetPath,filename))
-  var i = 0
-  for line in data.splitLines():
-    if line.len == 0:
-      continue
-    if i == 0:
-      if scanf(line, "GIMP Palette"):
-        i += 1
+  var data = backend.readFile(joinPath(assetPath, filename))
+  block parseColours:
+    for line in data.splitLines():
+
+      if line[0] == '#' or line.len == 0:
         continue
-    if line[0] == '#':
-      continue
-    if line.len == 0:
-      continue
-    var r,g,b: int
-    if scanf(line, "$s$i $s$i $s$i", r,g,b):
-      result.data[i-1] = RGB(r,g,b)
-      result.size += 1
-      if i > maxPaletteSize:
-        break
-      i += 1
-    else:
-      debug "not matched: ", line
+
+      var
+        r, g, b: int
+        i = 0
+        count = 0
+
+      while i < line.len:
+        i += skipUntil(line, Digits, i) # Some palettes may have multiple seperators
+        case count:
+        of 0:
+          i += parseInt(line, r, i)
+        of 1:
+          i += parseInt(line, g, i)
+        of 2:
+          i += parseInt(line, b, i)
+          result.data[result.size] = RGB(r, g, b)
+          inc result.size
+          if result.size >= maxPaletteSize:
+            debug "More colours than", maxPaletteSize
+            break parseColours
+          break # We're done with this line
+        else: discard # Handled above but yea
+        inc count
+
   pal()
   pald()
   palt()

@@ -5,29 +5,29 @@ import nico/console
 import nico/gui2
 import nico/vec
 import strutils
-import os
+import os except `/`
 
-type TweakKind = enum
-  TweakFloat
-  TweakInt
-  TweakBool
-
-type Tweak = object
-  case kind: TweakKind
-  of TweakFloat:
-    f: ptr float32
-    fmin,fmax: float32
-    fdefault: float32
-    fsaved: float32
-  of TweakInt:
-    i: ptr int
-    imin,imax: int
-    idefault: int
-    isaved: int
-  of TweakBool:
-    b: ptr bool
-    bdefault: bool
-    bsaved: bool
+type
+  TweakKind = enum
+    TweakFloat
+    TweakInt
+    TweakBool
+  Tweak = object
+    case kind: TweakKind
+    of TweakFloat:
+      f: ptr float32
+      fmin,fmax: float32
+      fdefault: float32
+      fsaved: float32
+    of TweakInt:
+      i: ptr int
+      imin,imax: int
+      idefault: int
+      isaved: int
+    of TweakBool:
+      b: ptr bool
+      bdefault: bool
+      bsaved: bool
 
 var tweakTable = newOrderedTable[string,Tweak]()
 var tweakCategory: string = ""
@@ -39,17 +39,18 @@ proc `/`(a,b: string): string =
   result.add "/"
   result.add b
 
-proc addTweak*[T: int or float32 or bool](name: string, v: var T, min = T.low, max = T.high) =
+proc addTweak*[T: int or float32 or bool](name: string, v: var T, rng: Slice[T] = T.low .. T.high) =
   tweakTable[tweakCategory / name] =
     when T is int:
       echo "addTweakInt: ", name, " = ", v
-      Tweak(kind: TweakInt, i: v.addr, imin: min, imax: max, idefault: v, isaved: v)
+      Tweak(kind: TweakInt, i: v.addr, imin: rng.a, imax: rng.b, idefault: v, isaved: v)
     elif T is float32:
       echo "addTweakFloat: ", name, " = ", v
-      Tweak(kind: TweakFloat, f: v.addr, fmin: min, fmax: max, fdefault: v, fsaved: v)
+      Tweak(kind: TweakFloat, f: v.addr, fmin: rng.a, fmax: rng.b, fdefault: v, fsaved: v)
     else:
       echo "addTweakBool: ", name, " = ", v
       Tweak(kind: TweakBool, b: v.addr, bdefault: v, bsaved: v)
+
 
 template editRange*(bounds: untyped) {.pragma.}
 
@@ -107,19 +108,19 @@ proc saveTweaks*(name = "tweaks") =
   except:
     echo "error saving tweaks"
 
-template tweaks*(category: string, body: untyped): untyped =
+template tweaks*(category: string, body: typed): untyped =
   let startCat = tweakCategory
-  tweakCategory = startCat / category
+  tweakCategory = tweakCategory / category
   body
   tweakCategory = startCat
 
-template tweak*(x: untyped, v: float32, min = -Inf.float32, max = Inf.float32): untyped =
+template tweak*(x: untyped, v: float32, rng = float32.low .. float32.high): untyped =
   var x: float32 = v
-  addTweak(x.astToStr, x, min, max)
+  addTweak(x.astToStr, x, rng)
 
-template tweak*(x: untyped, v: int, min = int.low, max = int.high): untyped =
+template tweak*(x: untyped, v: int, rng = int.low .. int.high): untyped =
   var x: int = v
-  addTweak(x.astToStr, x, min, max)
+  addTweak(x.astToStr, x, rng)
 
 template tweak*(x: untyped, v: bool): untyped =
   var x: bool = v

@@ -39,17 +39,17 @@ proc `/`(a,b: string): string =
   result.add "/"
   result.add b
 
-proc addTweakFloat*(name: string, f: ptr float32, min = -Inf.float32, max = Inf.float32) =
-  echo "addTweakFloat: ", name, " = ", $(f[])
-  tweakTable[tweakCategory / name] = Tweak(kind: TweakFloat, f: f, fmin: min, fmax: max, fdefault: f[], fsaved: f[])
-
-proc addTweakInt*(name: string, i: ptr int, min = int.low, max = int.high) =
-  echo "addTweakInt: ", name, " = ", $(i[])
-  tweakTable[tweakCategory / name] = Tweak(kind: TweakInt, i: i, imin: min, imax: max, idefault: i[], isaved: i[])
-
-proc addTweakBool*(name: string, b: ptr bool) =
-  echo "addTweakBool: ", name, " = ", $(b[])
-  tweakTable[tweakCategory / name] = Tweak(kind: TweakBool, b: b, bdefault: b[], bsaved: b[])
+proc addTweak*[T: int or float32 or bool](name: string, v: var T, min = T.low, max = T.high) =
+  tweakTable[tweakCategory / name] =
+    when T is int:
+      echo "addTweakInt: ", name, " = ", v
+      Tweak(kind: TweakInt, i: v.addr, imin: min, imax: max, idefault: v, isaved: v)
+    elif T is float32:
+      echo "addTweakFloat: ", name, " = ", v
+      Tweak(kind: TweakFloat, f: v.addr, fmin: min, fmax: max, fdefault: v, fsaved: v)
+    else:
+      echo "addTweakBool: ", name, " = ", v
+      Tweak(kind: TweakBool, b: v.addr, bdefault: v, bsaved: v)
 
 template editRange*(bounds: untyped) {.pragma.}
 
@@ -113,17 +113,17 @@ template tweaks*(category: string, body: untyped): untyped =
   body
   tweakCategory = startCat
 
-template tweakFloat*(x: untyped, v: float32, min = -Inf.float32, max = Inf.float32): untyped =
+template tweak*(x: untyped, v: float32, min = -Inf.float32, max = Inf.float32): untyped =
   var x: float32 = v
-  addTweakFloat(x.astToStr, x.addr, min, max)
+  addTweak(x.astToStr, x, min, max)
 
-template tweakInt*(x: untyped, v: int, min = int.low, max = int.high): untyped =
+template tweak*(x: untyped, v: int, min = int.low, max = int.high): untyped =
   var x: int = v
-  addTweakInt(x.astToStr, x.addr, min, max)
+  addTweak(x.astToStr, x, min, max)
 
-template tweakBool*(x: untyped, v: bool): untyped =
+template tweak*(x: untyped, v: bool): untyped =
   var x: bool = v
-  addTweakBool(x.astToStr, x.addr)
+  addTweak(x.astToStr, x)
 
 proc listTweaks(args: seq[string]): seq[string] =
   result = newSeq[string]()

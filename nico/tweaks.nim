@@ -105,15 +105,11 @@ proc saveTweaks*(name = "tweaks") =
   except:
     echo "error saving tweaks"
 
-
-
-import macros
-
 template tweaks*(category: string, body: untyped): untyped =
-  let cat = category
-  tweakCategory = cat
+  let startCat = tweakCategory
+  tweakCategory = startCat / category
   body
-  tweakCategory = ""
+  tweakCategory = startCat
 
 template tweakFloat*(x: untyped, v: float32, min = -Inf.float32, max = Inf.float32): untyped =
   var x: float32 = v

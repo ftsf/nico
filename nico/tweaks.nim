@@ -35,7 +35,9 @@ var tweakCategory: string = ""
 proc `/`(a,b: string): string =
   if a.len == 0:
     return b
-  return a & "/" & b
+  result = a
+  result.add "/"
+  result.add b
 
 proc addTweakFloat*(name: string, f: ptr float32, min = -Inf.float32, max = Inf.float32) =
   echo "addTweakFloat: ", name, " = ", $(f[])

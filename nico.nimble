@@ -57,6 +57,9 @@ task coro, "compile coro example":
 task benchmark, "compile benchmark example":
   exec "nim c -p:. -d:release -d:danger -o:examples/benchmark examples/benchmark.nim"
 
+task tweaker, "compile tweaker example":
+  exec "nim c -p:. -d:release -d:danger -o:examples/tweaker examples/tweaker.nim"
+
 task examples, "compile all examples":
   exec "nimble paintout"
   exec "nimble platformer"
@@ -65,6 +68,7 @@ task examples, "compile all examples":
   exec "nimble gui"
   exec "nimble benchmark"
   exec "nimble coro"
+  exec "nimble tweaks"
 
 task nicosynth, "runs nicosynth":
   exec "nim c -r -p:. -d:release -o:tools/nicosynth tools/nicosynth.nim"

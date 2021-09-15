@@ -717,13 +717,18 @@ proc loadSurfaceFromPNG*(filename: string, callback: proc(surface: common.Surfac
   surface.w = pngInfo.width
   surface.h = pngInfo.height
 
-  if pngInfo.mode.colorType == LCT_RGBA:
+case pngInfo.mode.colorType:
+  of LCT_RGBA:
     debug "loading RGBA image, converting to indexed using current palette ", filename
     surface.channels = 4
     surface.data = cast[seq[uint8]](png.pixels)
     callback(surface.convertToIndexed())
-
-  elif pngInfo.mode.colorType == LCT_PALETTE:
+  of LCT_RGB:
+    debug "loading RGB image, converting to indexed using current palette ", filename
+    surface.channels = 3
+    surface.data = cast[seq[uint8]](png.pixels)
+    callback(surface.convertToIndexed())
+  of LCT_PALETTE:
     debug "loading paletted image ", filename
     surface.channels = 1
     surface.palette = @[]
@@ -731,6 +736,8 @@ proc loadSurfaceFromPNG*(filename: string, callback: proc(surface: common.Surfac
       surface.palette.add((c.r.uint8, c.g.uint8, c.b.uint8))
     surface.data = cast[seq[uint8]](png.pixels)
     callback(surface)
+  else:
+    debug "ERROR: Unsupported Color Type '", $pngInfo.mode.colorType, "' failed to load image - ", filename
 
 proc refreshSpritesheets*() =
   for i in 0..<spriteSheets.len:

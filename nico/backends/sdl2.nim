@@ -717,7 +717,7 @@ proc loadSurfaceFromPNG*(filename: string, callback: proc(surface: common.Surfac
   surface.w = pngInfo.width
   surface.h = pngInfo.height
 
-case pngInfo.mode.colorType:
+  case pngInfo.mode.colorType:
   of LCT_RGBA:
     debug "loading RGBA image, converting to indexed using current palette ", filename
     surface.channels = 4

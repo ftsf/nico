@@ -11,7 +11,7 @@ import std/streams
 import std/random
 import std/os
 import std/osproc
-import std/parseCfg
+import std/parsecfg
 
 when defined(android):
   import std/strformat

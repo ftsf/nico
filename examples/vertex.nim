@@ -47,22 +47,22 @@ var nextId = 0
 proc newBoid(pos: Vec2f): Boid =
   result = new(Boid)
   result.id = nextId
-  result.introTimer = 1.0
+  result.introTimer = 1.0f
   result.toKill = false
   result.state = Mine
-  result.stateChangeTimeout = 0.5
+  result.stateChangeTimeout = 0.5f
   nextId += 1
   result.pos = pos
-  result.health = 0.5
+  result.health = 0.5f
   result.lastPos = result.pos
-  result.mass = 5.0
-  result.cohesion = 3.5
-  result.separation = 10.0
-  result.maxForce = 10.0
-  result.maxSpeed = 5.0
-  result.alignment = 0.5
-  result.shootTimeout = 5.0
-  result.splitTimer = 10.0
+  result.mass = 5.0f
+  result.cohesion = 3.5f
+  result.separation = 10.0f
+  result.maxForce = 10.0f
+  result.maxSpeed = 5.0f
+  result.alignment = 0.5f
+  result.shootTimeout = 5.0f
+  result.splitTimer = 10.0f
   result.neighbors = initHashSet[Boid]()
 
 proc hash(self: Boid): Hash =
@@ -70,11 +70,11 @@ proc hash(self: Boid): Hash =
   h = h !& self.id
   result = !$h
 
-proc seek(self: Boid, target: Vec2f, weight = 1.0'f) =
-  if (target - self.pos).length2 > 0.01'f:
+proc seek(self: Boid, target: Vec2f, weight = 1.0f) =
+  if (target - self.pos).length2 > 0.01f:
     self.steering += (target - self.pos).normalized * self.maxSpeed * weight
 
-proc arrive(self: Boid, target: Vec2f, stoppingDistance = 1.0, weight = 1.0) =
+proc arrive(self: Boid, target: Vec2f, stoppingDistance = 1.0f, weight = 1.0f) =
   self.steering += (target - self.pos).normalized * self.maxSpeed * weight
 
 
@@ -86,21 +86,21 @@ var lives = 3
 var wave = 1
 
 var ship: Boid
-var invulerable = 0.0
+var invulerable = 0.0f
 
-var waveTimer = 60.0
-var waveSpawnTimer = 10.0
+var waveTimer = 60.0f
+var waveSpawnTimer = 10.0f
 
 const maxBoids = 500
 const minBoids = 20
 const maxBullets = 20
 
-const cohesionRadius = 16.0
-const separationRadius = 12.0
+const cohesionRadius = 16.0f
+const separationRadius = 12.0f
 
-const shipMaxSpeed = 25.0
-const shipMaxForce = 100.0
-const shipAttackRadius = 12.0
+const shipMaxSpeed = 25.0f
+const shipMaxForce = 100.0f
+const shipAttackRadius = 12.0f
 
 proc gameInit() =
   setConsoleBG(24)
@@ -108,16 +108,16 @@ proc gameInit() =
 
   score = 0
   lives = 3
-  waveTimer = 60.0
-  waveSpawnTimer = 1.5
+  waveTimer = 60.0f
+  waveSpawnTimer = 1.5f
   wave = 1
-  invulerable = 5.0
+  invulerable = 5.0f
 
   boids = @[]
   bgBoids = @[]
   bullets = @[]
 
-  ship = newBoid(vec2f(screenWidth.float32 / 2.0, screenHeight.float32 / 2.0))
+  ship = newBoid(vec2f(screenWidth.float32 / 2.0f, screenHeight.float32 / 2.0f))
 
   registerConsoleCommand("restart", proc(args: seq[string]): seq[string] =
     gameInit()
@@ -129,11 +129,11 @@ proc gameInit() =
 
   consoleLog("restarting")
 
-var shake = 0.0
+var shake = 0.0f
 
 proc spawnRandomBoid(): Boid =
   var newPos = vec2f(rnd(screenWidth.float32), rnd(screenHeight.float32))
-  if further(newPos, ship.pos, 32.0):
+  if further(newPos, ship.pos, 32.0f):
     if boids.len < maxBoids:
       var boid = newBoid(newPos)
       return boid
@@ -148,9 +148,9 @@ proc gameUpdate(dt: float32) =
 
   waveTimer -= dt
   if waveTimer < 0:
-    waveTimer = 60.0
+    waveTimer = 60.0f
     wave += 1
-    waveSpawnTimer = wave.float32 * 1.0
+    waveSpawnTimer = wave.float32 * 1.0f
 
   if waveSpawnTimer > 0:
     var b = spawnRandomBoid()
@@ -185,18 +185,19 @@ proc gameUpdate(dt: float32) =
     let (mx,my) = mouse()
     let mv = vec2f(mx,my)
     let diff = (mv - ship.pos)
-    if diff.length2 > 0.01:
+    if diff.length2 > 0.01f:
       ship.vel += (mv - ship.pos).normalized * shipMaxForce * dt
 
   ship.vel = clamp(ship.vel, shipMaxSpeed)
 
-  if ship.vel.length2 > 0.01:
+  if ship.vel.length2 > 0.01f:
+    # ship should rotate towards its velocity vector
     let d = angleDiff(ship.vel.angle(), ship.angle)
-    ship.angle = ship.angle + d * 0.1
+    ship.angle -= d * 0.1f
 
   ship.pos += ship.vel * dt
 
-  ship.vel += -ship.vel * 0.9 * dt
+  ship.vel += -ship.vel * 0.9f * dt
 
   if ship.pos.x < 0:
     ship.pos.x = screenWidth.float32

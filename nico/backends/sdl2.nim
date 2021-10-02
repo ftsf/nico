@@ -1,53 +1,45 @@
 import common
-import json
-import tables
-import hashes
 
-import strutils
-import sequtils
-import times
+import std/json
+import std/tables
+import std/hashes
+import std/strutils
+import std/sequtils
+import std/times
+import std/math
+import std/streams
+import std/random
+import std/os
+import std/osproc
+import std/parseCfg
 
-import strformat
+when defined(android):
+  import std/strformat
+when defined(opengl):
+  import std/opengl
+
+import nimPNG
+when defined(gif):
+  import gifenc
+
+import sdl2_nim/sdl
 
 import nico/ringbuffer
 import nico/stb_vorbis
+import nico/controller
 
-import math
+proc toNicoKeycode(x: sdl.Keycode): common.Keycode =
+  return cast[common.Keycode](x)
 
-when defined(opengl):
-  import opengl
-import sdl2_nim/sdl except Keycode, Scancode
-from sdl2_nim/sdl import nil
+proc toNicoScancode(x: sdl.Scancode): common.Scancode =
+  return cast[common.Scancode](x)
 
-proc toNicoKeycode(x: sdl.Keycode): Keycode =
-  return (Keycode)(x)
-
-proc toNicoScancode(x: sdl.Scancode): Scancode =
-  return (Scancode)(x)
-
-proc hash(x: Keycode): Hash =
+proc hash(x: common.Keycode): Hash =
   var h: Hash = 0
   h = h !& hash(x.int)
   result = !$h
 
 proc errorPopup*(title: string, message: string)
-
-import nimPNG
-
-when defined(gif):
-  import gifenc
-
-import os
-import osproc
-
-import parseCfg
-
-export Scancode
-import streams
-import strutils
-
-import math
-import random
 
 # Types
 
@@ -152,8 +144,11 @@ else:
 
 var linearFilter = false
 
-var audioDeviceId: AudioDeviceID
-var audioInDeviceId: AudioDeviceID
+var audioDeviceId: sdl.AudioDeviceID
+var audioInDeviceId: sdl.AudioDeviceID
+var window: sdl.Window
+
+var noAudio = true
 var audioInSample*: float32
 var audioBufferSize = 1024*2
 
@@ -162,11 +157,10 @@ var displayWidth,displayHeight: int
 var inputSamples: seq[float32]
 var outputSamples: seq[float32]
 
-var window: Window
-
 var nextTick = 0
 var audioClock: bool
 var nextAudioClock = 0
+var vsyncEnabled: bool
 
 when defined(opengl):
   var glContext: GLContext
@@ -176,14 +170,14 @@ when defined(opengl):
   var shaderProgram: GLuint
   var lutTexture: GLuint
 else:
-  var render: Renderer
-  var hwCanvas: Texture
+  var render: sdl.Renderer
+  var hwCanvas: sdl.Texture
 
 var swCanvas32: sdl.Surface
 var srcRect: sdl.Rect
 var dstRect: sdl.Rect
 
-var current_time = getTicks()
+var current_time = sdl.getTicks()
 var acc = 0.0
 var next_time: uint32
 
@@ -199,37 +193,10 @@ var musicFileLibrary: array[64,string]
 var audioSampleId: uint32
 var audioChannels: array[nAudioChannels, Channel]
 
-import nico/controller
-
 # map of scancodes to NicoButton
 
 converter toScancode(x: int): sdl.Scancode =
-  (sdl.Scancode)(x)
-
-converter toInt(x: sdl.Scancode): int =
-  x.int
-
-keymap = [
-  @[SCANCODE_LEFT.int,  SCANCODE_A.int], # left
-  @[SCANCODE_RIGHT.int, SCANCODE_D.int], # right
-  @[SCANCODE_UP.int,    SCANCODE_W.int], # up
-  @[SCANCODE_DOWN.int,  SCANCODE_S.int], # down
-  @[SCANCODE_Z.int, SCANCODE_Y.int], # A
-  @[SCANCODE_X.int], # B
-  @[SCANCODE_LSHIFT.int, SCANCODE_RSHIFT.int], # X
-  @[SCANCODE_C.int], # Y
-
-  @[SCANCODE_F.int], # L1
-  @[SCANCODE_G.int], # L2
-  @[SCANCODE_H.int], # L3
-
-  @[SCANCODE_V.int], # R1
-  @[SCANCODE_B.int], # R2
-  @[SCANCODE_N.int], # R3
-
-  @[SCANCODE_RETURN.int], # Start
-  @[SCANCODE_ESCAPE.int, SCANCODE_BACKSPACE.int], # Back
-]
+  cast[sdl.Scancode](x)
 
 proc resetChannel*(channel: var Channel)
 
@@ -262,7 +229,7 @@ proc resize*(w,h: int) =
     discard
   else:
     if render != nil:
-      destroyRenderer(render)
+      sdl.destroyRenderer(render)
 
   if window == nil:
     debug "window is null, cannot resize"
@@ -393,10 +360,10 @@ proc resize*(w,h: int) =
       if lutID != -1:
         glUniform1i(lutID, 1.int)
 
-      echo "loaded LUT ", png.width, "x", png.height
+      debug "loaded LUT ", png.width, "x", png.height
 
     else:
-      echo "no LUT.png found"
+      debug "no LUT.png found"
 
     let texID = glGetUniformLocation(shaderProgram, "tex")
     if texID != -1:
@@ -405,20 +372,24 @@ proc resize*(w,h: int) =
     let canvasResID = glGetUniformLocation(shaderProgram, "canvasResolution")
     if canvasResID != -1:
       glUniform2f(canvasResID, screenWidth.float32, screenHeight.float32)
-    echo "canvasResolution ", screenWidth.float32, " ", screenHeight.float32
+    debug "canvasResolution ", screenWidth.float32, " ", screenHeight.float32
 
     let displayResID = glGetUniformLocation(shaderProgram, "displayResolution")
     if displayResID != -1:
       glUniform2f(displayResID, w.float32, h.float32)
-    echo "displayResolution ", w.float32, " ", h.float32
+    debug "displayResolution ", w.float32, " ", h.float32
 
     let scaleID = glGetUniformLocation(shaderProgram, "scale")
     if scaleID != -1:
       glUniform2f(scaleID, screenScale.float32, screenScale.float32)
-    echo "screenScale ", screenScale.float32, " ", screenScale.float32
+    debug "screenScale ", screenScale.float32, " ", screenScale.float32
 
   else:
-    render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync)
+    render = sdl.createRenderer(window, -1, sdl.Renderer_Accelerated or sdl.Renderer_PresentVsync)
+    var rendererInfo: sdl.RendererInfo
+    discard render.getRendererInfo(rendererInfo.addr)
+    vsyncEnabled = (rendererInfo.flags and sdl.Renderer_PresentVsync) != 0
+    debug "vsync: ", vsyncEnabled
     debug "created renderer"
 
     hwCanvas = render.createTexture(PIXELFORMAT_RGBA8888, TEXTUREACCESS_STREAMING, screenWidth, screenHeight)
@@ -710,7 +681,7 @@ proc loadSurfaceFromPNG*(filename: string, callback: proc(surface: common.Surfac
 
   let pngInfo = getInfo(png)
 
-  echo "loadSurfaceFromPNG ", filename, " size: ", pngInfo.width, "x", pngInfo.height, " type: ", pngInfo.mode.colorType
+  debug "loadSurfaceFromPNG ", filename, " size: ", pngInfo.width, "x", pngInfo.height, " type: ", pngInfo.mode.colorType
 
   var surface = newSurface(pngInfo.width, pngInfo.height)
   surface.filename = filename
@@ -859,14 +830,14 @@ proc saveRecording*() =
 proc getKeyNamesForBtn*(btn: NicoButton): seq[string] =
   result = newSeq[string]()
   for scancode in keymap[btn]:
-    result.add($(getKeyFromScancode((sdl.Scancode)scancode).getKeyName()))
+    result.add($(getKeyFromScancode(cast[sdl.Scancode](scancode)).getKeyName()))
 
 proc getKeyMap*(): string =
   result = ""
   for btn,scancodes in keymap:
     result.add($btn & ":")
     for i,scancode in scancodes:
-      result.add(getKeyFromScancode((sdl.Scancode)scancode).getKeyName())
+      result.add(getKeyFromScancode(cast[sdl.Scancode](scancode)).getKeyName())
       if i < scancodes.high:
         result.add(",")
     if btn != NicoButton.high:
@@ -876,7 +847,7 @@ proc setKeyMap*(mapstr: string) =
   if mapstr.len == 0:
     echo "setKeyMap: empty string"
     return
-  echo "setKeyMap: ", mapstr
+  debug "setKeyMap: ", mapstr
   for btnkeysstr in mapstr.split(";"):
     var b = btnkeysstr.split(":",1)
     var btnstr = b[0]
@@ -889,8 +860,8 @@ proc setKeyMap*(mapstr: string) =
       return
     keymap[btn] = @[]
     for keystr in keysstr.split(","):
-      let scancode = getKeyFromName(keystr).getScancodeFromKey()
-      keymap[btn].add(scancode.int)
+      let scancode = getKeyFromName(keystr.cstring).getScancodeFromKey().toNicoScancode()
+      keymap[btn].add(scancode)
 
 proc setFullscreen*(fullscreen: bool) =
   if fullscreen:
@@ -916,7 +887,7 @@ proc appHandleEvent(evt: sdl.Event) =
     var w,h: cint
     window.getWindowSize(w.addr,h.addr)
     resize(w,h)
-    current_time = getTicks()
+    current_time = sdl.getTicks()
     focused = true
 
   elif evt.kind == FingerDown:
@@ -1046,7 +1017,7 @@ proc appHandleEvent(evt: sdl.Event) =
     let down = evt.kind == ControllerButtonDown
     for controller in mitems(controllers):
       if controller.id == evt.cbutton.which:
-        case evt.cbutton.button.GameControllerButton:
+        case evt.cbutton.button:
         of CONTROLLER_BUTTON_A:
           controller.setButtonState(pcA, down)
         of CONTROLLER_BUTTON_B:
@@ -1083,7 +1054,7 @@ proc appHandleEvent(evt: sdl.Event) =
     for controller in mitems(controllers):
       if controller.id == evt.caxis.which:
         let value = evt.caxis.value.float32 / int16.high.float32
-        case evt.caxis.axis.GameControllerAxis:
+        case evt.caxis.axis:
         of CONTROLLER_AXIS_LEFTX:
           controller.setAxisValue(pcXAxis, value)
         of CONTROLLER_AXIS_LEFTY:
@@ -1102,14 +1073,14 @@ proc appHandleEvent(evt: sdl.Event) =
 
   elif evt.kind == WindowEvent:
     if evt.window.event == WindowEvent_Resized:
-      echo "Resize Event ", evt.window.data1, " x ", evt.window.data2
+      debug "Resize Event ", evt.window.data1, " x ", evt.window.data2
       resize(evt.window.data1, evt.window.data2)
       when not defined(opengl):
         discard render.setRenderTarget(nil)
         discard render.setRenderDrawColor(0,0,0,255)
         discard render.renderClear()
     elif evt.window.event == WindowEvent_Size_Changed:
-      echo "Size Changed Event ", evt.window.data1, " x ", evt.window.data2
+      debug "Size Changed Event ", evt.window.data1, " x ", evt.window.data2
       discard
     elif evt.window.event == WindowEvent_FocusLost:
       focused = false
@@ -1134,14 +1105,14 @@ proc appHandleEvent(evt: sdl.Event) =
       if listener(sym.int, mods.uint16, scancode.int, down.bool):
         return
 
-    if sym == (sdl.Keycode)K_AC_BACK:
+    if sym == sdl.Keycode.K_AC_BACK:
       controllers[0].setButtonState(pcBack, down)
 
-    elif sym == ((sdl.Keycode)K_q) and down and (mods and uint16(KMOD_CTRL)) != 0:
+    elif sym == (sdl.Keycode.K_q) and down and (mods and uint16(KMOD_CTRL)) != 0:
       # ctrl+q to quit
       keepRunning = false
 
-    elif sym == ((sdl.Keycode)K_f) and not down and (mods and uint16(KMOD_CTRL)) != 0:
+    elif sym == (sdl.Keycode.K_f) and not down and (mods and uint16(KMOD_CTRL)) != 0:
       if getFullscreen():
         setFullscreen(false)
         resize()
@@ -1150,7 +1121,7 @@ proc appHandleEvent(evt: sdl.Event) =
         resize()
       return
 
-    elif sym == ((sdl.Keycode)K_return) and not down and (mods and uint16(KMOD_ALT)) != 0:
+    elif sym == (sdl.Keycode.K_return) and not down and (mods and uint16(KMOD_ALT)) != 0:
       if getFullscreen():
         setFullscreen(false)
         resize()
@@ -1159,17 +1130,17 @@ proc appHandleEvent(evt: sdl.Event) =
         resize()
       return
 
-    elif sym == ((sdl.Keycode)K_F8) and down:
+    elif sym == (sdl.Keycode.K_F8) and down:
       # restart recording from here
       createRecordBuffer(true)
 
-    elif sym == ((sdl.Keycode)K_F9) and down:
+    elif sym == (sdl.Keycode.K_F9) and down:
       saveRecording()
 
-    elif sym == ((sdl.Keycode)K_F10) and down:
+    elif sym == (sdl.Keycode.K_F10) and down:
       saveScreenshot()
 
-    elif sym == ((sdl.Keycode)K_F11) and down:
+    elif sym == (sdl.Keycode.K_F11) and down:
       when system.hostOS == "windows":
         discard startProcess("explorer", writePath, [writePath], nil, {poUsePath})
       elif system.hostOS == "macosx":
@@ -1180,7 +1151,7 @@ proc appHandleEvent(evt: sdl.Event) =
     if evt.key.repeat == 0:
       for btn,btnScancodes in keymap:
         for btnScancode in btnScancodes:
-          if scancode == btnScancode:
+          if scancode.toNicoScancode() == btnScancode:
             controllers[0].setButtonState(btn, down)
 
 proc checkInput() =
@@ -1271,15 +1242,23 @@ proc queueMixerAudio*()
 proc queuedAudioSize*(): int =
   return getQueuedAudioSize(audioDeviceId).int div sizeof(float32)
 
+var realDt: float32
+
+proc getRealDt*(): float32 =
+  return realDt
+
 proc step*() {.cdecl.} =
   checkInput()
 
-  next_time = getTicks()
-  var diff = float32(next_time - current_time)/1000.0 * frameMult.float32
-  if diff > timeStep * 2.0'f:
+  next_time = sdl.getTicks()
+  var diff = float32(next_time - current_time)/1000f * frameMult.float32
+  if diff > timeStep * 2f:
     diff = timeStep
   acc += diff
   current_time = next_time
+
+  if acc > timeStep:
+    realDt = acc
 
   while acc > timeStep:
     when defined(profile):
@@ -1334,10 +1313,12 @@ proc step*() {.cdecl.} =
 
     acc -= timeStep
 
-    if queuedAudioSize() < audioBufferSize * 4:
+    if not noAudio and queuedAudioSize() < audioBufferSize * 4:
       profileBegin("audio")
       queueMixerAudio()
       profileEnd()
+
+    realDt = 0
 
 proc getPerformanceCounter*(): uint64 {.inline.} =
   return sdl.getPerformanceCounter()
@@ -1366,10 +1347,10 @@ when defined(emscripten):
 when defined(emscripten):
   proc initConfigDone*() {.exportc,cdecl.} =
     configInitialised = true
-    echo "initConfigDone"
+    debug "initConfigDone"
 
   proc initConfig() =
-    echo "initConfig"
+    debug "initConfig"
     configInitialised = false
     {.emit:"""
     EM_ASM(
@@ -1417,7 +1398,7 @@ else:
     configInitialised = true
 
 proc loadConfig*() =
-  echo "loadConfig"
+  debug "loadConfig"
   let defaultPath = joinPath(assetPath, "config.ini")
   let path = joinPath(writePath, "config.ini")
   try:
@@ -1448,7 +1429,7 @@ proc saveConfig*() =
 
 proc updateConfigValue*(section, key, value: string) =
   if config == nil:
-    echo "updateConfigValue but config is nil"
+    debug "updateConfigValue but config is nil"
     return
 
   debug "updateConfigValue", key, value
@@ -1456,7 +1437,7 @@ proc updateConfigValue*(section, key, value: string) =
 
 proc getConfigValue*(section, key: string, default: string = ""): string =
   if config == nil:
-    echo "getConfigValue ", section, " ", key, " but config is nil, returning default ", default
+    debug "getConfigValue ", section, " ", key, " but config is nil, returning default ", default
     return default
 
   result = config.getSectionValue(section, key)
@@ -1638,7 +1619,7 @@ proc queueMixerAudio*() =
     nDequeuedSamples = dequeueAudio(audioInDeviceId, inputSamples[0].addr, (audioBufferSize * sizeof(float32)).uint32).int div sizeof(float32)
 
     if nDequeuedSamples < audioBufferSize:
-      echo "didn't dequeue enough samples: ", nDequeuedSamples
+      debug "didn't dequeue enough samples: ", nDequeuedSamples
 
   for i in 0..<audioBufferSize:
 
@@ -1671,71 +1652,70 @@ proc queueMixerAudio*() =
   queueAudio(outputSamples)
 
 proc initMixer*(wantsAudioIn = false) =
-  when defined(js):
-    # use web audio
-    discard
+  debug "initMixer"
+  if sdl.init(INIT_AUDIO) != 0:
+    raise newException(Exception, "Unable to initialize audio")
+
+  var audioSpec: AudioSpec
+  audioSpec.freq = sampleRate.cint
+  audioSpec.format = AUDIO_F32
+  audioSpec.channels = 2
+  audioSpec.samples = audioBufferSize.uint16
+  audioSpec.padding = 0
+  audioSpec.callback = nil
+  audioSpec.userdata = nil
+
+  var obtained: AudioSpec
+  audioDeviceId = openAudioDevice(nil, 0, audioSpec.addr, obtained.addr, 0)
+  if audioDeviceId == 0:
+    noAudio = true
+    debug "Unable to open audio device: " & $getError()
+    return
   else:
-    debug "initMixer"
-    if sdl.init(INIT_AUDIO) != 0:
-      raise newException(Exception, "Unable to initialize audio")
+    debug "opened audio output ", obtained.freq.int, " channels: ", obtained.channels.int, " format: ", obtained.format.toHex()
+    noAudio = false
 
-    var audioSpec: AudioSpec
-    audioSpec.freq = sampleRate.cint
-    audioSpec.format = AUDIO_F32
-    audioSpec.channels = 2
-    audioSpec.samples = audioBufferSize.uint16
-    audioSpec.padding = 0
-    audioSpec.callback = nil
-    audioSpec.userdata = nil
+  sampleRate = obtained.freq.float32
+  invSampleRate = 1.0 / obtained.freq.float32
 
-    var obtained: AudioSpec
-    audioDeviceId = openAudioDevice(nil, 0, audioSpec.addr, obtained.addr, 0)
-    if audioDeviceId == 0:
-      raise newException(Exception, "Unable to open audio device: " & $getError())
-    else:
-      debug "opened audio output ", obtained.freq.int, " channels: ", obtained.channels.int, " format: ", obtained.format.toHex()
+  if wantsAudioIn:
+    var audioInSpec: AudioSpec
+    audioInSpec.freq = 44100.cint
+    audioInSpec.format = AUDIO_F32
+    audioInSpec.channels = 2
+    audioInSpec.samples = 1024
+    audioInSpec.padding = 0
+    audioInSpec.callback = nil
+    audioInSpec.userdata = nil
 
-    sampleRate = obtained.freq.float32
-    invSampleRate = 1.0 / obtained.freq.float32
+    let nAudioInDevices = getNumAudioDevices(1)
 
-    if wantsAudioIn:
-      var audioInSpec: AudioSpec
-      audioInSpec.freq = 44100.cint
-      audioInSpec.format = AUDIO_F32
-      audioInSpec.channels = 2
-      audioInSpec.samples = 1024
-      audioInSpec.padding = 0
-      audioInSpec.callback = nil
-      audioInSpec.userdata = nil
+    debug "nAudioInDevices: ", nAudioInDevices
+    for i in 0..<nAudioInDevices:
+      debug "id: ", i, " = ", getAudioDeviceName(i, 1)
 
-      let nAudioInDevices = getNumAudioDevices(1)
+    if nAudioInDevices > 0:
+      audioInDeviceId = openAudioDevice(nil, 1, audioInSpec.addr, obtained.addr, 0)
+      if audioInDeviceId == 0:
+        raise newException(Exception, "Unable to open audio input device: " & $getError())
+      else:
+        debug "opened audio input  ", obtained.freq.int, " channels: ", obtained.channels.int, " format: ", obtained.format.toHex()
+      inputSamples = newSeq[float32](audioBufferSize)
+      pauseAudioDevice(audioInDeviceId, 0)
 
-      debug "nAudioInDevices: ", nAudioInDevices
-      for i in 0..<nAudioInDevices:
-        debug "id: ", i, " = ", getAudioDeviceName(i, 1)
+  for c in audioChannels.mitems:
+    c.lfsr = 0xfeed
+    c.lfsr2 = 0x00fe
+    c.glide = 0
+    c.outputBuffer = initRingBuffer[float32](1024)
+    for j in 0..<32:
+      c.wavData[j] = rand(16).uint8
 
-      if nAudioInDevices > 0:
-        audioInDeviceId = openAudioDevice(nil, 1, audioInSpec.addr, obtained.addr, 0)
-        if audioInDeviceId == 0:
-          raise newException(Exception, "Unable to open audio input device: " & $getError())
-        else:
-          debug "opened audio input  ", obtained.freq.int, " channels: ", obtained.channels.int, " format: ", obtained.format.toHex()
-        inputSamples = newSeq[float32](audioBufferSize)
-        pauseAudioDevice(audioInDeviceId, 0)
+  outputSamples = newSeq[float32](audioBufferSize)
 
-    for c in audioChannels.mitems:
-      c.lfsr = 0xfeed
-      c.lfsr2 = 0x00fe
-      c.glide = 0
-      c.outputBuffer = initRingBuffer[float32](1024)
-      for j in 0..<32:
-        c.wavData[j] = rand(16).uint8
-
-    outputSamples = newSeq[float32](audioBufferSize)
-
-    queueMixerAudio()
-    pauseAudioDevice(audioDeviceId, 0)
-    debug "audio initialised using main thread"
+  queueMixerAudio()
+  pauseAudioDevice(audioDeviceId, 0)
+  debug "audio initialised using main thread"
 
 proc init*(org: string, app: string) =
   discard setHint("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")
@@ -1766,8 +1746,8 @@ proc init*(org: string, app: string) =
 
     debug "writePath: ", writePath
 
-    discard gameControllerAddMappingsFromFile(assetPath / "gamecontrollerdb.txt")
-    discard gameControllerAddMappingsFromFile(writePath / "gamecontrollerdb.txt")
+    discard gameControllerAddMappingsFromFile((assetPath / "gamecontrollerdb.txt").cstring)
+    discard gameControllerAddMappingsFromFile((writePath / "gamecontrollerdb.txt").cstring)
 
     for i in 0..numJoysticks():
       if isGameController(i):
@@ -1821,7 +1801,7 @@ when defined(emscripten):
   template mainLoop*(statement, actions: untyped): untyped =
     proc emscLoop {.cdecl.} =
       if not statement:
-        echo "end main loop"
+        debug "end main loop"
         emscripten_cancel_main_loop()
       else:
         actions
@@ -1830,19 +1810,19 @@ when defined(emscripten):
 
 proc stopLastRun*() =
   when defined(emscripten):
-    echo "stopLastRun"
+    debug "stopLastRun"
     emscripten_cancel_main_loop()
 
 proc run*() =
-  echo "backend.run"
+  debug "backend.run"
   keepRunning = true
 
   when defined(emscripten):
     mainLoop keepRunning:
       if configInitialised and initFuncCalled == false:
-        echo "calling initFunc"
+        debug "calling initFunc"
         initFuncCalled = true
-        echo "initFuncCalled = true"
+        debug "initFuncCalled = true"
         initFunc()
 
       if configInitialised:
@@ -1850,15 +1830,24 @@ proc run*() =
 
   else:
     while keepRunning:
+      var frameStartTime = getPerformanceCounter()
       if configInitialised and initFuncCalled == false:
         initFunc()
         initFuncCalled = true
-        echo "initFuncCalled = true"
+        debug "initFuncCalled = true"
 
       if configInitialised:
         step()
 
-      #delay(0)
+      if not vsyncEnabled:
+        # calculate how long we should sleep for to reduce cpu usage, if we have vsync this will do it for us
+        let frameEndTime = getPerformanceCounter()
+        let frameTime = ((frameEndTime - frameStartTime)*1000).float / getPerformanceFrequency().float
+        let targetFrameTime = 1000.0 / frameRate.float
+        let sleepTime = targetFrameTime - frameTime
+        #echo "frame time: ", frameTime, " target: ", targetFrameTime, " sleep time: ", sleepTime
+        if sleepTime > 0:
+          delay(sleepTime.uint32)
     sdl.quit()
 
 when defined(emscripten):
@@ -1867,9 +1856,9 @@ when defined(emscripten):
 proc waitUntilReady*() =
   when defined(emscripten):
     mainLoop wait:
-      echo "waiting..."
+      debug "waiting..."
       if configInitialised:
-        echo "ready to continue"
+        debug "ready to continue"
         wait = false
 
 proc newSfxBuffer(filename: string): SfxBuffer =
@@ -2120,6 +2109,32 @@ proc setLinearFilter*(on: bool) =
 proc hasWindow*(): bool =
   return window != nil
 
+proc setVSync*(on: bool) =
+  vsyncEnabled = on
+  discard setHint("SDL_HINT_RENDER_VSYNC", (if on: "1" else: "0").cstring)
+
+proc getVSync*(): bool =
+  return vsyncEnabled
+
 proc errorPopup*(title: string, message: string) =
   echo "ERROR: ", title," : ", message
   discard showSimpleMessageBox(MessageBoxError, title, message, window)
+
+when defined(android):
+  {.emit: """
+
+  extern int cmdCount;
+  extern char** cmdLine;
+  extern char** gEnv;
+
+  N_CDECL(void, NimMain)(void);
+
+  int SDL_main(int argc, char** args) {
+      cmdLine = args;
+      cmdCount = argc;
+      gEnv = NULL;
+      NimMain();
+      return nim_program_result;
+  }
+
+  """.}

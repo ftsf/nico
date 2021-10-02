@@ -153,7 +153,7 @@ proc richPrintOneLine*(text: string, x,y: int, align: TextAlign = taLeft, shadow
     elif outline:
       printOutline($c, x - (if align == taRight: tlen elif align == taCenter: tlen div 2 else: 0), y)
     else:
-      print($c, x + (if wiggle: cos(x.float32 * 0.5421f + t * wiggleSpeed) * wiggleAmount.float32 else: 0) - (if align == taRight: tlen elif align == taCenter: tlen div 2 else: 0), y + (if wiggle: sin(x.float32 * 0.234f + t * wiggleSpeed.float32 * 1.123f) * wiggleAmount.float32 else: 0f))
+      print($c, x + (if wiggle: cos(x.float32 * 0.5421f + t * wiggleSpeed) * wiggleAmount.float32 else: 0).int - (if align == taRight: tlen elif align == taCenter: tlen div 2 else: 0).int, y + (if wiggle: sin(x.float32 * 0.234f + t * wiggleSpeed.float32 * 1.123f) * wiggleAmount.float32 else: 0f).int)
     lastPrintedChar = c
     x += glyphWidth(c)
 

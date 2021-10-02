@@ -1,21 +1,23 @@
 import nico/backends/common
 import tables
 import unicode
-import bitops
 
 import nico/keycodes
-export keycodes
+export nico.keycodes
 
 import nico/spritedraw
 export spritedraw
 
-import nico/backends/sdl2 as backend
+when not defined(js):
+  import nico/backends/sdl2 as backend
+
 import os
 
 export StencilMode
 export StencilBlend
 
 export EventListener
+export Palette
 
 export SynthData
 export SynthDataStep
@@ -24,6 +26,7 @@ export synthDataFromString
 export synthIndex
 
 export waitUntilReady
+export getRealDt
 
 export profileGetLastStats
 export profileGetLastStatsPeak
@@ -89,8 +92,8 @@ export btn
 export btnp
 export btnpr
 export btnup
-export axis
-export axisp
+#export axis
+#export axisp
 
 export TouchState
 export Touch
@@ -177,7 +180,7 @@ proc palCol*(c: Pint, r,g,b: uint8) =
   ## sets the palette color to rgb value
   currentPalette.data[c.uint8] = (r,g,b)
 
-proc palCol*(c: Pint): (uint8,uint8,uint8) =
+proc palCol*(c: ColorId): (uint8,uint8,uint8) =
   ## gets the palette color as rgb
   return currentPalette.data[c.uint8]
 
@@ -330,6 +333,7 @@ proc line*(x0,y0,x1,y1: Pint)
 proc hline*(x0,y,x1: Pint)
 proc hlineFast*(x0,y,x1: Pint)
 proc vline*(x,y0,y1: Pint)
+proc tline*(x0,y0,x1,y1: Pint, tx,ty: Pfloat, tdx: Pfloat = 1f, tdy: Pfloat = 0f)
 
 # triangles
 proc trifill*(ax,ay,bx,by,cx,cy: Pint)
@@ -646,34 +650,42 @@ proc ditherPattern*(pattern: uint16 = 0b1111_1111_1111_1111) =
   # 4567
   # 89ab
   # cdef
+  gDitherMode = Dither4x4
   gDitherPattern = pattern
+
+proc ditherOffset*(x,y: Pint) =
+  gDitherOffsetX = x
+  gDitherOffsetY = y
 
 proc ditherPatternScanlines*() =
   ## sets the dithering pattern to draw every odd scanline
+  gDitherMode = Dither4x4
   gDitherPattern = 0b1111_0000_1111_0000
 
 proc ditherPatternScanlines2*() =
   ## sets the dithering pattern to draw every even scanline
+  gDitherMode = Dither4x4
   gDitherPattern = 0b0000_1111_0000_1111
 
 proc ditherPatternCheckerboard*() =
   ## sets the dithering pattern to draw a checkerboard
+  gDitherMode = Dither4x4
   gDitherPattern = 0b1010_0101_1010_0101
 
 proc ditherPatternCheckerboard2*() =
   ## sets the dithering pattern to draw a checkerboard
+  gDitherMode = Dither4x4
   gDitherPattern = 0b0101_1010_0101_1010
 
 proc ditherPatternBigCheckerboard*() =
   ## sets the dithering pattern to draw a 2x2 checkerboard
+  gDitherMode = Dither4x4
   gDitherPattern = 0b1100_1100_0011_0011
 
 proc ditherPatternBigCheckerboard2*() =
   ## sets the dithering pattern to draw a 2x2 checkerboard
+  gDitherMode = Dither4x4
   gDitherPattern = 0b0011_0011_1100_1100
-
-proc interleaveBits(a,b: uint16): uint16 =
-  result = (a and 0b1010_1010_1010_1010) or (b and 0b0101_0101_0101_0101)
 
 const bayer4x4int: array[16, int] = [
   0, 8, 2, 10,
@@ -687,18 +699,46 @@ for i in 0..<16:
 
 proc ditherPatternBayer*(a: float32) =
   ## sets the dithering pattern based on an amount 0f..1f using a 4x4 bayer matrix
-  let i = clamp((a * 16f).int, 0, 16)
+  gDitherMode = Dither4x4
   gDitherPattern = 0
   for i in 0..<16:
     let b = a < bayer4x4[i]
     if b:
       gDitherPattern = gDitherPattern or (1 shl i).uint16
 
+proc ditherNone*() =
+  gDitherMode = DitherNone
+
+proc ditherADitherAdd*(v: float32, a = 237,b = 119, c = 255) =
+  gDitherMode = DitherADitherAdd
+  gDitherADitherInput = v
+  gDitherADitherA = a
+  gDitherADitherB = b
+  gDitherADitherC = c
+
+proc ditherADitherXor*(v: float32, a = 149,b = 1234, c = 511) =
+  gDitherMode = DitherADitherXor
+  gDitherADitherInput = v
+  gDitherADitherA = a
+  gDitherADitherB = b
+  gDitherADitherC = c
+
 proc ditherPass(x,y: int): bool {.inline.} =
-  let x4 = (x mod 4).uint16
-  let y4 = (y mod 4).uint16
-  let bit = (y4 * 4 + x4).uint16
-  return (gDitherPattern and (1.uint16 shl bit)) != 0
+  let x = floorMod(x + gDitherOffsetX, screenWidth)
+  let y = floorMod(y + gDitherOffsetY, screenHeight)
+
+  case gDitherMode:
+  of DitherNone:
+    return true
+  of Dither4x4:
+    let x4 = (x mod 4).uint16
+    let y4 = (y mod 4).uint16
+    let bit = (y4 * 4 + x4).uint16
+    return (gDitherPattern and (1.uint16 shl bit)) != 0
+  of DitherADitherAdd:
+    return (gDitherADitherInput + (((x + y * gDitherADitherA) * gDitherADitherB and gDitherADitherC).float32 / gDitherADitherC.float32)) > 1f
+  of DitherADitherXor:
+    return (gDitherADitherInput + (((x xor y * gDitherADitherA) * gDitherADitherB and gDitherADitherC).float32 / gDitherADitherC.float32)) > 1f
 
 proc isKeyboard*(player: range[0..maxPlayers]): bool =
   ## returns true if player is using a keyboard
@@ -811,6 +851,45 @@ proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): Pfloat =
   if player > controllers.high:
     return 0.0
   return controllers[player].axis(axis)
+
+proc axis*(axis: NicoAxis): Pfloat =
+  ## returns the joystick axis value
+  for c in controllers:
+    let v = c.axis(axis)
+    if abs(v) > c.deadzone:
+      result += v
+    if axis == pcXAxis:
+      if c.btn(pcLeft):
+        result -= 1f
+      if c.btn(pcRight):
+        result += 1f
+    elif axis == pcYAxis:
+      if c.btn(pcUp):
+        result -= 1f
+      if c.btn(pcDown):
+        result += 1f
+  result = clamp(result, -1f, 1f)
+
+proc axis*(axis: NicoAxis, player: range[0..maxPlayers]): Pfloat =
+  ## returns the joystick axis value
+  if player > controllers.high:
+    return 0.0
+  ## returns the joystick axis value
+  let c = controllers[player]
+  let v = c.axis(axis)
+  if abs(v) > c.deadzone:
+    result += v
+  if axis == pcXAxis:
+    if c.btn(pcLeft):
+      result -= 1f
+    if c.btn(pcRight):
+      result += 1f
+  elif axis == pcYAxis:
+    if c.btn(pcUp):
+      result -= 1f
+    if c.btn(pcDown):
+      result += 1f
+  result = clamp(result, -1f, 1f)
 
 proc pal*(a,b: ColorId) =
   ## set the drawing palette color mapping for a to b
@@ -1020,7 +1099,7 @@ proc rboxfill*(x,y,w,h: Pint, r: Pint = 1) =
   ## draws a filled rounded rectangle from position and size, r specifies radius
   rrectfill(x,y,x+w-1,y+h-1,r)
 
-proc innerLineLow(x0,y0,x1,y1: int) =
+template innerLineLow(x0,y0,x1,y1: int, call: untyped): untyped =
   var dx = x1 - x0
   var dy = y1 - y0
   var yi = 1
@@ -1028,16 +1107,16 @@ proc innerLineLow(x0,y0,x1,y1: int) =
     yi = -1
     dy = -dy
   var D = 2*dy - dx
-  var y = y0
+  var y {.inject.} = y0
 
-  for x in x0..x1:
-    pset(x,y)
+  for x {.inject.} in x0..x1:
+    call
     if D > 0:
       y = y + yi
       D = D - 2*dx
     D = D + 2*dy
 
-proc innerLineHigh(x0,y0,x1,y1: int) =
+template innerLineHigh(x0,y0,x1,y1: int, call: untyped): untyped =
   var dx = x1 - x0
   var dy = y1 - y0
   var xi = 1
@@ -1045,89 +1124,68 @@ proc innerLineHigh(x0,y0,x1,y1: int) =
     xi = -1
     dx = -dx
   var D = 2*dx - dy
-  var x = x0
+  var x {.inject.} = x0
 
-  for y in y0..y1:
-    pset(x,y)
+  for y {.inject.} in y0..y1:
+    call
     if D > 0:
       x = x + xi
       D = D - 2*dy
     D = D + 2*dx
 
-proc innerLine(x0,y0,x1,y1: Pint) =
-  if abs(y1 - y0) < abs(x1 - x0):
+template innerLine(x0,y0,x1,y1: Pint, call: untyped): untyped =
+  if x0 == x1 and y0 == y1:
+    let x {.inject.} = x0
+    let y {.inject.} = y0
+    call
+
+  elif y0 == y1:
+    # horizontal
+    let y {.inject.} = y0
+    for x {.inject.} in min(x0,x1)..max(x0,x1):
+      call
+
+  elif x0 == x1:
+    # vertical
+    let x {.inject.} = x0
+    for y {.inject.} in min(y0,y1)..max(y0,y1):
+      call
+
+  elif abs(y1 - y0) < abs(x1 - x0):
     if x0 > x1:
-      innerLineLow(x1,y1,x0,y0)
+      innerLineLow(x1,y1,x0,y0):
+        call
     else:
-      innerLineLow(x0,y0,x1,y1)
+      innerLineLow(x0,y0,x1,y1):
+        call
   else:
     if y0 > y1:
-      innerLineHigh(x1,y1,x0,y0)
+      innerLineHigh(x1,y1,x0,y0):
+        call
     else:
-      innerLineHigh(x0,y0,x1,y1)
+      innerLineHigh(x0,y0,x1,y1):
+        call
 
 proc line*(x0,y0,x1,y1: Pint) =
   ## draws a line between two points
-  if x0 == x1 and y0 == y1:
-    pset(x0,y0)
-  elif x0 == x1:
-    vline(x0, y0, y1)
-  elif y0 == y1:
-    hline(x0, y0, x1)
-  else:
-    innerLine(x0,y0,x1,y1)
+  innerLine(x0,y0,x1,y1):
+    pset(x,y)
 
-proc innerLineDashedLow(x0,y0,x1,y1: int, pattern: uint8) =
-  var dx = x1 - x0
-  var dy = y1 - y0
-  var yi = 1
-  if dy < 0:
-    yi = -1
-    dy = -dy
-  var D = 2*dy - dx
-  var y = y0
-
+proc tline*(x0,y0,x1,y1: Pint, tx,ty: Pfloat, tdx: Pfloat = 1f, tdy: Pfloat = 0f) =
+  ## draws a textured line between two points sampling the current spritesheet
+  ## tx,ty are starting texture coordinates
+  ## tdx: amount to add to tx after each pixel is drawn defaults to 1 pixel
+  ## tdy: amount to add to ty after each pixel is drawn defaults to 0 pixels
+  var tx = tx
+  var ty = ty
   var i = 0
-  for x in x0..x1:
-    if (pattern and (1 shl i).uint8) != 0:
-      pset(x,y)
-    i = (i + 1) mod 8
-    if D > 0:
-      y = y + yi
-      D = D - 2*dx
-    D = D + 2*dy
-
-proc innerLineDashedHigh(x0,y0,x1,y1: int, pattern: uint8) =
-  var dx = x1 - x0
-  var dy = y1 - y0
-  var xi = 1
-  if dx < 0:
-    xi = -1
-    dx = -dx
-  var D = 2*dx - dy
-  var x = x0
-
-  var i = 0
-  for y in y0..y1:
-    if (pattern and (1 shl i).uint8) != 0:
-      pset(x,y)
-    i = (i + 1) mod 8
-    if D > 0:
-      x = x + xi
-      D = D - 2*dy
-    D = D + 2*dx
-
-proc innerLineDashed(x0,y0,x1,y1: int, pattern: uint8) =
-  if abs(y1 - y0) < abs(x1 - x0):
-    if x0 > x1:
-      innerLineDashedLow(x1,y1,x0,y0,pattern)
-    else:
-      innerLineDashedLow(x0,y0,x1,y1,pattern)
-  else:
-    if y0 > y1:
-      innerLineDashedHigh(x1,y1,x0,y0,pattern)
-    else:
-      innerLineDashedHigh(x0,y0,x1,y1,pattern)
+  innerLine(x0,y0,x1,y1):
+    let c = sget(tx.int,ty.int)
+    pset(x,y,c)
+    echo "i: ", i, " tx: ", tx, " ty: ", ty
+    tx += tdx
+    ty += tdy
+    i.inc()
 
 proc hlineFast*(x0,y,x1: Pint) =
   ## draws a horizontal line without checking for errors (unsafe, be sure to check bounds before using this)
@@ -1170,40 +1228,12 @@ proc vline*(x,y0,y1: Pint) =
   for y in y0..y1:
     pset(x,y)
 
-proc hlineDashed*(x0,y,x1: Pint, pattern: uint8 = 0b10101010) =
-  ## draws a horizontal dashed line, the line will only been drawn where the pattern is 1 in binary
-  var x0 = x0
-  var x1 = x1
-  var i = 0
-  if x1<x0:
-    swap(x1,x0)
-  for x in x0..x1:
-    if (pattern and (1 shl i).uint8) != 0:
-      pset(x,y)
-    i = (i + 1) mod 8
-
-proc vlineDashed*(x,y0,y1: Pint, pattern: uint8 = 0b10101010) =
-  ## draws a vertical dashed line, the line will only been drawn where the pattern is 1 in binary
-  var y0 = y0
-  var y1 = y1
-  var i = 0
-  if y1<y0:
-    swap(y1,y0)
-  for y in y0..y1:
-    if (pattern and (1 shl i).uint8) != 0:
-      pset(x,y)
-    i = (i + 1) mod 8
-
 proc lineDashed*(x0,y0,x1,y1: Pint, pattern: uint8 = 0b10101010) =
   ## draws a dashed line, the line will only been drawn where the pattern is 1 in binary
-  if x0 == x1 and y0 == y1:
-    pset(x0,y0)
-  elif x0 == x1:
-    vlineDashed(x0, y0, y1, pattern)
-  elif y0 == y1:
-    hlineDashed(x0, y0, x1, pattern)
-  else:
-    innerLineDashed(x0,y0,x1,y1, pattern)
+  var i = 0
+  innerLine(x0,y0,x1,y1):
+    if (pattern and (1 shl i).uint8) != 0:
+      pset(x,y)
 
 proc rect*(x1,y1,x2,y2: Pint) =
   ## draws a rectangle defined by two points
@@ -1363,6 +1393,7 @@ proc orient2d(ax,ay,bx,by,cx,cy: Pint): int =
 
 proc trifill*(ax,ay,bx,by,cx,cy: Pint) =
   ## fills a triangle defined by 3 points with current color
+  #  https://github.com/rygorous/rygblog-src/blob/master/posts/optimizing-the-basic-rasterizer.md
   let ax = ax - cameraX
   let bx = bx - cameraX
   let cx = cx - cameraX
@@ -1383,6 +1414,55 @@ proc trifill*(ax,ay,bx,by,cx,cy: Pint) =
     A20 = cy - ay
     B20 = ax - cx
 
+  # Barycentric coordinates at minX/minY corner
+  var w0_row = orient2d(bx,by,cx,cy,minx,miny)
+  var w1_row = orient2d(cx,cy,ax,ay,minx,miny)
+  var w2_row = orient2d(ax,ay,bx,by,minx,miny)
+
+  # Go through all the pixels in the triangle's bounding box
+  # and test if they are within the triangle
+  # if inside then draw the pixel
+  for py in minY..maxY:
+    var w0 = w0_row
+    var w1 = w1_row
+    var w2 = w2_row
+
+    for px in minX..maxX:
+      #if w0 >= 0 and w1 >= 0 and w2 >= 0: # tests whether the pixel is inside the triangle
+      if (w0 or w1 or w2) > 0:
+        psetRaw(px,py)
+
+      w0 += A12
+      w1 += A20
+      w2 += A01
+
+    w0_row += B12
+    w1_row += B20
+    w2_row += B01
+
+proc ttrifill*(ax,ay,au,av,bx,by,bu,bv,cx,cy,cu,cv: Pfloat) =
+  ## fills a triangle defined by 3 points with current color
+  let ax = ax - cameraX
+  let bx = bx - cameraX
+  let cx = cx - cameraX
+  let ay = ay - cameraY
+  let by = by - cameraY
+  let cy = cy - cameraY
+
+  let minX = max(min(min(ax, bx), cx), clipMinX)
+  let minY = max(min(min(ay, by), cy), clipMinY)
+  let maxX = min(max(max(ax, bx), cx), clipMaxX)
+  let maxY = min(max(max(ay, by), cy), clipMaxY)
+
+  let
+    A01 = ay - by
+    B01 = bx - ax
+    A12 = by - cy
+    B12 = cx - bx
+    A20 = cy - ay
+    B20 = ax - cx
+
+  let invArea = 1f / orient2d(ax,ay,bx,by,cx,cy).float32
   var w0_row = orient2d(bx,by,cx,cy,minx,miny)
   var w1_row = orient2d(cx,cy,ax,ay,minx,miny)
   var w2_row = orient2d(ax,ay,bx,by,minx,miny)
@@ -1394,7 +1474,14 @@ proc trifill*(ax,ay,bx,by,cx,cy: Pint) =
 
     for px in minX..maxX:
       if w0 >= 0 and w1 >= 0 and w2 >= 0:
-        psetRaw(px,py)
+        let bw0 = w0.float32 * invArea
+        let bw1 = w1.float32 * invArea
+        let bw2 = w2.float32 * invArea
+        let tx = au * bw0 + bu * bw1 + cu * bw2
+        let ty = av * bw0 + bv * bw1 + cv * bw2
+        let c = sget(tx,ty)
+        psetRaw(px,py,c)
+
       w0 += A12
       w1 += A20
       w2 += A01
@@ -1407,6 +1494,11 @@ proc quadfill*(x1,y1,x2,y2,x3,y3,x4,y4: Pint) =
   ## fills a quadrilateral with current color
   trifill(x1,y1,x2,y2,x3,y3)
   trifill(x1,y1,x3,y3,x4,y4)
+
+proc tquadfill*(x1,y1,u1,v1, x2,y2,u2,v2, x3,y3,u3,v3, x4,y4,u4,v4: Pfloat) =
+  ## fills a quadrilateral with current color
+  ttrifill(x1,y1,u1,v1, x2,y2,u2,v2, x3,y3,u3,v3)
+  ttrifill(x1,y1,u1,v1, x3,y3,u3,v3, x4,y4,u4,v4)
 
 proc plot4pointsfill(cx,cy,x,y: Pint) =
   hline(cx - x, cy + y, cx + x)
@@ -1773,8 +1865,6 @@ proc blitFastRot90(src: Surface, srcRect: Rect, dx, dy: Pint, rotations: int) =
       # check dest pixel is in bounds
       if dxi < clipMinX or dyi < clipMinY or dxi > clipMaxX or dyi > clipMaxY:
         continue
-
-      let dstIndex = dyi * swCanvas.w + dxi
 
       var sx: int
       var sy: int
@@ -2245,7 +2335,7 @@ proc clearKeysForBtn*(btn: NicoButton) =
   ## clear key map for btn
   keymap[btn] = @[]
 
-proc addKeyForBtn*(btn: NicoButton, scancode: int) =
+proc addKeyForBtn*(btn: NicoButton, scancode: Scancode) =
   ## add a new key for btn
   if not (scancode in keymap[btn]):
     keymap[btn].add(scancode)
@@ -2658,7 +2748,11 @@ proc loadMap*(index: int, filename: string, layer = 0) =
   ## loads map from a Tiled format json file into map slot `index`, extracts specified `layer`
   var tm: Tilemap
   # read tiled output format
-  let j = readJsonFile(joinPath(assetPath,filename))
+  var j: JsonNode
+  try:
+    j = readJsonFile(joinPath(assetPath,filename))
+  except:
+    return
   tm.w = j["width"].getBiggestInt.int
   tm.h = j["height"].getBiggestInt.int
   tm.hex = j["orientation"].getStr == "hexagonal"
@@ -2845,6 +2939,9 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
 proc hasWindow*(): bool =
   ## returns true if window has been created
   return backend.hasWindow()
+
+export setVSync
+export getVSync
 
 proc readFile*(filename: string): string =
   ## returns the contents of filename
@@ -3041,40 +3138,38 @@ proc remove*[T](a: var seq[T], v: T) =
   if i != -1:
     a.delete(i)
 
-proc approach*[T](a, b: T, speed: T): T =
+proc approach*[T](a: var T, b: T, speed: T) =
   if b > a:
-    result = min(a + speed, b)
+    a = min(a + speed, b)
   elif a > b:
-    result = max(a - speed, b)
-  else:
-    result = a
+    a = max(a - speed, b)
+
+proc approach*[T](a: T, b: T, speed: T): T =
+  if b > a:
+    return min(a + speed, b)
+  elif a > b:
+    return max(a - speed, b)
+
+proc approachAngle*(a: var float32, b: float32, speed: float32) =
+  let diff = angleDiff(a, b)
+  a = a + clamp(diff, -speed, speed)
+
+template timer*(a: typed, body: untyped): untyped =
+  if a > 0:
+    a -= 1
+    if a == 0:
+      body
 
 converter toPint*(x: uint8): Pint =
   x.Pint
+
+converter toPfloat*(x: int): Pfloat {.inline.} =
+  return x.Pfloat
 
 iterator all*[T](a: var openarray[T]): T {.inline.} =
   let len = a.len
   for i in 0..<len:
     yield a[i]
-
-when defined(android):
-  {.emit: """
-
-  extern int cmdCount;
-  extern char** cmdLine;
-  extern char** gEnv;
-
-  N_CDECL(void, NimMain)(void);
-
-  int SDL_main(int argc, char** args) {
-      cmdLine = args;
-      cmdCount = argc;
-      gEnv = NULL;
-      NimMain();
-      return nim_program_result;
-  }
-
-  """.}
 
 when defined(test):
   import unittest
@@ -3141,3 +3236,6 @@ when defined(test):
       check(approach(0f, 1f, 1.5f) == 1.0f)
       check(approach(0f, -1f, 1.5f) == -1.0f)
 
+      var a = 0f
+      a.approach(1f, 1.5f)
+      check(a == 1f)

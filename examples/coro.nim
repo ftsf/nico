@@ -1,5 +1,4 @@
 import nico
-import strformat
 import sequtils
 
 nico.init("nico","coroutines")

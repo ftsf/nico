@@ -31,8 +31,6 @@ var currentInstrumentSetting: range[0..3] = 0
 
 var songChannelCursors: array[4, uint8]
 
-var musicTimer: int
-
 proc musicUpdate() =
   for channel in 0..3:
     let pat = song[songChannelCursors[channel]][channel]
@@ -99,11 +97,11 @@ proc gameInit() =
 proc gameUpdate(dt: float32) =
   if btn(pcX):
     if btnp(pcLeft):
-      if view > view.low:
+      if view > typeof(view).low:
         view = (view.int - 1).View
       return
     if btnp(pcRight):
-      if view < view.high:
+      if view < typeof(view).high:
         view = (view.int + 1).View
       return
 

@@ -15,7 +15,7 @@ type
     rem: Vec2f
     hitbox: Hitbox
     shouldKill: bool
-    bounciness: float
+    bounciness: float32
     ethereal: bool
     riding: Obj
 
@@ -111,7 +111,7 @@ proc newPlatform(x,y: int, direction: int): Platform =
   result.hitbox.y = 0
   result.hitbox.h = 8
   result.direction = direction
-  result.vel.x = direction.float * 0.1
+  result.vel.x = direction.float32 * 0.1
 
 proc newFloater(x,y: int): Floater =
   result = new(Floater)
@@ -125,7 +125,7 @@ proc newFloater(x,y: int): Floater =
   result.hp = 2
   result.target = nil
 
-proc newBullet(x,y: int,xv,yv: float): Bullet =
+proc newBullet(x,y: int,xv,yv: float32): Bullet =
   result = new(Bullet)
   result.damage = 1
   result.pos.x = x
@@ -138,7 +138,7 @@ proc newBullet(x,y: int,xv,yv: float): Bullet =
   result.hitbox.h = 4
   result.ttl = 30
 
-proc newFart(x,y: int,xv,yv: float): Fart =
+proc newFart(x,y: int,xv,yv: float32): Fart =
   result = new(Fart)
   result.pos.x = x
   result.pos.y = y
@@ -150,7 +150,7 @@ proc newFart(x,y: int,xv,yv: float): Fart =
   result.hitbox.h = 4
   result.ttl = 4
 
-proc newGem(x,y: int,xv,yv: float, size: int): Gem =
+proc newGem(x,y: int,xv,yv: float32, size: int): Gem =
   result = new(Gem)
   result.size = size
   result.pos.x = x
@@ -192,7 +192,7 @@ proc overlaps(a,b: Obj, ox,oy: int): bool =
 
   return not ( ax0 > bx1 or ay0 > by1 or ax1 < bx0 or ay1 < by0 )
 
-proc appr(val, target, amount: float): float =
+proc appr(val, target, amount: float32): float32 =
   return if val > target: max(val - amount, target) else: min(val + amount, target)
 
 proc tileAt(x,y: int): int =
@@ -298,20 +298,20 @@ method collide(a: Crate, b: Bullet) =
 method collide(a: Bullet, b: Crate) =
   collide(b,a)
 
-proc moveX(self: Obj, amount, start: float) =
+proc moveX(self: Obj, amount, start: float32) =
   var step = amount.int.sgn
-  for i in start..<abs(amount.int):
+  for i in start.int..<abs(amount.int):
     if self.ethereal or not self.isSolid(step,0) and not self.check(Block,step,0):
       self.pos.x += step
       for obj in objects:
         if obj.riding == self:
-          obj.moveX(step.float, 0.0)
+          obj.moveX(step.float32, 0.0)
     else:
       self.vel.x = -self.vel.x * self.bounciness
       self.rem.x = 0
       break
 
-proc moveY(self: Obj, amount: float) =
+proc moveY(self: Obj, amount: float32) =
   var step = amount.int.sgn
   for i in 0..<abs(amount.int):
     if self.ethereal or not self.isSolid(0,step) and not self.check(Block,0,step):
@@ -321,7 +321,7 @@ proc moveY(self: Obj, amount: float) =
       self.rem.y = 0
       break
 
-proc move(self: Obj, ox,oy: float) =
+proc move(self: Obj, ox,oy: float32) =
   self.rem.x += ox
   var amount = flr(self.rem.x + 0.5)
   self.rem.x -= amount
@@ -469,9 +469,9 @@ method update(self: Player) =
       self.grace -= 1
 
     if abs(self.vel.x) > maxrun:
-      self.vel.x = appr(self.vel.x, input.float * maxrun, deccel)
+      self.vel.x = appr(self.vel.x, input.float32 * maxrun, deccel)
     else:
-      self.vel.x = appr(self.vel.x, input.float * maxrun, accel)
+      self.vel.x = appr(self.vel.x, input.float32 * maxrun, accel)
 
     var maxfall = if btn(pcDown): 2.0 else: 1.5
     var gravity = if btn(pcDown): 0.21 else: 0.105
@@ -499,7 +499,7 @@ method update(self: Player) =
         if self.wasOnWall and input != 0:
           self.jbuffer = 0
           self.vel.y = -2.0
-          self.vel.x = -input.float * (maxrun + 0.1)
+          self.vel.x = -input.float32 * (maxrun + 0.1)
 
     self.wasOnGround = onGround
     if self.wasOnGround:
@@ -517,24 +517,24 @@ method update(self: Player) =
     if btn(pcA) and self.firing and self.bulletTimer <= 0:
 
       if self.ammo <= 0:
-        var fart = newFart(self.pos.x, self.pos.y + 8.0, 0, 2.0)
+        var fart = newFart(self.pos.x, self.pos.y + 8, 0, 2.0f)
         objects.add(fart)
         self.bulletTimer = 16
       else:
         case self.weapon:
         of Machinegun:
-          var bullet = newBullet(self.pos.x, self.pos.y + 4.0, 0, 4.0)
+          var bullet = newBullet(self.pos.x, self.pos.y + 4, 0, 4.0f)
           objects.add(bullet)
           self.bulletTimer = 8
           self.ammo -= 1
           self.vel.y -= 0.1
-          synth(1, synSqr, 1000.0, 3, -3)
+          synth(1, synSqr, 1000.0f, 3, -3)
           pitchbend(1, -40)
         of Shotgun:
           for i in 0..5:
-            var bullet = newBullet(self.pos.x, self.pos.y + 4.0, rnd(2.0)-1.0, 4.0)
+            var bullet = newBullet(self.pos.x, self.pos.y + 4, rnd(2.0f)-1.0f, 4.0f)
             objects.add(bullet)
-            self.vel.y -= 0.2
+            self.vel.y -= 0.2f
           self.ammo -= 2
           self.bulletTimer = 16
         else:
@@ -608,7 +608,7 @@ method draw(self: Gem) =
 method draw(self: Floater) =
   if self.hitflash > 0 and frame mod 10 < 5:
     pal(2,3)
-  spr(48 + ((frame.float / 30.0).int mod 4), self.pos.x, self.pos.y)
+  spr(48 + ((frame.float32 / 30.0).int mod 4), self.pos.x, self.pos.y)
   pal(2,2)
 
 method draw(self: Crate) =
@@ -688,7 +688,7 @@ proc gameUpdate(dt: float32) =
     objects.keepIf() do(a: Obj) -> bool:
       a.shouldKill == false
 
-  cy = lerp(cy, player.pos.y.float - 64.0, 0.1)
+  cy = lerp(cy, player.pos.y.float32 - 64.0, 0.1)
 
 proc gameDraw() =
   cls()

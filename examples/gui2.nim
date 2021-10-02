@@ -56,9 +56,9 @@ proc gameUpdate(dt: float32) =
 
     guiFoldout("Slider"):
       for i,v in floatData.mpairs:
-        guiSlider(&"f{i+1}", v, 0, 10)
+        guiSlider(&"f{i+1}", v, 0, 0, 10)
       for i,v in intData.mpairs:
-        guiSlider(&"int{i+1}", v, -100, 100)
+        guiSlider(&"int{i+1}", v, 0, -100, 100)
 
     guiFoldout("XY"):
       guiSize(h = 32)

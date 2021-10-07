@@ -1,33 +1,30 @@
+import std/algorithm
+import std/json
+import std/math
+import std/os
+import std/random
+import std/strscans
+import std/strutils
+import std/tables
+import std/times
+import std/unicode
+
+import nico/ringbuffer
+import nico/fontdata
+
 import nico/backends/common
-import tables
-import unicode
-
+import nico/controller
 import nico/keycodes
-export nico.keycodes
-
 import nico/spritedraw
-export spritedraw
-
 when not defined(js):
   import nico/backends/sdl2 as backend
 
-import os
+# Public API
 
-export StencilMode
-export StencilBlend
+export nico.keycodes
+export spritedraw
 
-export EventListener
-export Palette
-
-export SynthData
-export SynthDataStep
-export synthDataToString
-export synthDataFromString
-export synthIndex
-
-export waitUntilReady
-export getRealDt
-
+# Profiling
 export profileGetLastStats
 export profileGetLastStatsPeak
 export profileCollect
@@ -36,12 +33,13 @@ export profileEnd
 export ProfilerNode
 export profileHistory
 
-export errorPopup
-
-export setClipboardText
-
 # Audio
-export joinPath
+export SynthData
+export SynthDataStep
+export synthDataToString
+export synthDataFromString
+export synthIndex
+
 export loadSfx
 export loadMusic
 export sfx
@@ -67,77 +65,10 @@ export volume
 export musicGetPos
 export musicSeek
 
-# shader stuff
+# Shaders
 export setShaderBool
 export setShaderFloat
 export setLinearFilter
-
-export clipMinX,clipMinY,clipMaxX,clipMaxY
-export currentColor
-export cameraX,cameraY
-
-export debug
-import nico/controller
-export NicoController
-export NicoControllerKind
-export NicoAxis
-export NicoButton
-export ColorId
-
-export startTextInput
-export stopTextInput
-export isTextInput
-
-export btn
-export btnp
-export btnpr
-export btnup
-#export axis
-#export axisp
-
-export TouchState
-export Touch
-
-import nico/ringbuffer
-import math
-export pow
-import algorithm
-import json
-
-export math.sin
-export math.sqrt
-export math.PI
-export math.TAU
-
-import random
-export shuffle
-
-import times
-import strscans
-import strutils
-
-## Public API
-
-export Event
-export EventKind
-
-export timeStep
-
-export Pint
-export toPint
-export Pfloat
-export toPfloat
-
-export setKeyMap
-
-export basePath
-export assetPath
-export writePath
-
-export loadConfig
-export saveConfig
-export updateConfigValue
-export getConfigValue
 
 # Fonts
 proc getFont*(): FontId
@@ -157,8 +88,10 @@ proc textWidth*(text: string, scale: Pint = 1): Pint
 proc glyphWidth*(c: Rune, scale: Pint = 1): Pint
 proc glyphWidth*(c: char, scale: Pint = 1): Pint
 
-# Colors
-proc setColor*(colId: ColorId)
+# Colors and Palettes
+export ColorId
+export Palette
+
 proc getColor*(): ColorId
 proc loadPaletteFromGPL*(filename: string): Palette
 proc loadPaletteFromImage*(filename: string): Palette
@@ -203,19 +136,22 @@ proc clip*(x,y,w,h: Pint)
 proc clip*()
 proc getClip*(): (int,int,int,int)
 
+export clipMinX,clipMinY,clipMaxX,clipMaxY
+
 # Bitops
-proc contains[T](flags: T, bit: T): bool =
+proc contains*[T](flags: T, bit: T): bool =
   return (flags.int and 1 shl bit.int) != 0
 
-proc set[T](flags: var T, bit: T) =
+proc set*[T](flags: var T, bit: T) =
   flags = (flags.int or 1 shl bit.int).T
 
-proc unset[T](flags: var T, bit: T) =
+proc unset*[T](flags: var T, bit: T) =
   flags = (flags.int and (not 1 shl bit.int)).T
 
-
-
 # Stencil
+export StencilMode
+export StencilBlend
+
 proc stencilSet*(x,y,v: Pint) =
   stencilBuffer.set(x,y,v.uint8)
 
@@ -276,19 +212,16 @@ proc stencilTest(x,y: int, nv: uint8): bool =
 proc setCamera*(x,y: Pint = 0)
 proc getCamera*(): (Pint,Pint)
 
-# Input Gamepad
-proc btn*(b: NicoButton): bool
-proc btnp*(b: NicoButton): bool
-proc btnup*(b: NicoButton): bool
-proc btnpr*(b: NicoButton, repeat = 48): bool
-proc jaxis*(axis: NicoAxis): Pfloat
+export currentColor
+export cameraX,cameraY
 
-proc btn*(b: NicoButton, player: range[0..maxPlayers]): bool
-proc btnp*(b: NicoButton, player: range[0..maxPlayers]): bool
-proc btnup*(b: NicoButton, player: range[0..maxPlayers]): bool
-proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool
-proc btnRaw*(b: NicoButton, player: range[0..maxPlayers]): int
-proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): Pfloat
+# Input Gamepad
+proc btn*(b: NicoButton, player: int): bool
+proc btnp*(b: NicoButton, player: int): bool
+proc btnup*(b: NicoButton, player: int): bool
+proc btnpr*(b: NicoButton, player: int, repeat = 48): bool
+proc btnRaw*(b: NicoButton, player: int): int
+proc jaxis*(axis: NicoAxis, player: int): Pfloat
 
 # Input / Mouse
 proc mouse*(): (int,int)
@@ -308,6 +241,24 @@ proc getTouchCount*(): int =
 
 export hideMouse
 export showMouse
+
+export NicoController
+export NicoControllerKind
+export NicoAxis
+export NicoButton
+
+export startTextInput
+export stopTextInput
+export isTextInput
+
+export TouchState
+export Touch
+
+export Event
+export EventKind
+export EventListener
+
+export setKeyMap
 
 ## Drawing API
 
@@ -360,10 +311,18 @@ proc copy*(sx,sy,dx,dy,w,h: Pint) # copy one area of the screen to another
 
 
 # math
-export sin
-export cos
-export abs
-export `mod`
+export math.sin
+export math.cos
+export math.sqrt
+export math.PI
+export math.TAU
+export math.pow
+export math.`mod`
+
+export Pint
+export toPint
+export Pfloat
+export toPfloat
 
 proc wrap*[T](x,m: T): T
 
@@ -380,9 +339,12 @@ proc mid*[T](a,b,c: T): T =
     swap(a,b)
   return max(a, min(b, c))
 
-## System functions
+## System
 proc shutdown*()
 proc init*(org: string, app: string)
+
+export waitUntilReady
+export getRealDt
 
 export getKeyNamesForBtn
 export getUnmappedJoysticks
@@ -393,6 +355,24 @@ export setRecordSeconds
 export getKeyMap
 export getPerformanceCounter
 export getPerformanceFrequency
+
+export errorPopup
+export setClipboardText
+export joinPath
+export debug
+export basePath
+export assetPath
+export writePath
+export timeStep
+
+export screenWidth
+export screenHeight
+
+# Config
+export loadConfig
+export saveConfig
+export updateConfigValue
+export getConfigValue
 
 # Tilemap functions
 proc mset*(tx,ty: Pint, t: int)
@@ -405,10 +385,6 @@ proc newMap*(index: int, w,h: Pint, tw,th: Pint = 8)
 proc pixelToMap*(px,py: Pint): (Pint,Pint) # returns the tile coordinates at pixel position
 proc mapToPixel*(tx,ty: Pint): (Pint,Pint) # returns the pixel position of the tile coordinates
 proc saveMap*(index: int, filename: string)
-
-export toPint
-export screenWidth
-export screenHeight
 
 # Maths functions
 proc flr*(x: Pfloat): Pfloat
@@ -740,45 +716,31 @@ proc ditherPass(x,y: int): bool {.inline.} =
   of DitherADitherXor:
     return (gDitherADitherInput + (((x xor y * gDitherADitherA) * gDitherADitherB and gDitherADitherC).float32 / gDitherADitherC.float32)) > 1f
 
-proc isKeyboard*(player: range[0..maxPlayers]): bool =
+proc isKeyboard*(player: int): bool =
   ## returns true if player is using a keyboard
   if player > controllers.high:
     return false
   return controllers[player].kind == Keyboard
 
-proc isGamepad*(player: range[0..maxPlayers]): bool =
+proc isGamepad*(player: int): bool =
   ## returns true if player is using a gamepad
   if player > controllers.high:
     return false
   return controllers[player].kind == Gamepad
 
-proc btn*(b: NicoButton): bool =
-  ## returns true while button is held down on any controller
-  for c in controllers:
-    if c.btn(b):
-      return true
-  return false
-
-proc btnup*(b: NicoButton): bool =
-  ## returns true if button was just released on any controller
-  for c in controllers:
-    if c.btnup(b):
-      return true
-  return false
-
-proc btn*(b: NicoButton, player: range[0..maxPlayers]): bool =
+proc btn*(b: NicoButton, player: int): bool =
   ## returns true while button is held down on player's controller
   if player > controllers.high:
     return false
   return controllers[player].btn(b)
 
-proc btnup*(b: NicoButton, player: range[0..maxPlayers]): bool =
+proc btnup*(b: NicoButton, player: int): bool =
   ## returns true if button was just released on player's controller
   if player > controllers.high:
     return false
   return controllers[player].btnup(b)
 
-proc btnRaw*(b: NicoButton, player: range[0..maxPlayers]): int =
+proc btnRaw*(b: NicoButton, player: int): int =
   ## returns the internal button value 0 = not down, -1 = just released, >1 = how long it's been held down
   if player > controllers.high:
     return 0
@@ -791,7 +753,7 @@ proc btnp*(b: NicoButton): bool =
       return true
   return false
 
-proc btnp*(b: NicoButton, player: range[0..maxPlayers]): bool =
+proc btnp*(b: NicoButton, player: int): bool =
   ## returns true if button was just pressed on player's controller
   if player > controllers.high:
     return false
@@ -804,7 +766,7 @@ proc btnpr*(b: NicoButton, repeat = 48): bool =
       return true
   return false
 
-proc btnpr*(b: NicoButton, player: range[0..maxPlayers], repeat = 48): bool =
+proc btnpr*(b: NicoButton, player: int, repeat = 48): bool =
   ## returns true if button was just pressed or held down repeating every repeat frames on any controller
   if player > controllers.high:
     return false
@@ -816,7 +778,7 @@ proc anybtnp*(): bool =
     if c.anybtnp():
       return true
 
-proc anybtnp*(player: range[0..maxPlayers]): bool =
+proc anybtnp*(player: int): bool =
   ## returns true if any key pressed
   if player > controllers.high:
     return false
@@ -846,7 +808,7 @@ proc jaxis*(axis: NicoAxis): Pfloat =
       return v
   return 0.0
 
-proc jaxis*(axis: NicoAxis, player: range[0..maxPlayers]): Pfloat =
+proc jaxis*(axis: NicoAxis, player: int): Pfloat =
   ## returns the joystick axis value
   if player > controllers.high:
     return 0.0
@@ -870,7 +832,7 @@ proc axis*(axis: NicoAxis): Pfloat =
         result += 1f
   result = clamp(result, -1f, 1f)
 
-proc axis*(axis: NicoAxis, player: range[0..maxPlayers]): Pfloat =
+proc axis*(axis: NicoAxis, player: int): Pfloat =
   ## returns the joystick axis value
   if player > controllers.high:
     return 0.0
@@ -2151,8 +2113,6 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
 
   return font
 
-import nico/fontdata
-
 proc loadDefaultFont*(index: int) =
   ## loads the default font into font index
   let shouldReplace = currentFont == fonts[index]
@@ -2881,6 +2841,9 @@ template decWrap*[T](x: var T) =
     x = T.high
   else:
     x.dec()
+
+# Random
+export shuffle
 
 proc rnd*[T: Natural](x: T): T =
   ## returns a random number from 0..<x, x will never be returned

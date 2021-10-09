@@ -703,6 +703,37 @@ proc loadSurfaceFromPNG*(filename: string, callback: proc(surface: common.Surfac
     surface.data = cast[seq[uint8]](png.pixels)
     callback(surface)
 
+proc loadSurfaceFromPNGNoConvert*(filename: string, callback: proc(surface: common.Surface)) =
+  var buffer = readFile(filename)
+  let ss = newStringStream(buffer)
+
+  let png = decodePNG(ss, nil)
+
+  let pngInfo = getInfo(png)
+
+  debug "loadSurfaceFromPNGNoConvert ", filename, " size: ", pngInfo.width, "x", pngInfo.height, " type: ", pngInfo.mode.colorType
+
+  var surface = newSurface(pngInfo.width, pngInfo.height)
+  surface.filename = filename
+  surface.w = pngInfo.width
+  surface.h = pngInfo.height
+
+  if pngInfo.mode.colorType == LCT_RGBA:
+    debug "loading RGBA image ", filename
+    surface.channels = 4
+    surface.data = cast[seq[uint8]](png.pixels)
+    callback(surface)
+
+  elif pngInfo.mode.colorType == LCT_PALETTE:
+    debug "loading paletted image ", filename
+    surface.channels = 1
+    surface.palette = @[]
+    for i, c in pngInfo.mode.palette:
+      surface.palette.add((c.r.uint8, c.g.uint8, c.b.uint8))
+    surface.data = cast[seq[uint8]](png.pixels)
+    callback(surface)
+
+
 proc refreshSpritesheets*() =
   for i in 0..<spriteSheets.len:
     if spriteSheets[i] != nil and spriteSheets[i].filename != "":

@@ -2079,6 +2079,25 @@ proc musicVol*(): int =
   ## returns the music volume
   return (musicVolume * 255.0'f).int
 
+proc consumeCharacter(font: Font, posX, posY: var int, index: int, charId: Rune) =
+  var rect: Rect = (posX,posY,0,0)
+  while font.data[rect.y*font.w+rect.x] == 2:
+    rect.x.inc()
+  # determine height, go down until we hit the bottom of font or borderColor
+  for y in posY..<font.h:
+    if font.data[y*font.w+rect.x] == 2:
+      break
+    rect.h.inc()
+  for x in rect.x..<font.w:
+    if font.data[posY*font.w+x] == 2:
+      break
+    rect.w.inc()
+  when defined(fontDebug):
+    echo index, ": ", $charId, " ", rect
+  font.rects[charId] = rect
+  posX = rect.x + rect.w + 1
+  posY = rect.y
+
 proc createFontFromSurface(surface: Surface, chars: string): Font =
   var font = new(Font)
 
@@ -2092,6 +2111,12 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
 
   if surface.channels == 4:
     debug "loading font from RGBA", surface.filename, "chars", chars.runeLen
+    var borderColorRGBA = (
+      surface.data[0],
+      surface.data[1],
+      surface.data[2],
+      surface.data[3]
+    )
     for i in 0..<font.w*font.h:
       var col = (
         surface.data[i*surface.channels+0],
@@ -2099,10 +2124,10 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
         surface.data[i*surface.channels+2],
         surface.data[i*surface.channels+3]
       )
-      if col[3] == 0:
-        font.data[i] = transparentColor
-      elif col[0] > 127:
+      if col == borderColorRGBA:
         font.data[i] = borderColor
+      elif col[3] == 0:
+        font.data[i] = transparentColor
       else:
         font.data[i] = solidColor
 
@@ -2113,40 +2138,29 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
 
   font.rects = initTable[Rune,Rect](128)
 
-  echo "loading font ", surface.filename, " with ", chars.len, " chars"
 
-  var newChar = false
   var currentRect: Rect = (0,0,0,0)
   var i = 0
   var charPos = 0
+  var lastChar = -1
+  echo "loading font ", surface.filename, " with ", chars.runeLen, " chars, width: ", font.w
   # scan across the top of the font image
-  for x in 0..<font.w:
-    let color = font.data[x]
-    if color == borderColor:
-      currentRect.w = x - currentRect.x
-      if currentRect.w != 0:
-        # go down until we find border or h
-        currentRect.h = font.h-1
-        for y in 0..<font.h:
-          let color = font.data[y*font.w+x]
-          if color == borderColor:
-            currentRect.h = y
-        try:
-          var charId: Rune
-          chars.fastRuneAt(charPos, charId, true)
-          if font.rects.hasKey(charId):
-            raise newException(Exception, "font already has character: " & $charId & " index: " & $i)
-          font.rects[charId] = currentRect
-          i += 1
-        except:
-          echo "reached end of characters"
-          break
-      newChar = true
-      currentRect.x = x + 1
+  var posX, posY: int
+  var charId: Rune
+  while charPos < chars.len:
+    chars.fastRuneAt(charPos, charId, true)
+    if font.rects.hasKey(charId):
+      raise newException(Exception, "font already has character: " & $charId & " index: " & $i)
+    font.consumeCharacter(posX, posY, i, charId)
+    if posX >= font.w:
+      break
+    i.inc()
 
-  echo "loaded font with ", font.rects.len, " chars"
+  echo "loaded font with ", font.rects.len, "/", chars.runeLen, " chars"
 
   if font.rects.len != chars.runeLen:
+    if lastChar != -1:
+      echo "last loaded char: ", lastChar.Rune, " at index ", i, " x: ", currentRect.x
     raise newException(Exception, "didn't load all characters from font, loaded: " & $font.rects.len & " bitmaps of specified chars " & $chars.runeLen)
 
   return font
@@ -2172,7 +2186,7 @@ proc loadFont*(index: int, filename: string) =
   except IOError as e:
     raise newException(Exception, "Missing " & datPath & " needed if not passing chars to loadFont: " & e.msg)
   chars.removeSuffix()
-  backend.loadSurfaceFromPNG(joinPath(assetPath,filename)) do(surface: Surface):
+  backend.loadSurfaceFromPNGNoConvert(joinPath(assetPath,filename)) do(surface: Surface):
     fonts[index] = createFontFromSurface(surface, chars)
     if shouldReplace:
       debug "updating current font ", index

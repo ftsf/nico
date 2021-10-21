@@ -5,18 +5,18 @@ import math
 var frame = 0
 
 # color
-var t = 8.0
+var t = 8.0f
 
 # paddle
-var px = 64.0
-var py = 120.0
-var pxv = 0.0
+var px = 64.0f
+var py = 120.0f
+var pxv = 0.0f
 
 # ball
-var bx = 64.0
-var by = 64.0
-var bxv = 0.0
-var byv = 0.0
+var bx = 64.0f
+var by = 64.0f
+var bxv = 0.0f
+var byv = 0.0f
 
 var text: string
 var splat = false
@@ -50,33 +50,33 @@ proc gameInit() =
   music(15, 0)
 
   text = "HELLO WORLD"
-  bxv = 0.5
-  byv = 0.75
+  bxv = 0.5f
+  byv = 0.75f
 
 proc gameUpdate(dt: Pfloat) =
   frame += 1
-  t += 0.1
-  if t >= 16.0:
-    t = 8.0
+  t += 0.1f
+  if t >= 16f:
+    t = 8f
 
   # move paddle
   if btn(pcLeft):
-    pxv -= 0.1
+    pxv -= 0.1f
   if btn(pcRight):
-    pxv += 0.1
+    pxv += 0.1f
   px += pxv
-  pxv *= 0.95
+  pxv *= 0.95f
 
-  let tw = textWidth(text)
-  if px - tw div 2 < 0:
-    px = (tw div 2).float
-  if px > screenWidth - tw div 2:
-    px = (screenWidth - tw div 2).float
+  let tw = textWidth(text).float32
+  if px - tw / 2f < 0:
+    px = tw / 2f
+  if px > screenWidth.float32 - tw / 2f:
+    px = (screenWidth.float32 - tw / 2f)
 
   # move ball
   bx += bxv
   by += byv
-  byv += 0.1
+  byv += 0.1f
 
   # hit the sides
   if bx > screenWidth - 4 or bx < 4:

@@ -1,6 +1,4 @@
 import nico
-import strformat
-import sequtils
 
 
 proc gameInit() =
@@ -21,5 +19,5 @@ proc gameDraw() =
     spr(16+i, i * 8, 8)
 
 nico.init("nico","palette")
-nico.createWindow("coroutines", 128, 128, 3)
+nico.createWindow("palette", 128, 128, 3)
 nico.run(gameInit, gameUpdate, gameDraw)

@@ -2,46 +2,33 @@ import math
 import nico/vec
 
 type
-  Mat4x4f* = object
-    data*: array[16,float32]
-  Mat3x3f* = object
-    data*: array[9,float32]
+  Mat*[N: static int,T] = object
+    data*: array[N*N, T]
+  Mat4x4f* = Mat[4,float32]
+  Mat3x3f* = Mat[3,float32]
+  Mat2x2f* = Mat[2,float32]
 
-proc `[]`*(m: Mat4x4f, i: int): float32 =
+proc `[]`*[N,T](m: Mat[N,T], i: int): T =
   m.data[i]
 
-proc `[]`*(m: var Mat4x4f, i: int): var float32 =
+proc `[]`*[N,T](m: var Mat[N,T], i: int): var T =
   m.data[i]
 
-proc `[]=`*(m: var Mat4x4f, i: int, v: float32) =
+proc `[]=`*[N,T](m: var Mat[N,T], i: int, v: T) =
   m.data[i] = v
 
-proc `[]`*(m: Mat4x4f, x,y: int): float32 =
-  m.data[x * 4 + y]
+proc `[]`*[N,T](m: Mat[N,T], x,y: int): T =
+  m.data[x * N + y]
 
-proc `[]`*(m: var Mat4x4f, x,y: int): var float32 =
-  m.data[x * 4 + y]
+proc `[]`*[N,T](m: var Mat[N,T], x,y: int): var T =
+  m.data[x * N + y]
 
-proc `[]=`*(m: var Mat4x4f, x,y: int, v: float32) =
-  cast[ptr array[16,float32]](m.data[0].addr)[x * 4 + y] = v
+proc `[]=`*[N,T](m: var Mat[N,T], x,y: int, v: T) =
+  cast[ptr array[N,T]](m.data[0].addr)[x * N + y] = v
 
-proc `[]`*(m: Mat3x3f, i: int): float32 =
-  m.data[i]
-
-proc `[]`*(m: var Mat3x3f, i: int): var float32 =
-  m.data[i]
-
-proc `[]=`*(m: var Mat3x3f, i: int, v: float32) =
-  m.data[i] = v
-
-proc `[]`*(m: Mat3x3f, x,y: int): float32 =
-  m.data[x * 3 + y]
-
-proc `[]`*(m: var Mat3x3f, x,y: int): var float32 =
-  m.data[x * 3 + y]
-
-proc `[]=`*(m: var Mat3x3f, x,y: int, v: float32) =
-  cast[ptr array[9,float32]](m.data[0].addr)[x * 3 + y] = v
+proc mat2x2f*(m: float32 = 1.0'f): Mat2x2f =
+  result[0,0] = m
+  result[1,1] = m
 
 proc mat4x4f*(m: float32 = 1.0'f): Mat4x4f =
   # X x.x x.y x.z 0
@@ -120,6 +107,12 @@ proc `*=`*(a: var Mat4x4f, b: Mat4x4f) =
       for k in 0..<4:
         v += tmp[k,j] * b[i,k]
       a[i,j] = v
+
+proc `*`*(m: Mat2x2f, v: Vec2f): Vec2f =
+  let x = v.x
+  let y = v.y
+  result.x = x * m[0,0] + y * m[1,0]
+  result.y = x * m[0,1] + y * m[1,1]
 
 proc `*`*(m: Mat4x4f, v: Vec4f): Vec4f =
   let x = v.x

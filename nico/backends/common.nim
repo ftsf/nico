@@ -8,8 +8,8 @@ import strutils
 
 import nico/keycodes
 
-export Keycode
-export Scancode
+export keycodes.Keycode
+export keycodes.Scancode
 
 # Constants
 
@@ -363,7 +363,28 @@ var screenHeight* = 128
 var screenPaddingX* = 0
 var screenPaddingY* = 0
 
-var keymap*: array[NicoButton, seq[int]]
+var keymap*: array[NicoButton, seq[Scancode]] = [
+# default keymap
+  @[SCANCODE_LEFT,  SCANCODE_A], # left
+  @[SCANCODE_RIGHT, SCANCODE_D], # right
+  @[SCANCODE_UP,    SCANCODE_W], # up
+  @[SCANCODE_DOWN,  SCANCODE_S], # down
+  @[SCANCODE_Z, SCANCODE_Y, SCANCODE_SPACE], # A
+  @[SCANCODE_X], # B
+  @[SCANCODE_LSHIFT, SCANCODE_RSHIFT], # X
+  @[SCANCODE_C], # Y
+
+  @[SCANCODE_F], # L1
+  @[SCANCODE_G], # L2
+  @[SCANCODE_H], # L3
+
+  @[SCANCODE_V], # R1
+  @[SCANCODE_B], # R2
+  @[SCANCODE_N], # R3
+
+  @[SCANCODE_RETURN], # Start
+  @[SCANCODE_ESCAPE, SCANCODE_BACKSPACE], # Back
+]
 
 var controllerAddedFunc*: proc(controller: NicoController)
 var controllerRemovedFunc*: proc(controller: NicoController)
@@ -376,8 +397,20 @@ var fullSpeedGif* = true
 
 var mixerChannels* = 0
 
-var gDitherPattern*: uint16 = 0b1111_1111_1111_1111
+type DitherMode* = enum
+  DitherNone
+  Dither4x4
+  DitherADitherAdd
+  DitherADitherXor
 
+var gDitherPattern*: uint16 = 0b1111_1111_1111_1111
+var gDitherMode*: DitherMode
+var gDitherADitherA* = 149
+var gDitherADitherB* = 1234
+var gDitherADitherC* = 511
+var gDitherADitherInput* = 1f
+var gDitherOffsetX* = 0
+var gDitherOffsetY* = 0
 
 var frameRate* = 60
 var timeStep* = 1/frameRate

@@ -1,7 +1,6 @@
 import nico
 import strutils
 import tables
-import unicode
 
 var consoleBG: ColorId = 9
 var consoleFG: ColorId = 1

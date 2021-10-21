@@ -1,11 +1,7 @@
 import nico
-import nico/utils
-import strutils
-import std/wordwrap
 import tables
 
 import algorithm
-import sequtils
 
 import nico/debug
 

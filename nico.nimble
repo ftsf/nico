@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.4.4"
+version       = "0.4.6"
 author        = "Jez 'Impbox' Kabanov"
 description   = "Nico Game Engine"
 license       = "MIT"
@@ -50,6 +50,9 @@ task vertex, "compile vertex example":
 
 task gui, "compile gui example":
   exec "nim c -p:. -d:debug -o:examples/gui examples/gui.nim"
+
+task guiweb, "compile gui example":
+  exec "nim c -d:emscripten -p:. -o:examples/gui.js examples/gui2.nim"
 
 task coro, "compile coro example":
   exec "nim c -p:. -d:debug -o:examples/gui examples/coro.nim"

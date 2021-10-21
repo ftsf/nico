@@ -531,12 +531,14 @@ proc slide*(v,n: Vec2f): Vec2f =
 proc scaleOnTwoAxes*(v: var Vec2f, axis: Vec2f, s1,s2: float32) =
   v = dot(v,axis) * v * s1 + dot(v,axis.perpendicular) * v * s2
 
-proc round*[N,T](v: Vec[N,T]): T =
+proc round*[N,T](v: Vec[N,T]): Vec[N,T] =
   for i in 0..<N:
-    v[i] = v.round()
+    result[i] = v[i].round()
 
 proc `div`*[N,T](v: Vec[N,T], s: T): Vec[N,T] =
-  var v = v
   for i in 0..<N:
-    v[i] = v[i] div s
-  return v
+    result[i] = v[i] div s
+
+proc flr*[N,T](v: Vec[N,T]): Vec[N,T] =
+  for i in 0..<N:
+    result[i] = flr(v[i])

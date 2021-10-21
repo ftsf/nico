@@ -1,6 +1,7 @@
 import nico
 import times
 import strformat
+import nico/utils
 
 type BenchmarkMode = enum
   bmPoints
@@ -15,12 +16,14 @@ type BenchmarkMode = enum
   bmSpriteScaled
   bmSpriteRot
   bmTrifill
+  bmTTrifill
 
 var mode = bmPoints
 var autoAdjust = false
 var lastMs: float32
 
 var useClip = false
+var vsync = true
 
 var toDraw: array[BenchmarkMode, int]
 toDraw[bmPoints] = 50000
@@ -35,6 +38,7 @@ toDraw[bmSpriteIntScaled] = 1000
 toDraw[bmSpriteScaled] = 1000
 toDraw[bmSpriteRot] = 1000
 toDraw[bmTrifill] = 1000
+toDraw[bmTTrifill] = 1000
 
 var avgMs = 0f
 
@@ -43,17 +47,32 @@ var time = 0f
 var cx = 0
 var cy = 0
 
+var secondTimer = 0f
+var framesRendered = 0
+var framesRenderedLastSecond = 0
+
 proc gameInit() =
   loadSpriteSheet(0, "spritesheet.png")
+  vsync = getVSync()
 
 proc gameUpdate(dt: float32) =
   time += dt
+
+  secondTimer += getRealDt()
+  if secondTimer >= 1f:
+    secondTimer = 0f
+    framesRenderedLastSecond = framesRendered
+    framesRendered = 0
 
   cx = (sin(time / 5f) * 32f).int
   cy = (sin(time / 3f) * 32f).int
 
   if keyp(K_c):
     useClip = not useClip
+
+  if keyp(K_v):
+    vsync = not vsync
+    setVSync(vsync)
 
   if btn(pcLeft) and toDraw[mode] > 0:
     toDraw[mode] -= 10
@@ -77,7 +96,7 @@ proc gameUpdate(dt: float32) =
 
 proc gameDraw() =
   cls()
-  let tstart = now()
+  let tstart = getPerformanceCounter()
   var count = 0
 
   let toDraw = toDraw[mode]
@@ -147,10 +166,19 @@ proc gameDraw() =
       setColor(8+rnd(8))
       trifill(rnd(screenWidth),rnd(screenHeight),rnd(screenWidth),rnd(screenHeight),rnd(screenWidth),rnd(screenHeight))
       count += 1
+  of bmTTrifill:
+    for i in 0..<toDraw:
+      let au = 0
+      let av = 8
+      let bu = 8
+      let bv = 16
+      let cu = 0
+      let cv = 16
+      ttrifill(rnd(screenWidth),rnd(screenHeight),au,av, rnd(screenWidth),rnd(screenHeight),bu,bv, rnd(screenWidth),rnd(screenHeight),cu,cv)
+      count += 1
 
-  let tend = now()
-  let dt = tend - tstart
-  let ms = dt.inMilliseconds
+  let tend = getPerformanceCounter()
+  let ms = ((tend - tstart)*1000).float / getPerformanceFrequency().float
 
   clip()
   setCamera()
@@ -161,18 +189,21 @@ proc gameDraw() =
     box(10,10,screenWidth-20, screenHeight-20)
 
 
-  setColor(0)
   let str = &"{mode}  x {toDraw} : {avgMs:0.2f}  ms"
-  print(str, 4-1, 4)
-  print(str, 4+1, 4)
-  print(str, 4, 4-1)
-  print(str, 4, 4+1)
   setColor(7)
-  print(str, 4, 4)
+  printOutline(str, 4, 4)
+  if vsync:
+    printOutline("vsync", 4, 14)
+  else:
+    printOutline("delay", 4, 14)
+
 
   lastMs = ms.float32
 
   avgMs = lerp(avgMs, lastMs, 0.25f)
+
+  printOutline("fps: " & $framesRenderedLastSecond, 4, 24)
+  framesRendered += 1
 
 nico.init("nico","benchmark")
 nico.createWindow("nico benchmark", 128, 128, 4, false)

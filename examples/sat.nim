@@ -1,6 +1,5 @@
 import nico
 import nico/vec
-import strformat
 
 type Object = ref object
   color: int
@@ -25,35 +24,15 @@ type ContactData = object
   penetration: float32
   clipEdge: Line
 
-proc `-`(x: Line): Line =
-  result[0] = x[1]
-  result[1] = x[0]
-
-type Plane2D = object
-  pos: Vec2f
-  normal: Vec2f
-
 var objs: seq[Object]
 
 var overlapping = false
 var overlapAxis: Vec2f
 var overlapAmount: float32
-var overlapClipEdge: Line
 var overlapContactData: ContactData
 
 proc normal(self: Line): Vec2f =
   return (self[1] - self[0]).normal()
-
-proc point(self: Object, i: int): Vec2f =
-  return self.pos + self.rawPoints[i].rotate(self.angle)
-
-proc toPlane(self: Line): Plane2D =
-  result.pos = self[0]
-  result.normal = -self.normal()
-
-proc distance(self: Plane2D, p: Vec2f): float32 =
-  ## return signed distance from plane to point
-  return dot(self.normal, p - self.pos)
 
 iterator points(self: Object): Vec2f =
   let pos = self.pos
@@ -97,9 +76,6 @@ proc getSupport(self: Object, n: Vec2f): (Vec2f,int) =
       bestProj = proj
       result = (p, i)
     i.inc()
-
-proc line(self: Plane2D): Line =
-  [self.pos, self.pos + self.normal]
 
 proc isLeftOf(p: Vec2f, edge: Line): bool =
   ## returns true if p is left of edge
@@ -149,16 +125,6 @@ proc clip(ln: Line, plane: Line): Line =
   elif not bOK:
     result[0] = ln[0]
     result[1] = i
-
-proc clipRemove(ln: Line, plane: Line): seq[Vec2f] =
-  # returns points of ln, removing anything behind plane
-  # get intersection of ln and plane
-  let aOK = ln[0].isLeftOf(plane)
-  if aOK:
-    result.add(ln[0])
-  let bOK = ln[1].isLeftOf(plane)
-  if bOK:
-    result.add(ln[1])
 
 proc getContactData(a,b: Object, collisionNormal: Vec2f, penetration: float32): ContactData =
   ## returns the indices of the significant edges on A and B

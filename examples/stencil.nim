@@ -1,41 +1,94 @@
 import nico
+import nico/vec
 import math
 
+const moveSpeed = 50f
+
+var debugStencil = false
+
+var a,b,c: Vec2f
+var av,bv,cv: Vec2f
+
 proc gameInit() =
-  discard
+  a = vec2f(rnd(0,screenWidth),rnd(0,screenHeight))
+  b = vec2f(rnd(0,screenWidth),rnd(0,screenHeight))
+  c = vec2f(rnd(0,screenWidth),rnd(0,screenHeight))
+  av = vec2f(rnd(-moveSpeed,moveSpeed),rnd(-moveSpeed,moveSpeed))
+  bv = vec2f(rnd(-moveSpeed,moveSpeed),rnd(-moveSpeed,moveSpeed))
+  cv = vec2f(rnd(-moveSpeed,moveSpeed),rnd(-moveSpeed,moveSpeed))
 
 proc gameUpdate(dt: float32) =
-  discard
+  a += av * dt
+  b += bv * dt
+  c += cv * dt
+
+  if a.x < 0:
+    a.x = 0
+    av.x = -av.x
+  if a.y < 0:
+    a.y = 0
+    av.y = -av.y
+  if a.x > screenWidth - 1:
+    a.x = (screenWidth - 1).float32
+    av.x = -av.x
+  if a.y > screenHeight - 1:
+    a.y = (screenHeight - 1).float32
+    av.y = -av.y
+
+  if b.x < 0:
+    b.x = 0
+    bv.x = -bv.x
+  if b.y < 0:
+    b.y = 0
+    bv.y = -bv.y
+  if b.x > screenWidth - 1:
+    b.x = (screenWidth - 1).float32
+    bv.x = -bv.x
+  if b.y > screenHeight - 1:
+    b.y = (screenHeight - 1).float32
+    bv.y = -bv.y
+
+  if c.x < 0:
+    c.x = 0
+    cv.x = -cv.x
+  if c.y < 0:
+    c.y = 0
+    cv.y = -cv.y
+  if c.x > screenWidth - 1:
+    c.x = (screenWidth - 1).float32
+    cv.x = -cv.x
+  if c.y > screenHeight - 1:
+    c.y = (screenHeight - 1).float32
+    cv.y = -cv.y
+
+  if btnp(pcA):
+    debugStencil = not debugStencil
 
 proc gameDraw() =
-  cls()
   stencilClear(0) # clear the stencil buffer to 0
+  cls()
   # draw background
-  for i in 0..<100:
-    setColor(rnd([5,6]))
-    let w = rnd(screenWidth div 2)
-    let h = rnd(screenHeight div 2)
-    let x = rnd(screenWidth - w)
-    let y = rnd(screenHeight - h)
-    boxfill(x,y,w,h)
+  setColor(8)
+  line(a.x,a.y,b.x,b.y)
+  line(b.x,b.y,c.x,c.y)
+  line(c.x,c.y,a.x,a.y)
 
   # draw the hole of our donut onto the stencil buffer
-  stencilMode(stencilAlways) # we want to ignore the value of the stencil buffer when drawing
-  setStencilWrite(true) # we want to write to the stencil buffer (off by default)
-  setStencilOnly(true) # we only want to write to the stencil buffer, not the screen
-  setStencilRef(1) # 1 will be the stencil value we use to signify where we don't want to draw
-  circfill(64 + sin(time() / 3f) * 4f,64 + sin(time() / 1.234f) * 4f,8)
-
-  setStencilWrite(false) # done writing to stencil buffer, return to normal
-  setStencilOnly(false)
+  setColor(-1) # color -1 means write 1 in stencil buffer
+  circfill(64 + sin(time() / 3f) * 4f,64 + sin(time() / 1.234f) * 4f, 8 + sin(time() / 2.123f) * 4f)
 
   # draw the rest of the donut
-  stencilMode(stencilNot) # now we want to only draw where the stencil buffer != 1 (stencil ref value)
+  # by default we only draw where the stencil buffer != 0
   setColor(7)
-  circfill(64,64,16.float32 + sin(time() / 3f) * 4f)
+  circfill(64,64,16.float32 + sin(time() / 2f) * 4f)
 
-  # reset things for next frame
-  stencilMode(stencilAlways)
+  if debugStencil:
+    # draw blue everywhere where the stencil buffer == 0
+    setColor(12)
+    boxfill(0,0,screenWidth,screenHeight)
+
+  setColor(10)
+  print("stencil buffering with -1 color", 1, 1)
 
 # initialization
 nico.init("nico", "test")

@@ -447,7 +447,7 @@ proc loadPaletteFromImage*(filename: string): Palette =
   ## returns a palette from a PNG image
   var loaded = false
   var palette: Palette
-  backend.loadSurfaceFromPNG(joinPath(assetPath,filename)) do(surface: Surface):
+  backend.loadSurfaceFromPNGNoConvert(joinPath(assetPath,filename)) do(surface: Surface):
     if surface == nil:
       loaded = true
       raise newException(IOError, "Error loading palette image: " & filename)

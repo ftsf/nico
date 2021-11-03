@@ -36,6 +36,6 @@ when defined(emscripten):
   const userSetOutFile = querySetting(SingleValueSetting.outFile)
   const outFile = if userSetOutFile == "": &"{projName}.html" else: userSetOutFile
   when defined(debug):
-    switch("passL", &"-o {outFile} --shell-file nico_minimal.html -lidbfs.js -s ASSERTIONS=1 -s USE_SDL=2 -s FORCE_FILESYSTEM=1 -s ALLOW_MEMORY_GROWTH -s EXPORTED_FUNCTIONS=[\"_main\",\"_initConfigDone\"] -s EXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\"] -O0 --preload-file assets")
+    switch("passL", &"-o {outFile} --shell-file nico_minimal.html -lidbfs.js -s ASSERTIONS=1 -s USE_SDL=2 -s FORCE_FILESYSTEM=1 -s ALLOW_MEMORY_GROWTH -s EXPORTED_FUNCTIONS=[\"_main\",\"_initConfigDone\"] -s EXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\"] -s EXTRA_EXPORTED_RUNTIME_METHODS=[\"print\"] -O0 --preload-file assets")
   else:
-    switch("passL", &"-o {outFile} --shell-file nico_minimal.html -lidbfs.js -s ASSERTIONS=1 -s USE_SDL=2 -s FORCE_FILESYSTEM=1 -s ALLOW_MEMORY_GROWTH -s EXPORTED_FUNCTIONS=[\"_main\",\"_initConfigDone\"] -s EXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\"] -O3 --preload-file assets")
+    switch("passL", &"-o {outFile} --shell-file nico_minimal.html -lidbfs.js -s ASSERTIONS=1 -s USE_SDL=2 -s FORCE_FILESYSTEM=1 -s ALLOW_MEMORY_GROWTH -s EXPORTED_FUNCTIONS=[\"_main\",\"_initConfigDone\"] -s EXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\"] -s EXTRA_EXPORTED_RUNTIME_METHODS=[\"print\"] -O3 --preload-file assets")

@@ -183,6 +183,21 @@ returns as the mouse button `b` is pressed and again every `repeat` frames.
 
 ---
 
+`mousewheel()`
+returns `1` if the mouse wheel scrolled upwards, `-1` if it scrolled downards, and `0` if it didn't move
+
+---
+
+`hideMouse()`
+hides the mouse cursor
+
+---
+
+`showMouse()`
+shows the mouse cursor if it's hidden
+
+---
+
 ### Keyboard
 `key(keycode: Keycode): bool`
 Returns true when key with `keycode` is down
@@ -441,6 +456,16 @@ draws current tilemap to the canvas at `dx,dy` starting from tile `tx,ty` and dr
 `dw,dh` can be used for scaling the tilemap.
 `loop` will repeat the tilemap
 `ox,oy` specifies a pixel offset for tiles
+
+---
+
+`mset(tx,ty: Pint, t: int)`
+sets the tile at (`tx`, `ty`) to the sprite index `t`
+
+---
+
+`mget(tx,ty: Pint)`
+returns the sprite index of the tile at (`tx`, `ty`)
 
 ---
 

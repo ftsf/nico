@@ -34,6 +34,11 @@ suite "palette":
     pset(0,0,16)
     check(pgetRGB(0,0) == (0'u8, 127'u8, 127'u8))
 
+  test "loadPaletteFromImageRGBA":
+    setPalette(loadPaletteFromImage("paletteRGBA.png"))
+    check(palSize() == 35)
+    pset(0,0,8)
+
   test "loadPalettePico8Extra":
     setPalette(loadPalettePico8Extra())
     check(palSize() == 32)

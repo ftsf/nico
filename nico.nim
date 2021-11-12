@@ -15,8 +15,9 @@ import os
 
 #########################
 ## pilotier #############
-export convertToRGBA
+# export convertToRGBA
 export swCanvas
+export currentPalette
 export echoerr
 #########################
 

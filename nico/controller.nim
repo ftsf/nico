@@ -1,4 +1,5 @@
 import sdl2_nim/sdl
+import backends/common
 
 type NicoControllerKind* = enum
   Keyboard
@@ -57,7 +58,7 @@ proc newNicoController*(id: cint): NicoController =
   else:
     result.kind = Keyboard
     result.name = "KEYBOARD"
-  echo "added game controller: ", id, ": ", result.kind, ": ", result.name
+  echoerr "added game controller: ", id, ": ", result.kind, ": ", result.name
 
 proc update*(self: NicoController) =
   for i in self.buttons.low..self.buttons.high:

@@ -13,6 +13,13 @@ when not defined(js):
 
 import os
 
+#########################
+## pilotier #############
+export convertToRGBA
+export swCanvas
+export echoerr
+#########################
+
 export StencilMode
 export StencilBlend
 
@@ -1182,7 +1189,7 @@ proc tline*(x0,y0,x1,y1: Pint, tx,ty: Pfloat, tdx: Pfloat = 1f, tdy: Pfloat = 0f
   innerLine(x0,y0,x1,y1):
     let c = sget(tx.int,ty.int)
     pset(x,y,c)
-    echo "i: ", i, " tx: ", tx, " ty: ", ty
+    echoerr "i: ", i, " tx: ", tx, " ty: ", ty
     tx += tdx
     ty += tdy
     i.inc()
@@ -2056,7 +2063,7 @@ proc fset*(s: Pint, f: uint8, v: bool) =
 
 proc masterVol*(newVol: range[0..255]) =
   ## sets the master volume to newVol
-  echo "setting masterVol: ", newVol
+  echoerr "setting masterVol: ", newVol
   masterVolume = clamp(newVol.float32 / 255.0'f, 0'f, 1'f)
 
 proc masterVol*(): int =
@@ -2093,7 +2100,7 @@ proc consumeCharacter(font: Font, posX, posY: var int, index: int, charId: Rune)
       break
     rect.w.inc()
   when defined(fontDebug):
-    echo index, ": ", $charId, " ", rect
+    echoerr index, ": ", $charId, " ", rect
   font.rects[charId] = rect
   posX = rect.x + rect.w + 1
   posY = rect.y
@@ -2143,7 +2150,7 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
   var i = 0
   var charPos = 0
   var lastChar = -1
-  echo "loading font ", surface.filename, " with ", chars.runeLen, " chars, width: ", font.w
+  echoerr "loading font ", surface.filename, " with ", chars.runeLen, " chars, width: ", font.w
   # scan across the top of the font image
   var posX, posY: int
   var charId: Rune
@@ -2156,11 +2163,11 @@ proc createFontFromSurface(surface: Surface, chars: string): Font =
       break
     i.inc()
 
-  echo "loaded font with ", font.rects.len, "/", chars.runeLen, " chars"
+  echoerr "loaded font with ", font.rects.len, "/", chars.runeLen, " chars"
 
   if font.rects.len != chars.runeLen:
     if lastChar != -1:
-      echo "last loaded char: ", lastChar.Rune, " at index ", i, " x: ", currentRect.x
+      echoerr "last loaded char: ", lastChar.Rune, " at index ", i, " x: ", currentRect.x
     raise newException(Exception, "didn't load all characters from font, loaded: " & $font.rects.len & " bitmaps of specified chars " & $chars.runeLen)
 
   return font
@@ -2360,7 +2367,7 @@ proc shutdown*() =
 
 proc resize() =
   backend.resize()
-  echo "resize ", screenWidth, " x ", screenHeight
+  echoerr "resize ", screenWidth, " x ", screenHeight
   clip()
   cls()
   present()
@@ -2430,7 +2437,7 @@ proc loadSpriteSheet*(index: int, filename: string, tileWidth,tileHeight: Pint =
     raise newException(Exception, "Invalid spritesheet " & $index)
   let shouldReplace = spritesheet == spritesheets[index]
   backend.loadSurfaceFromPNG(joinPath(assetPath,filename)) do(surface: Surface) {.nosinks.}:
-    echo "loaded spritesheet: ", filename, " ", surface.w, "x", surface.h, " tile:", tileWidth, "x", tileHeight
+    echoerr "loaded spritesheet: ", filename, " ", surface.w, "x", surface.h, " tile:", tileWidth, "x", tileHeight
     if surface.w mod tileWidth != 0 or surface.h mod tileHeight != 0:
       raise newException(Exception, "Spritesheet size must be divisible by tile size: " & $tileWidth & "x" & $tileHeight)
     let numTiles = (surface.w div tileWidth) * (surface.h div tileHeight)
@@ -2725,11 +2732,11 @@ proc mapDraw*(startTX,startTY, tw,th, dx,dy: Pint, dw,dh: Pint = -1, loop: bool 
     endCol = min(endCol, currentTilemap.w - startTX)
     endRow = min(endRow, currentTilemap.h - startTY)
 
-  #echo "nRows: ", nRows, " endRow: ", endRow, " startRow: ", startRow
+  #echoerr "nRows: ", nRows, " endRow: ", endRow, " startRow: ", startRow
 
   #debug "d", dw, dh, "dmin", dminx, dminy, "dmax", dmaxx, dmaxy, "o", offsetX, offsetY, "tstart", startCol, startRow, "tend", endCol, endRow
 
-  #echo "startCol ", startCol, " endCol ", endCol, " xincrement ", xincrement, " nCols ", nCols, " tm.width ", currentTilemap.w
+  #echoerr "startCol ", startCol, " endCol ", endCol, " xincrement ", xincrement, " nCols ", nCols, " tm.width ", currentTilemap.w
 
   var count = 0
   for y in startRow..endRow:
@@ -3041,13 +3048,13 @@ proc setControllerRemoved*(cremoved: proc(controller: NicoController)) =
   controllerRemovedFunc = cremoved
 
 proc run*(init: (proc()), update: (proc(dt:float32)), draw: (proc())) =
-  echo "run"
+  echoerr "run"
   assert(update != nil)
   assert(draw != nil)
 
   initFunc = init
   initFuncCalled = false
-  echo "initFuncCalled = false"
+  echoerr "initFuncCalled = false"
   updateFunc = update
   drawFunc = draw
 

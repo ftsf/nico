@@ -11,6 +11,12 @@ import nico/keycodes
 export keycodes.Keycode
 export keycodes.Scancode
 
+proc echoerr*(strs: varargs[string, `$`]) =
+  for s in items(strs):
+    stderr.write(s)
+  stderr.write("\n")
+  flushFile(stderr)
+
 # Constants
 
 const maxPaletteSize* = 256
@@ -569,7 +575,7 @@ proc convertToIndexed*(surface: Surface): Surface =
   assert(surface != nil)
   if surface.channels > 4 or surface.channels < 3:
     raise newException(Exception, "Converting non RGBA surface to indexed")
-  echo "channels: ", surface.channels
+  echoerr "channels: ", surface.channels
   result = new(Surface)
   result.data = newSeq[uint8](surface.w*surface.h)
   result.w = surface.w
@@ -682,7 +688,7 @@ when defined(profile):
     profileHistory.add(currentProfilerNode[])
 
     proc dumpNode(n: ProfilerNode, depth = 0) =
-      echo "  ".repeat(depth), (if n.name == "": "root" else: n.name), ": ", n.time
+      echoerr "  ".repeat(depth), (if n.name == "": "root" else: n.name), ": ", n.time
       for c in n.children:
         dumpNode(c, depth + 1)
 

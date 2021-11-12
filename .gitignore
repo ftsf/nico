@@ -5,3 +5,6 @@ src/nimcache/*
 *.dll
 *.wasm
 *.data
+nicoandroid
+nicoboot
+nicosynth

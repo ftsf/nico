@@ -12,10 +12,11 @@ export keycodes.Keycode
 export keycodes.Scancode
 
 proc echoerr*(strs: varargs[string, `$`]) =
-  for s in items(strs):
-    stderr.write(s)
-  stderr.write("\n")
-  flushFile(stderr)
+  discard
+  # for s in items(strs):
+  #   stderr.write(s)
+  # stderr.write("\n")
+  # flushFile(stderr)
 
 # Constants
 

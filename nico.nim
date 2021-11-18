@@ -19,6 +19,7 @@ import os
 export swCanvas
 export currentPalette
 export echoerr
+export Surface
 #########################
 
 export StencilMode

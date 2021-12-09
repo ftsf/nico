@@ -4,6 +4,7 @@ import std/json
 import std/tables
 import std/hashes
 import std/strutils
+import std/strformat
 import std/sequtils
 import std/times
 import std/math
@@ -13,8 +14,6 @@ import std/os
 import std/osproc
 import std/parsecfg
 
-when defined(android):
-  import std/strformat
 when defined(opengl):
   import std/opengl
 
@@ -797,13 +796,13 @@ proc flip*() =
         recordFrame = newSurface(swCanvas.w, swCanvas.h)
 
 proc saveScreenshot*() =
+  echo "saveScreenshot"
   createDir(writePath & "/screenshots")
-  var frame = recordFrames[recordFrames.size-1]
-  var abgr = newSeq[uint8](screenWidth*screenHeight*4)
-  # convert RGBA to BGRA
-  convertToRGBA(frame, abgr[0].addr, screenWidth*4, screenWidth, screenHeight)
-  let filename = joinPath(writePath, joinPath("screenshots", "screenshot-$1T$2.png".format(getDateStr(), getClockStr())))
-  debug "saved screenshot to: ", filename
+  let filename = joinPath(writePath, joinPath("screenshots", &"screenshot-{getDateStr()}{getClockStr()}.png"))
+  var data = newSeq[uint8](swCanvas32.w * swCanvas32.h * 4)
+  copyMem(data[0].addr, swCanvas32.pixels, swCanvas32.w * swCanvas32.h * 4)
+  var res = savePNG(filename, data, LCT_RGBA, 32, swCanvas32.w, swCanvas32.h)
+  echo "saved screenshot to: ", filename
 
 proc saveRecording*() =
   # TODO: do this in another thread?
@@ -1168,8 +1167,9 @@ proc appHandleEvent(evt: sdl.Event) =
     elif sym == (sdl.Keycode.K_F9) and down:
       saveRecording()
 
-    elif sym == (sdl.Keycode.K_F10) and down:
+    elif (sym == sdl.Keycode.K_F10 or sym == sdl.Keycode.K_PRINTSCREEN) and down:
       saveScreenshot()
+      return
 
     elif sym == (sdl.Keycode.K_F11) and down:
       when system.hostOS == "windows":

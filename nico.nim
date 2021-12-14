@@ -17,6 +17,7 @@ import os
 ## pilotier #############
 # export convertToRGBA
 export swCanvas
+export stencilBuffer
 export currentPalette
 export echoerr
 export Surface

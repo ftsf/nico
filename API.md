@@ -420,14 +420,44 @@ returns the width of `text`
 ---
 
 ### Tilemap
+
+Nico supports drawing tilemaps of equally sized tiles.
+
+Tiles are stored as an index into a spritesheet.
+
+example:
+
+```nim
+# during initialization
+loadSpritesheet(1, "tileset.png", 8, 8) # load the tile sprites we're going to be drawing
+newMap(0, 16, 16, 8, 8) # create a 16x16 tile map, where each tile is 8x8 pixels
+setMap(0) # tell nico to use map 0 we just created
+for y in 0..<16:
+  for x in 0..<16:
+    mset(x, y, rnd(16)) # set tiles to a random tile from 0 to 15
+    
+# alternatively you can load a tilemap from a (https://www.mapeditor.org/)[Tiled] json file
+loadMap(0, "map.json")
+
+# during drawing
+setSpritesheet(1) # use the tileset spritesheet
+setMap(0) # use the map we created
+mapDraw(0,0, 16,16, 0,0) # draw the map, starting from tile 0,0, draw 16,16 tiles to the screen at 0,0
+# NOTE: tile 0 will always be empty, even if there is a sprite in sprite index 0.
+```
+
+---
+
 `newMap(index: int, w,h: int, tw,th: int = 8)`
 create a new tilemap in index `index` with size `w,h` and each tile of size `tw,th`
 
 ---
 
-`loadMap(index: int, filename: string)`
+`loadMap(index: int, filename: string, layer = 0)`
 loads tilemap at `filename` into index `index`
 `filename` should be in Tiled's json format.
+
+you can optionally specify a tilemap layer from the file.
 
 ---
 
@@ -456,6 +486,8 @@ draws current tilemap to the canvas at `dx,dy` starting from tile `tx,ty` and dr
 `dw,dh` can be used for scaling the tilemap.
 `loop` will repeat the tilemap
 `ox,oy` specifies a pixel offset for tiles
+
+*NOTE*: tile 0 will always be empty, even if there is a sprite in sprite index 0.
 
 ---
 

@@ -35,9 +35,8 @@ task debug, "Builds debug exampleApp for current platform":
  exec &"nim c {debugOpts} -o:exampleApp_debug src/main.nim"
 
 task deps, "Downloads dependencies":
- exec "curl https://www.libsdl.org/release/SDL2-2.0.12-win32-x64.zip -o SDL2_x64.zip"
+ exec "curl https://www.libsdl.org/release/SDL2-2.0.18-win32-x64.zip -o SDL2_x64.zip"
  exec "unzip SDL2_x64.zip"
- #exec "curl https://www.libsdl.org/release/SDL2-2.0.12-win32-x86.zip -o SDL2_x86.zip"
 
 task androidr, "Release build for android":
   if defined(windows):

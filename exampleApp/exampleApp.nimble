@@ -35,8 +35,13 @@ task debug, "Builds debug exampleApp for current platform":
  exec &"nim c {debugOpts} -o:exampleApp_debug src/main.nim"
 
 task deps, "Downloads dependencies":
- exec "curl https://www.libsdl.org/release/SDL2-2.0.18-win32-x64.zip -o SDL2_x64.zip"
- exec "unzip SDL2_x64.zip"
+ if defined(windows):
+  exec "curl https://www.libsdl.org/release/SDL2-2.0.18-win32-x64.zip -o SDL2_x64.zip"
+  exec "unzip SDL2_x64.zip"
+ elif defined(macosx) and findExe("brew") != "":
+  exec "brew list sdl2 || brew install sdl2"
+ else:
+  echo "I don't know how to install SDL on your OS! 😿"
 
 task androidr, "Release build for android":
   if defined(windows):

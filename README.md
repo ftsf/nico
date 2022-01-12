@@ -1,7 +1,7 @@
 # NICO Game Framework
 [![test](https://github.com/ftsf/nico/workflows/test/badge.svg)](https://github.com/ftsf/nico/actions)
 
-NICO is a simple game framework for the [Nim](http://nim-lang.org/) programming language inspired by the [PICO-8](http://www.lexaloffle.com/) API.
+NICO is a simple game framework for the [Nim](http://nim-lang.org/) programming language inspired by the [PICO-8](https://www.lexaloffle.com/pico-8.php) API.
 
 ## Supported platforms:
  * Windows

@@ -2229,8 +2229,8 @@ proc print*(text: string, x,y: Pint, scale: Pint = 1) =
   ## prints a string using the current font
   if currentFont == nil:
     raise newException(Exception, "No font selected")
-  var x = x - cameraX
-  var y = y - cameraY
+  var x = x
+  var y = y
   let ix = x
   for line in text.splitLines:
     for c in line.runes:

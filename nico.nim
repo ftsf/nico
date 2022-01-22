@@ -2229,8 +2229,6 @@ proc print*(text: string, x,y: Pint, scale: Pint = 1) =
   ## prints a string using the current font
   if currentFont == nil:
     raise newException(Exception, "No font selected")
-  var x = x - cameraX
-  var y = y - cameraY
   let ix = x
   for line in text.splitLines:
     for c in line.runes:
@@ -2242,8 +2240,8 @@ proc print*(text: string) =
   ## prints a string using the current font at cursor position
   if currentFont == nil:
     raise newException(Exception, "No font selected")
-  var x = cursorX - cameraX
-  let y = cursorY - cameraY
+  let x = cursorX
+  let y = cursorY
   for c in text.runes:
     x += glyph(c, x, y, 1)
   cursorY += 6

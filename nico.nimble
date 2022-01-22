@@ -20,6 +20,7 @@ installExt = @["nim"]
 bin = @["nicoboot","nicoandroid","nicosynth"]
 
 task test, "run tests":
+  exec "nim c -p:. -r tests/camera.nim"
   exec "nim c -p:. -r tests/rgba.nim"
   exec "nim c -p:. -r tests/copymem.nim"
   exec "nim c -p:. -r tests/fonts.nim"

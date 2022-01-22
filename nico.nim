@@ -1038,14 +1038,18 @@ proc sget*(x,y: Pint): ColorId =
 
 proc pget*(x,y: Pint): ColorId =
   ## returns the palette index for a pixel on the canvas
-  let x = x-cameraX
-  let y = y-cameraY
+  let x = x - cameraX
+  let y = y - cameraY
   if x > swCanvas.w-1 or x < 0 or y > swCanvas.h-1 or y < 0:
     return 0
   return swCanvas.data[y*swCanvas.w+x].ColorId
 
+proc pgetRaw*(x,y: Pint): ColorId =
+  ## returns the palette index for a pixel on the canvas, does not account for camera
+  return swCanvas.data[y*swCanvas.w+x].ColorId
+
 proc pgetRGB*(x,y: Pint): (uint8,uint8,uint8) =
-  ## returns the RGB values for a pixel on the canvas
+  ## returns the RGB values for a pixel on the canvas, does not account for camera
   if x > swCanvas.w-1 or x < 0 or y > swCanvas.h-1 or y < 0:
     return (0'u8,0'u8,0'u8)
   return palCol(swCanvas.data[y*swCanvas.w+x].ColorId)
@@ -2229,6 +2233,8 @@ proc print*(text: string, x,y: Pint, scale: Pint = 1) =
   ## prints a string using the current font
   if currentFont == nil:
     raise newException(Exception, "No font selected")
+  var x = x
+  var y = y
   let ix = x
   for line in text.splitLines:
     for c in line.runes:
@@ -2240,7 +2246,7 @@ proc print*(text: string) =
   ## prints a string using the current font at cursor position
   if currentFont == nil:
     raise newException(Exception, "No font selected")
-  let x = cursorX
+  var x = cursorX
   let y = cursorY
   for c in text.runes:
     x += glyph(c, x, y, 1)

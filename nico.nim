@@ -161,6 +161,7 @@ proc glyphWidth*(c: char, scale: Pint = 1): Pint
 proc setColor*(colId: ColorId)
 proc getColor*(): ColorId
 proc loadPaletteFromGPL*(filename: string): Palette
+proc loadPaletteFromHexString*(s: string): Palette
 proc loadPaletteFromImage*(filename: string): Palette
 proc loadPalettePico8*(): Palette
 proc loadPaletteCGA*(mode: range[0..2] = 0, highIntensity: bool = true): Palette
@@ -468,6 +469,17 @@ proc loadPaletteFromImage*(filename: string): Palette =
   while not loaded:
     # force sync
     discard
+  return palette
+
+proc loadPaletteFromHexString*(s: string): Palette =
+  var palette: Palette
+  for i in 0..<s.len/6:
+    let strI = i*6
+    let r = strutils.fromHex[uint8](s[strI..<strI+2])
+    let g = strutils.fromHex[uint8](s[strI+2..<strI+4])
+    let b = strutils.fromHex[uint8](s[strI+4..<strI+6])
+    palette.data[i] = RGB(r, g, b)
+    palette.size += 1
   return palette
 
 proc loadPaletteFromGPL*(filename: string): Palette =

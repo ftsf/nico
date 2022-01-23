@@ -22,6 +22,12 @@ suite "palette":
     check(palSize() == 256)
     check(pgetRGB(0,0) == (0'u8, 127'u8, 127'u8))
 
+  test "loadPaletteFromHexString":
+    # dawnbringer 16 palette
+    setPalette(loadPaletteFromHexString("140c1c44243430346d4e4a4e854c30346524d04648757161597dced27d2c8595a16daa2cd2aa996dc2cadad45edeeed6"))
+    check(palSize() == 16)
+    check(pgetRGB(0,0) == (0x14'u8, 0x0C'u8, 0x1C'u8))
+
   test "loadPaletteFromImage":
     setPalette(loadPaletteFromImage("palette.png"))
     check(palSize() == 32)

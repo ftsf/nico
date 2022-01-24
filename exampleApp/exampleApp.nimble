@@ -36,8 +36,15 @@ task debug, "Builds debug exampleApp for current platform":
 
 task deps, "Downloads dependencies":
  if defined(windows):
-  exec "curl https://www.libsdl.org/release/SDL2-2.0.18-win32-x64.zip -o SDL2_x64.zip"
-  exec "unzip SDL2_x64.zip"
+  if not fileExists("SDL2.dll"):
+   if not fileExists("SDL2_x64.zip"):
+    exec "curl https://www.libsdl.org/release/SDL2-2.0.20-win32-x64.zip -o SDL2_x64.zip"
+   if findExe("tar") != "":
+    exec "tar -xf SDL2_x64.zip SDL2.dll"
+   else:
+    exec "unzip SDL2_x64.zip SDL2.dll"
+  if fileExists("SDL2_x64.zip"):
+   rmFile("SDL2_x64.zip")
  elif defined(macosx) and findExe("brew") != "":
   exec "brew list sdl2 || brew install sdl2"
  else:

@@ -17,25 +17,24 @@ skipDirs = @["examples","tests","android","tools"]
 installDirs = @["exampleApp"]
 installExt = @["nim"]
 
+import os
+import strformat
+import sugar
+
 bin = @["nicoboot","nicoandroid","nicosynth"]
 
+let tests = collect(newSeq):
+  for file in listFiles("tests"):
+    if file.endswith(".nim"): file
+
 task test, "run tests":
-  exec "nim c -p:. -r tests/camera.nim"
-  exec "nim c -p:. -r tests/rgba.nim"
-  exec "nim c -p:. -r tests/copymem.nim"
-  exec "nim c -p:. -r tests/fonts.nim"
-  exec "nim c -p:. -r tests/config.nim"
-  exec "nim c -p:. -r tests/palette.nim"
-  exec "nim c -p:. -r tests/tilemap.nim"
+  for file in tests:
+    exec &"nim c -p:. -r {file}"
 
 task testemscripten, "compile tests with emscripten":
   # test they compile with emscripten backend, harder to test running
-  exec "nim c -d:emscripten -p:. tests/rgba.nim"
-  exec "nim c -d:emscripten -p:. tests/copymem.nim"
-  exec "nim c -d:emscripten -p:. tests/fonts.nim"
-  exec "nim c -d:emscripten -p:. tests/config.nim"
-  exec "nim c -d:emscripten -p:. tests/palette.nim"
-  exec "nim c -d:emscripten -p:. tests/tilemap.nim"
+  for file in tests:
+    exec &"nim c -d:emscripten -p:. {file}"
 
 task paintout, "compile paintout example":
   exec "nim c -p:. -d:debug examples/paintout.nim"

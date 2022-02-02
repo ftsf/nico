@@ -40,7 +40,7 @@ if overwrite == false and (dirExists(targetPath) or fileExists(targetPath) or sy
 echo "copying ", sourcePath, " to ", targetPath
 copyDir(sourcePath, targetPath)
 # search and replace
-moveFile(joinPath(targetPath, "exampleApp.nimble"), joinPath(targetPath, targetPath & ".nimble"))
+moveFile(joinPath(targetPath, "exampleApp.nimble"), joinPath(targetPath, appName & ".nimble"))
 echo execProcess("nimgrep", "", ["-!","exampleApp",appName,"-r",targetPath], nil, {poUsePath, poStdErrToStdOut})
 echo execProcess("nimgrep", "", ["-!","exampleOrg",orgName,"-r",targetPath], nil, {poUsePath, poStdErrToStdOut})
 echo "nico project ", appName, " created in ", targetPath

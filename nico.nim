@@ -2871,7 +2871,7 @@ proc mapToPixel*(tx,ty: Pint): (Pint,Pint) = # returns the pixel coordinates at 
     let px = tx * currentTilemap.tw - (if ty mod 2 == 0: currentTilemap.tw div 2 else: 0)
     return (px.Pint, py.Pint)
   else:
-    return ((ty * currentTilemap.tw).Pint, (ty * currentTilemap.th).Pint)
+    return ((tx * currentTilemap.tw).Pint, (ty * currentTilemap.th).Pint)
 
 proc newMap*(index: int, w,h: Pint, tw,th: Pint = 8) =
   var tm = tilemaps[index].addr

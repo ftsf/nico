@@ -694,6 +694,12 @@ proc loadSurfaceFromPNG*(filename: string, callback: proc(surface: common.Surfac
     surface.data = cast[seq[uint8]](png.pixels)
     callback(surface.convertToIndexed())
 
+  elif pngInfo.mode.colorType == LCT_RGB:
+    debug "loading RGB image, converting to indexed using current palette ", filename
+    surface.channels = 3
+    surface.data = cast[seq[uint8]](png.pixels)
+    callback(surface.convertToIndexed())
+
   elif pngInfo.mode.colorType == LCT_PALETTE:
     debug "loading paletted image ", filename
     surface.channels = 1

@@ -18,3 +18,8 @@ suite "palette":
     loadSpritesheet(0, "spritesheetRGBA.png", 16, 16)
     spr(10,0,0)
     check(pgetRGB(0,0) == palCol(10))
+
+  test "loadSpritesheetRGB":
+    loadSpritesheet(0, "spritesheetRGB.png", 16, 16)
+    spr(10,0,0)
+    check(pgetRGB(0,0) == palCol(10))

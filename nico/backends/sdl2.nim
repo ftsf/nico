@@ -658,7 +658,7 @@ proc readFile*(filename: string): string =
   if fp == nil:
     raise newException(IOError, "Unable to open file: " & filename)
 
-  let size = rwSize(fp)
+  let size = rwSize(fp).int
   var buffer = newSeq[uint8](size)
 
   var offset = 0
@@ -1572,28 +1572,28 @@ proc processSynth(self: var Channel): float32 =
       self.envPhase += 1
 
       if self.vibamount > 0:
-        self.freq = self.basefreq + sin(self.envPhase.float32 / self.vibspeed.float32) * self.basefreq * 0.03 * self.vibamount.float32
+        self.freq = self.basefreq + sin(self.envPhase.float32 / self.vibspeed.float32) * self.basefreq * 0.03f * self.vibamount.float32
 
       if self.pchange != 0:
-        self.targetFreq = self.targetFreq + self.targetFreq * self.pchange.float32 / 128.0
+        self.targetFreq = self.targetFreq + self.targetFreq * self.pchange.float32 / 128.0f
         self.basefreq = self.targetFreq
         self.freq = self.targetFreq
-        if self.targetFreq > sampleRate * 0.5'f:
-          self.targetFreq = sampleRate * 0.5'f
+        if self.targetFreq > sampleRate * 0.5f:
+          self.targetFreq = sampleRate * 0.5f
 
       # determine the env value
       if self.env < 0:
         # decay
-        self.envValue = clamp(lerp(self.init.float32 / 15.0, 0, self.envPhase / (-self.env * 4)), 0.0, 1.0)
-        if self.envValue <= 0:
+        self.envValue = clamp(lerp(self.init.float32 / 15.0f, 0.0f, self.envPhase / (-self.env * 4)), 0.0f, 1.0f)
+        if self.envValue <= 0f:
           self.kind = channelNone
       elif self.env > 0:
         # attack
-        self.envValue = clamp(lerp(self.init.float32 / 15.0, 1.0, self.envPhase / (self.env * 4)), 0.0, 1.0)
+        self.envValue = clamp(lerp(self.init.float32 / 15.0f, 1.0f, self.envPhase / (self.env * 4)), 0.0f, 1.0f)
       elif self.env == 0:
-        self.envValue = self.init.float32 / 15.0
+        self.envValue = self.init.float32 / 15.0f
 
-      self.gain = clamp(lerp(self.gain, self.envValue, 0.9), 0.0, 1.0)
+      self.gain = clamp(lerp(self.gain, self.envValue, 0.9f), 0.0f, 1.0f)
 
   return o * sfxVolume
 
@@ -1623,9 +1623,9 @@ proc process(self: var Channel): float32 =
     var o: float32
     o = self.musicBuffers[self.musicBuffer].interpolatedLookup(self.phase) * self.gain
     self.phase += (self.musicSampleRate * invSampleRate)
-    if self.phase >= musicBufferSize:
+    if self.phase >= musicBufferSize.float32:
       # end of buffer, switch buffers and fill
-      self.phase = 0.0
+      self.phase = 0.0f
       var read = stb_vorbis_get_samples_float_interleaved(self.musicFile, if self.musicStereo: 2 else: 1, self.musicBuffers[self.musicBuffer][0].addr, musicBufferSize)
       if self.musicStereo:
         read *= 2
@@ -1877,7 +1877,7 @@ proc run*() =
         let targetFrameTime = 1000.0 / frameRate.float
         let sleepTime = targetFrameTime - frameTime
         #echo "frame time: ", frameTime, " target: ", targetFrameTime, " sleep time: ", sleepTime
-        if sleepTime > 0:
+        if sleepTime > 0f:
           delay(sleepTime.uint32)
     sdl.quit()
 

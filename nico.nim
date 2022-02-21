@@ -1688,17 +1688,17 @@ proc fontBlit(font: Font, srcRect, dstRect: Rect, color: ColorId) =
     dx = dstRect.x.float32
     sx = srcRect.x.float32
     for x in 0..<dstRect.w:
-      if sx < 0 or sy < 0 or sx > font.w - 1 or sy > font.h - 1:
+      if sx.int < 0 or sy.int < 0 or sx.int > font.w - 1 or sy.int > font.h - 1:
         continue
-      if dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY:
+      if dx.int < clipMinX or dy.int < clipMinY or dx.int > clipMaxX or dy.int > clipMaxY:
         continue
       if font.data[sy * font.w + sx] == 1:
         pset(dx,dy,currentColor)
 
-      sx += 1.0 * (sw/dw)
-      dx += 1.0
-    sy += 1.0 * (sh/dh)
-    dy += 1.0
+      sx += 1.0f * (sw/dw)
+      dx += 1.0f
+    sy += 1.0f * (sh/dh)
+    dy += 1.0f
 
 proc overlap(a,b: Rect): bool =
   return not ( a.x > b.x + b.w or a.y > b.y + b.h or a.x + a.w < b.x or a.y + a.h < b.y )
@@ -1833,8 +1833,8 @@ proc blitFastRot(src: Surface, srcRect: Rect, centerX, centerY: Pint, radians: f
   let dstW = maxx - minx
   let dstH = maxy - miny
 
-  let dstCenterX = (dstW - 1).float32 / 2f
-  let dstCenterY = (dstH - 1).float32 / 2f
+  let dstCenterX = (dstW - 1f) / 2f
+  let dstCenterY = (dstH - 1f) / 2f
 
   for y in 0..<dstH:
     for x in 0..<dstW:

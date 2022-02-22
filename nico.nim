@@ -736,12 +736,11 @@ proc ditherADitherXor*(v: float32, a = 149,b = 1234, c = 511) =
   gDitherADitherC = c
 
 proc ditherPass(x,y: int): bool {.inline.} =
+  if gDitherMode == DitherNone:
+    return true
   let x = floorMod(x + gDitherOffsetX, screenWidth)
   let y = floorMod(y + gDitherOffsetY, screenHeight)
-
   case gDitherMode:
-  of DitherNone:
-    return true
   of Dither4x4:
     let x4 = (x mod 4).uint16
     let y4 = (y mod 4).uint16

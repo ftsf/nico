@@ -741,7 +741,7 @@ proc ditherPass(x,y: int): bool {.inline.} =
     
   let x = floorMod(x + gDitherOffsetX, screenWidth)
   let y = floorMod(y + gDitherOffsetY, screenHeight)
-  
+
   case gDitherMode:
   of DitherNone:
     return true

@@ -36,42 +36,19 @@ task testemscripten, "compile tests with emscripten":
   for file in tests:
     exec &"nim c -d:emscripten -p:. {file}"
 
-task paintout, "compile paintout example":
-  exec "nim c -p:. -d:debug examples/paintout.nim"
-
-task platformer, "compile platformer example":
-  exec "nim c -p:. -d:release --multimethods:on -o:examples/platformer examples/platformer.nim"
-
-task audio, "compile audio example":
-  exec "nim c -p:. -d:debug -o:examples/audio examples/audio.nim"
-
-task vertex, "compile vertex example":
-  exec "nim c -p:. -d:debug -o:examples/vertex examples/vertex.nim"
-
-task gui, "compile gui example":
-  exec "nim c -p:. -d:debug -o:examples/gui examples/gui.nim"
-
-task guiweb, "compile gui example":
-  exec "nim c -d:emscripten -p:. -o:examples/gui.js examples/gui2.nim"
-
-task coro, "compile coro example":
-  exec "nim c -p:. -d:debug -o:examples/gui examples/coro.nim"
-
-task benchmark, "compile benchmark example":
-  exec "nim c -p:. -d:release -d:danger -o:examples/benchmark examples/benchmark.nim"
-
-task tweaker, "compile tweaker example":
-  exec "nim c -p:. -d:release -d:danger -o:examples/tweaker examples/tweaker.nim"
+let examples = collect(newSeq):
+  for file in listFiles("examples"):
+    if file.endswith(".nim"): file
 
 task examples, "compile all examples":
-  exec "nimble paintout"
-  exec "nimble platformer"
-  exec "nimble audio"
-  exec "nimble vertex"
-  exec "nimble gui"
-  exec "nimble benchmark"
-  exec "nimble coro"
-  exec "nimble tweaks"
+  for file in examples:
+    let output = file.changeFileExt("")
+    exec &"nim c -p:. -d:release -d:danger -o:{output} {file}"
+
+task examplesd, "compile all examples as debug":
+  for file in examples:
+    let output = file.changeFileExt("")
+    exec &"nim c -p:. -d:debug -o:{output} {file}"
 
 task nicosynth, "runs nicosynth":
   exec "nim c -r -p:. -d:release -o:tools/nicosynth tools/nicosynth.nim"

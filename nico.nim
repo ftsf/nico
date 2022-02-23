@@ -944,10 +944,9 @@ proc palt*() =
 
 {.push checks:off, optimization: speed.}
 proc cls*() =
-  ## clears the screen to color 0 (clipped to clipping rectangle)
-  for y in clipMinY..clipMaxY:
-    for x in clipMinX..clipMaxX:
-      psetRaw(x,y,0)
+  ## clears the screen to color 0. If you need clipping, use rectfill() instead.
+  for i in 0..<swCanvas.data.len:
+    swCanvas.data[i] = 0
 
 proc setCamera*(x,y: Pint = 0) =
   ## sets the current camera position, future drawing operations will draw based on camera position

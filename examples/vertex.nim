@@ -456,9 +456,7 @@ var frame: uint16 = 0
 
 proc gameDraw() =
   frame += 1
-  clip()
-  setColor(26)
-  rectfill(0,0,screenWidth,screenHeight)
+  cls(26)
 
   if shake > 0.0:
     setCamera(rnd(2.0)-1.0, rnd(2.0)-1.0)

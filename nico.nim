@@ -943,10 +943,11 @@ proc palt*() =
     paletteTransparent[i] = if i == 0: true else: false
 
 {.push checks:off, optimization: speed.}
-proc cls*() =
-  ## clears the screen to color 0. If you need clipping, use rectfill() instead.
+proc cls*(c: ColorId = 0) =
+  ## clears the screen to the given color. Default is 0. If you need clipping, use rectfill() instead.
+  let colId = paletteMapDraw[c].uint8
   for i in 0..<swCanvas.data.len:
-    swCanvas.data[i] = 0
+    swCanvas.data[i] = colId
 
 proc setCamera*(x,y: Pint = 0) =
   ## sets the current camera position, future drawing operations will draw based on camera position

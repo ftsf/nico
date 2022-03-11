@@ -8,7 +8,7 @@ NICO is a simple game framework for the [Nim](http://nim-lang.org/) programming 
  * Linux, including RaspberryPi
  * Web/HTML5 via Emscripten
  * Android
- * MacOS likely works but is not tested
+ * MacOS
 
 ## What it does:
  * Paletted Bitmap Graphics (you can load a custom palette up to 256 colors)

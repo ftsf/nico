@@ -44,4 +44,3 @@ moveFile(joinPath(targetPath, "exampleApp.nimble"), joinPath(targetPath, appName
 echo execProcess("nimgrep", "", ["-!","exampleApp",appName,"-r",targetPath], nil, {poUsePath, poStdErrToStdOut})
 echo execProcess("nimgrep", "", ["-!","exampleOrg",orgName,"-r",targetPath], nil, {poUsePath, poStdErrToStdOut})
 echo "nico project ", appName, " created in ", targetPath
-quit(0)

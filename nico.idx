@@ -1,0 +1,263 @@
+palCol	nico.html#palCol,Pint,uint8,uint8,uint8	nico: palCol(c: Pint; r, g, b: uint8)	
+palCol	nico.html#palCol,ColorId	nico: palCol(c: ColorId): (uint8, uint8, uint8)	
+palIndex	nico.html#palIndex,uint8,uint8,uint8	nico: palIndex(r, g, b: uint8): int	
+stencilSet	nico.html#stencilSet,Pint,Pint,Pint	nico: stencilSet(x, y, v: Pint)	
+stencilGet	nico.html#stencilGet,Pint,Pint	nico: stencilGet(x, y: Pint): uint8	
+setStencilRef	nico.html#setStencilRef,Pint	nico: setStencilRef(v: Pint)	
+setStencilWrite	nico.html#setStencilWrite,bool	nico: setStencilWrite(on: bool)	
+setStencilWriteFail	nico.html#setStencilWriteFail,bool	nico: setStencilWriteFail(on: bool)	
+setStencilOnly	nico.html#setStencilOnly,bool	nico: setStencilOnly(on: bool)	
+stencilMode	nico.html#stencilMode,StencilMode	nico: stencilMode(mode: StencilMode)	
+stencilClear	nico.html#stencilClear	nico: stencilClear()	
+stencilClear	nico.html#stencilClear,Pint	nico: stencilClear(v: Pint)	
+setStencilBlend	nico.html#setStencilBlend,StencilBlend	nico: setStencilBlend(blend: StencilBlend = stencilReplace)	
+getTouches	nico.html#getTouches	nico: getTouches(): seq[Touch]	
+getTouchCount	nico.html#getTouchCount	nico: getTouchCount(): int	
+clamp	nico.html#clamp,T	nico: clamp[T](a: T): T	
+clamp01	nico.html#clamp01,T	nico: clamp01[T](a: T): T	
+mid	nico.html#mid,T,T,T	nico: mid[T](a, b, c: T): T	
+ceil	nico.html#ceil,Pfloat	nico: ceil(x: Pfloat): Pfloat	
+fps	nico.html#fps,int	nico: fps(fps: int)	
+fps	nico.html#fps	nico: fps(): int	
+time	nico.html#time	nico: time(): float	
+speed	nico.html#speed,int	nico: speed(speed: int)	
+loadPaletteFromImage	nico.html#loadPaletteFromImage,string	nico: loadPaletteFromImage(filename: string): Palette	
+loadPaletteFromHexString	nico.html#loadPaletteFromHexString,string	nico: loadPaletteFromHexString(s: string): Palette	
+loadPaletteFromGPL	nico.html#loadPaletteFromGPL,string	nico: loadPaletteFromGPL(filename: string): Palette	
+palSize	nico.html#palSize	nico: palSize(): Pint	
+setPalette	nico.html#setPalette,Palette	nico: setPalette(p: Palette)	
+getPalette	nico.html#getPalette	nico: getPalette(): Palette	
+loadPaletteCGA	nico.html#loadPaletteCGA,range[],bool	nico: loadPaletteCGA(mode: range[0 .. 2] = 0; highIntensity: bool = true): Palette	
+loadPalettePico8	nico.html#loadPalettePico8	nico: loadPalettePico8(): Palette	
+loadPalettePico8Extra	nico.html#loadPalettePico8Extra	nico: loadPalettePico8Extra(): Palette	
+loadPaletteGrayscale	nico.html#loadPaletteGrayscale,range[]	nico: loadPaletteGrayscale(steps: range[1 .. 256] = 256): Palette	
+clip	nico.html#clip	nico: clip()	
+clip	nico.html#clip,Pint,Pint,Pint,Pint	nico: clip(x, y, w, h: Pint)	
+getClip	nico.html#getClip	nico: getClip(): (int, int, int, int)	
+setDitherColor	nico.html#setDitherColor,Pint	nico: setDitherColor(c: Pint = -1)	
+ditherPattern	nico.html#ditherPattern,uint16	nico: ditherPattern(pattern: uint16 = 0b00000000000000001111111111111111)	
+ditherOffset	nico.html#ditherOffset,Pint,Pint	nico: ditherOffset(x, y: Pint)	
+ditherPatternScanlines	nico.html#ditherPatternScanlines	nico: ditherPatternScanlines()	
+ditherPatternScanlines2	nico.html#ditherPatternScanlines2	nico: ditherPatternScanlines2()	
+ditherPatternCheckerboard	nico.html#ditherPatternCheckerboard	nico: ditherPatternCheckerboard()	
+ditherPatternCheckerboard2	nico.html#ditherPatternCheckerboard2	nico: ditherPatternCheckerboard2()	
+ditherPatternBigCheckerboard	nico.html#ditherPatternBigCheckerboard	nico: ditherPatternBigCheckerboard()	
+ditherPatternBigCheckerboard2	nico.html#ditherPatternBigCheckerboard2	nico: ditherPatternBigCheckerboard2()	
+ditherPatternBayer	nico.html#ditherPatternBayer,float32	nico: ditherPatternBayer(a: float32)	
+ditherNone	nico.html#ditherNone	nico: ditherNone()	
+ditherADitherAdd	nico.html#ditherADitherAdd,float32,int,int,int	nico: ditherADitherAdd(v: float32; a = 237; b = 119; c = 255)	
+ditherADitherXor	nico.html#ditherADitherXor,float32,int,int,int	nico: ditherADitherXor(v: float32; a = 149; b = 1234; c = 511)	
+isKeyboard	nico.html#isKeyboard,range[]	nico: isKeyboard(player: range[0 .. maxPlayers]): bool	
+isGamepad	nico.html#isGamepad,range[]	nico: isGamepad(player: range[0 .. maxPlayers]): bool	
+btn	nico.html#btn,NicoButton	nico: btn(b: NicoButton): bool	
+btnup	nico.html#btnup,NicoButton	nico: btnup(b: NicoButton): bool	
+btn	nico.html#btn,NicoButton,range[]	nico: btn(b: NicoButton; player: range[0 .. maxPlayers]): bool	
+btnup	nico.html#btnup,NicoButton,range[]	nico: btnup(b: NicoButton; player: range[0 .. maxPlayers]): bool	
+btnRaw	nico.html#btnRaw,NicoButton,range[]	nico: btnRaw(b: NicoButton; player: range[0 .. maxPlayers]): int	
+btnp	nico.html#btnp,NicoButton	nico: btnp(b: NicoButton): bool	
+btnp	nico.html#btnp,NicoButton,range[]	nico: btnp(b: NicoButton; player: range[0 .. maxPlayers]): bool	
+btnpr	nico.html#btnpr,NicoButton,int	nico: btnpr(b: NicoButton; repeat = 48): bool	
+btnpr	nico.html#btnpr,NicoButton,range[],int	nico: btnpr(b: NicoButton; player: range[0 .. maxPlayers]; repeat = 48): bool	
+anybtnp	nico.html#anybtnp	nico: anybtnp(): bool	
+anybtnp	nico.html#anybtnp,range[]	nico: anybtnp(player: range[0 .. maxPlayers]): bool	
+key	nico.html#key,Keycode	nico: key(k: Keycode): bool	
+keyp	nico.html#keyp,Keycode	nico: keyp(k: Keycode): bool	
+keypr	nico.html#keypr,Keycode,int	nico: keypr(k: Keycode; repeat: int = 48): bool	
+anykeyp	nico.html#anykeyp	nico: anykeyp(): bool	
+jaxis	nico.html#jaxis,NicoAxis	nico: jaxis(axis: NicoAxis): Pfloat	
+jaxis	nico.html#jaxis,NicoAxis,range[]	nico: jaxis(axis: NicoAxis; player: range[0 .. maxPlayers]): Pfloat	
+axis	nico.html#axis,NicoAxis	nico: axis(axis: NicoAxis): Pfloat	
+axis	nico.html#axis,NicoAxis,range[]	nico: axis(axis: NicoAxis; player: range[0 .. maxPlayers]): Pfloat	
+pal	nico.html#pal,ColorId,ColorId	nico: pal(a, b: ColorId)	
+pal	nico.html#pal,ColorId	nico: pal(a: ColorId): ColorId	
+pal	nico.html#pal	nico: pal()	
+pald	nico.html#pald,ColorId,ColorId	nico: pald(a, b: ColorId)	
+pald	nico.html#pald,ColorId	nico: pald(a: ColorId): ColorId	
+pald	nico.html#pald	nico: pald()	
+palt	nico.html#palt,ColorId,bool	nico: palt(a: ColorId; trans: bool)	
+palt	nico.html#palt	nico: palt()	
+cls	nico.html#cls,ColorId	nico: cls(c: ColorId = 0)	
+setCamera	nico.html#setCamera,Pint,Pint	nico: setCamera(x, y: Pint = 0)	
+getCamera	nico.html#getCamera	nico: getCamera(): (Pint, Pint)	
+setColor	nico.html#setColor,ColorId	nico: setColor(colId: ColorId)	
+getColor	nico.html#getColor	nico: getColor(): ColorId	
+psetRaw	nico.html#psetRaw,Pint,Pint,ColorId	nico: psetRaw(x, y: Pint; c: ColorId)	
+psetRaw	nico.html#psetRaw,Pint,Pint	nico: psetRaw(x, y: Pint)	
+pset	nico.html#pset,Pint,Pint,ColorId	nico: pset(x, y: Pint; c: ColorId)	
+pset	nico.html#pset,Pint,Pint	nico: pset(x, y: Pint)	
+ssetSafe	nico.html#ssetSafe,Pint,Pint,int	nico: ssetSafe(x, y: Pint; c: int = -1)	
+sset	nico.html#sset,Pint,Pint,int	nico: sset(x, y: Pint; c: int = -1)	
+sget	nico.html#sget,Pint,Pint	nico: sget(x, y: Pint): ColorId	
+pget	nico.html#pget,Pint,Pint	nico: pget(x, y: Pint): ColorId	
+pgetRaw	nico.html#pgetRaw,Pint,Pint	nico: pgetRaw(x, y: Pint): ColorId	
+pgetRGB	nico.html#pgetRGB,Pint,Pint	nico: pgetRGB(x, y: Pint): (uint8, uint8, uint8)	
+rectfill	nico.html#rectfill,Pint,Pint,Pint,Pint	nico: rectfill(x1, y1, x2, y2: Pint)	
+rrectfill	nico.html#rrectfill,Pint,Pint,Pint,Pint,Pint	nico: rrectfill(x1, y1, x2, y2: Pint; r: Pint = 1)	
+box	nico.html#box,Pint,Pint,Pint,Pint	nico: box(x, y, w, h: Pint)	
+boxfill	nico.html#boxfill,Pint,Pint,Pint,Pint	nico: boxfill(x, y, w, h: Pint)	
+rbox	nico.html#rbox,Pint,Pint,Pint,Pint,Pint	nico: rbox(x, y, w, h: Pint; r: Pint = 1)	
+rboxfill	nico.html#rboxfill,Pint,Pint,Pint,Pint,Pint	nico: rboxfill(x, y, w, h: Pint; r: Pint = 1)	
+line	nico.html#line,Pint,Pint,Pint,Pint	nico: line(x0, y0, x1, y1: Pint)	
+tline	nico.html#tline,Pint,Pint,Pint,Pint,Pfloat,Pfloat,Pfloat,Pfloat	nico: tline(x0, y0, x1, y1: Pint; tx, ty: Pfloat; tdx: Pfloat = 1.0&apos;f32;\n      tdy: Pfloat = 0.0&apos;f32)	
+hlineFast	nico.html#hlineFast,Pint,Pint,Pint	nico: hlineFast(x0, y, x1: Pint)	
+hline	nico.html#hline,Pint,Pint,Pint	nico: hline(x0, y, x1: Pint)	
+vline	nico.html#vline,Pint,Pint,Pint	nico: vline(x, y0, y1: Pint)	
+lineDashed	nico.html#lineDashed,Pint,Pint,Pint,Pint,uint8	nico: lineDashed(x0, y0, x1, y1: Pint;\n           pattern: uint8 = 0b00000000000000000000000010101010)	
+rect	nico.html#rect,Pint,Pint,Pint,Pint	nico: rect(x1, y1, x2, y2: Pint)	
+rrect	nico.html#rrect,Pint,Pint,Pint,Pint,Pint	nico: rrect(x1, y1, x2, y2: Pint; r: Pint = 1)	
+rectCorner	nico.html#rectCorner,Pint,Pint,Pint,Pint	nico: rectCorner(x1, y1, x2, y2: Pint)	
+rrectCorner	nico.html#rrectCorner,Pint,Pint,Pint,Pint	nico: rrectCorner(x1, y1, x2, y2: Pint)	
+flr	nico.html#flr,Pfloat	nico: flr(x: Pfloat): Pfloat	
+lerp	nico.html#lerp,T,T,Pfloat	nico: lerp[T](a, b: T; t: Pfloat): T	
+lerpSnap	nico.html#lerpSnap,T,T,Pfloat,float32	nico: lerpSnap[T](a, b: T; t: Pfloat; threshold = 0.1&apos;f32): T	
+trifill	nico.html#trifill,Pint,Pint,Pint,Pint,Pint,Pint	nico: trifill(ax, ay, bx, by, cx, cy: Pint)	
+ttrifill	nico.html#ttrifill,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat	nico: ttrifill(ax, ay, au, av, bx, by, bu, bv, cx, cy, cu, cv: Pfloat)	
+quadfill	nico.html#quadfill,Pint,Pint,Pint,Pint,Pint,Pint,Pint,Pint	nico: quadfill(x1, y1, x2, y2, x3, y3, x4, y4: Pint)	
+tquadfill	nico.html#tquadfill,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat	nico: tquadfill(x1, y1, u1, v1, x2, y2, u2, v2, x3, y3, u3, v3, x4, y4, u4, v4: Pfloat)	
+doWhile	nico.html#doWhile.t,untyped,untyped	nico: doWhile(a, b: untyped): untyped	
+ellipsefill	nico.html#ellipsefill,Pint,Pint,Pint,Pint	nico: ellipsefill(cx, cy: Pint; rx, ry: Pint)	
+circfill	nico.html#circfill,Pint,Pint,Pint	nico: circfill(cx, cy: Pint; r: Pint)	
+circ	nico.html#circ,Pint,Pint,Pint	nico: circ(cx, cy: Pint; r: Pint)	
+blitFastRaw	nico.html#blitFastRaw,Pint,Pint,Pint,Pint,Pint,Pint	nico: blitFastRaw(sx, sy, dx, dy, w, h: Pint)	
+mset	nico.html#mset,Pint,Pint,int	nico: mset(tx, ty: Pint; t: int)	
+mget	nico.html#mget,Pint,Pint	nico: mget(tx, ty: Pint): int	
+mapAdjacent	nico.html#mapAdjacent.i,Pint,Pint	nico: mapAdjacent(tx, ty: Pint): (Pint, Pint)	
+fget	nico.html#fget,Pint	nico: fget(s: Pint): uint8	
+fget	nico.html#fget,Pint,uint8	nico: fget(s: Pint; f: uint8): bool	
+fset	nico.html#fset,Pint,uint8	nico: fset(s: Pint; f: uint8)	
+fset	nico.html#fset,Pint,uint8,bool	nico: fset(s: Pint; f: uint8; v: bool)	
+masterVol	nico.html#masterVol,range[]	nico: masterVol(newVol: range[0 .. 255])	
+masterVol	nico.html#masterVol	nico: masterVol(): int	
+sfxVol	nico.html#sfxVol,range[]	nico: sfxVol(newVol: range[0 .. 255])	
+sfxVol	nico.html#sfxVol	nico: sfxVol(): int	
+musicVol	nico.html#musicVol,range[]	nico: musicVol(newVol: range[0 .. 255])	
+musicVol	nico.html#musicVol	nico: musicVol(): int	
+loadDefaultFont	nico.html#loadDefaultFont,int	nico: loadDefaultFont(index: int)	
+loadFont	nico.html#loadFont,int,string	nico: loadFont(index: int; filename: string)	
+loadFont	nico.html#loadFont,int,string,string	nico: loadFont(index: int; filename: string; chars: string)	
+glyph	nico.html#glyph,Rune,Pint,Pint,Pint	nico: glyph(c: Rune; x, y: Pint; scale: Pint = 1): Pint	
+glyph	nico.html#glyph,char,Pint,Pint,Pint	nico: glyph(c: char; x, y: Pint; scale: Pint = 1): Pint	
+fontHeight	nico.html#fontHeight	nico: fontHeight(): Pint	
+print	nico.html#print,string,Pint,Pint,Pint	nico: print(text: string; x, y: Pint; scale: Pint = 1)	
+print	nico.html#print,string	nico: print(text: string)	
+glyphWidth	nico.html#glyphWidth,Rune,Pint	nico: glyphWidth(c: Rune; scale: Pint = 1): Pint	
+glyphWidth	nico.html#glyphWidth,char,Pint	nico: glyphWidth(c: char; scale: Pint = 1): Pint	
+textWidth	nico.html#textWidth,string,Pint	nico: textWidth(text: string; scale: Pint = 1): Pint	
+printr	nico.html#printr,string,Pint,Pint,Pint	nico: printr(text: string; x, y: Pint; scale: Pint = 1)	
+printc	nico.html#printc,string,Pint,Pint,Pint	nico: printc(text: string; x, y: Pint; scale: Pint = 1)	
+copy	nico.html#copy,Pint,Pint,Pint,Pint,Pint,Pint	nico: copy(sx, sy, dx, dy, w, h: Pint)	
+copyPixelsToMem	nico.html#copyPixelsToMem,Pint,Pint,openArray[uint8],int	nico: copyPixelsToMem(sx, sy: Pint; buffer: var openArray[uint8]; count = -1)	
+copyMemToScreen	nico.html#copyMemToScreen,Pint,Pint,openArray[uint8],int	nico: copyMemToScreen(dx, dy: Pint; buffer: var openArray[uint8]; count = -1)	
+hasMouse	nico.html#hasMouse	nico: hasMouse(): bool	
+emulateMouse	nico.html#emulateMouse,bool	nico: emulateMouse(on: bool)	
+mouse	nico.html#mouse	nico: mouse(): (int, int)	
+mouserel	nico.html#mouserel	nico: mouserel(): (float32, float32)	
+useRelativeMouse	nico.html#useRelativeMouse,bool	nico: useRelativeMouse(on: bool)	
+mousebtn	nico.html#mousebtn,range[]	nico: mousebtn(b: range[0 .. 2]): bool	
+mousebtnp	nico.html#mousebtnp,range[]	nico: mousebtnp(b: range[0 .. 2]): bool	
+mousebtnup	nico.html#mousebtnup,range[]	nico: mousebtnup(b: range[0 .. 2]): bool	
+mousebtnpr	nico.html#mousebtnpr,range[],Pint	nico: mousebtnpr(b: range[0 .. 2]; r: Pint = 48): bool	
+mousewheel	nico.html#mousewheel	nico: mousewheel(): int	
+clearKeysForBtn	nico.html#clearKeysForBtn,NicoButton	nico: clearKeysForBtn(btn: NicoButton)	
+addKeyForBtn	nico.html#addKeyForBtn,NicoButton,Scancode	nico: addKeyForBtn(btn: NicoButton; scancode: Scancode)	
+shutdown	nico.html#shutdown	nico: shutdown()	
+addResizeFunc	nico.html#addResizeFunc,ResizeFunc	nico: addResizeFunc(newResizeFunc: ResizeFunc)	
+removeResizeFunc	nico.html#removeResizeFunc,ResizeFunc	nico: removeResizeFunc(resizeFunc: ResizeFunc)	
+setTargetSize	nico.html#setTargetSize,int,int	nico: setTargetSize(w, h: int)	
+fixedSize	nico.html#fixedSize	nico: fixedSize(): bool	
+fixedSize	nico.html#fixedSize,bool	nico: fixedSize(enabled: bool)	
+getScreenScale	nico.html#getScreenScale	nico: getScreenScale(): float32	
+integerScale	nico.html#integerScale	nico: integerScale(): bool	
+integerScale	nico.html#integerScale,bool	nico: integerScale(enabled: bool)	
+newSpritesheet	nico.html#newSpritesheet,int,int,int,int,int	nico: newSpritesheet(index: int; w, h: int; tw, th = 8)	
+setSpritesheet	nico.html#setSpritesheet,int	nico: setSpritesheet(index: int)	
+loadSpriteSheet	nico.html#loadSpriteSheet,int,string,Pint,Pint	nico: loadSpriteSheet(index: int; filename: string; tileWidth, tileHeight: Pint = 8)	
+spriteSize	nico.html#spriteSize	nico: spriteSize(): (int, int)	
+spr	nico.html#spr,Pint,Pint,Pint,Pint,Pint,bool,bool	nico: spr(spr: Pint; x, y: Pint; w, h: Pint = 1; hflip, vflip: bool = false)	
+sprshift	nico.html#sprshift,Pint,Pint,Pint,Pint,Pint,Pint,Pint,bool,bool	nico: sprshift(spr: Pint; x, y: Pint; w, h: Pint = 1; ox, oy: Pint = 0;\n         hflip, vflip: bool = false)	
+sprRot	nico.html#sprRot,Pint,Pint,Pint,float32,Pint,Pint	nico: sprRot(spr: Pint; x, y: Pint; radians: float32; w, h: Pint = 1)	
+sprRot90	nico.html#sprRot90,Pint,Pint,Pint,int,Pint,Pint	nico: sprRot90(spr: Pint; x, y: Pint; rotations: int; w, h: Pint = 1)	
+sprBlitFast	nico.html#sprBlitFast,Pint,Pint,Pint,Pint,Pint	nico: sprBlitFast(spr: Pint; x, y: Pint; w, h: Pint = 1)	
+sprBlitFastRaw	nico.html#sprBlitFastRaw,Pint,Pint,Pint,Pint,Pint	nico: sprBlitFastRaw(spr: Pint; x, y: Pint; w, h: Pint = 1)	
+sprBlitStretch	nico.html#sprBlitStretch,Pint,Pint,Pint,Pint,Pint	nico: sprBlitStretch(spr: Pint; x, y: Pint; w, h: Pint = 1)	
+spr	nico.html#spr,SpriteDraw	nico: spr(drawer: SpriteDraw)	
+spr	nico.html#spr,SpriteDraw,Pint,Pint	nico: spr(drawer: SpriteDraw; x, y: Pint)	
+sprOverlap	nico.html#sprOverlap,SpriteDraw,SpriteDraw	nico: sprOverlap(a, b: SpriteDraw): bool	
+sprs	nico.html#sprs,Pint,Pint,Pint,Pint,Pint,Pint,Pint,bool,bool	nico: sprs(spr: Pint; x, y: Pint; w, h: Pint = 1; dw, dh: Pint = 1;\n     hflip, vflip: bool = false)	
+sprss	nico.html#sprss,Pint,Pint,Pint,Pint,Pint,Pint,Pint,bool,bool	nico: sprss(spr: Pint; x, y: Pint; w, h: Pint = 1; dw, dh: Pint;\n      hflip, vflip: bool = false)	
+sspr	nico.html#sspr,Pint,Pint,Pint,Pint,Pint,Pint,Pint,Pint,bool,bool	nico: sspr(sx, sy, sw, sh, dx, dy: Pint; dw, dh: Pint = -1; hflip, vflip: bool = false)	
+roundTo	nico.html#roundTo,T,T	nico: roundTo[T](a: T; n: T): T	
+remainder	nico.html#remainder,int,int	nico: remainder(a: int; n: int): int	
+mapFilter	nico.html#mapFilter,uint8	nico: mapFilter(flags: uint8 = 0&apos;u8)	
+mapFilter	nico.html#mapFilter,range[],bool	nico: mapFilter(flag: range[0 .. 7]; on: bool)	
+mapDraw	nico.html#mapDraw,Pint,Pint,Pint,Pint,Pint,Pint,Pint,Pint,bool,Pint,Pint	nico: mapDraw(startTX, startTY, tw, th, dx, dy: Pint; dw, dh: Pint = -1;\n        loop: bool = false; ox, oy: Pint = 0)	
+mapWidth	nico.html#mapWidth	nico: mapWidth(): Pint	
+mapHeight	nico.html#mapHeight	nico: mapHeight(): Pint	
+loadMap	nico.html#loadMap,int,string,int	nico: loadMap(index: int; filename: string; layer = 0)	
+loadMapObjects	nico.html#loadMapObjects,int,string,int	nico: loadMapObjects(index: int; filename: string; layer = 0): seq[\n    (float32, float32, string, string)]	
+saveMap	nico.html#saveMap,int,string	nico: saveMap(index: int; filename: string)	
+pixelToMap	nico.html#pixelToMap,Pint,Pint	nico: pixelToMap(px, py: Pint): (Pint, Pint)	
+mapToPixel	nico.html#mapToPixel,Pint,Pint	nico: mapToPixel(tx, ty: Pint): (Pint, Pint)	
+newMap	nico.html#newMap,int,Pint,Pint,Pint,Pint	nico: newMap(index: int; w, h: Pint; tw, th: Pint = 8)	
+setMap	nico.html#setMap,int	nico: setMap(index: int)	
+succWrap	nico.html#succWrap.t,T	nico: succWrap[T](x: T): T	
+predWrap	nico.html#predWrap.t,T	nico: predWrap[T](x: T): T	
+incWrap	nico.html#incWrap.t,T	nico: incWrap[T](x: var T)	
+decWrap	nico.html#decWrap.t,T	nico: decWrap[T](x: var T)	
+rnd	nico.html#rnd,T	nico: rnd[T: Natural](x: T): T	
+rnd	nico.html#rnd,Pfloat	nico: rnd(x: Pfloat): Pfloat	
+rndbi	nico.html#rndbi,T	nico: rndbi[T](x: T): T	
+rnd	nico.html#rnd,T,T	nico: rnd[T](min: T; max: T): T	
+rnd	nico.html#rnd,openArray[T]	nico: rnd[T](a: openArray[T]): T	
+rnd	nico.html#rnd,HSlice[T,T]	nico: rnd[T](x: HSlice[T, T]): T	
+srand	nico.html#srand,int	nico: srand(seed: int)	
+srand	nico.html#srand	nico: srand()	
+getControllers	nico.html#getControllers	nico: getControllers(): seq[NicoController]	
+setFont	nico.html#setFont,FontId	nico: setFont(fontId: FontId)	
+getFont	nico.html#getFont	nico: getFont(): FontId	
+createWindow	nico.html#createWindow,string,int,int,int,bool	nico: createWindow(title: string; w, h: int; scale: int = 2; fullscreen: bool = false)	
+hasWindow	nico.html#hasWindow	nico: hasWindow(): bool	
+readFile	nico.html#readFile,string	nico: readFile(filename: string): string	
+readJsonFile	nico.html#readJsonFile,string	nico: readJsonFile(filename: string): JsonNode	
+saveJsonFile	nico.html#saveJsonFile,string,JsonNode	nico: saveJsonFile(filename: string; data: JsonNode)	
+flip	nico.html#flip	nico: flip()	
+setFullscreen	nico.html#setFullscreen,bool	nico: setFullscreen(fullscreen: bool)	
+getFullscreen	nico.html#getFullscreen	nico: getFullscreen(): bool	
+setScreenSize	nico.html#setScreenSize,int,int	nico: setScreenSize(w, h: int)	
+setWindowTitle	nico.html#setWindowTitle,string	nico: setWindowTitle(title: string)	
+cursor	nico.html#cursor,Pint,Pint	nico: cursor(x, y: Pint)	
+wrap	nico.html#wrap,T,T	nico: wrap[T](x, m: T): T	
+init	nico.html#init,string,string	nico: init(org: string; app: string)	
+setInitFunc	nico.html#setInitFunc	nico: setInitFunc(init: (proc ()))	
+setUpdateFunc	nico.html#setUpdateFunc	nico: setUpdateFunc(update: (proc (dt: float32)))	
+setDrawFunc	nico.html#setDrawFunc	nico: setDrawFunc(draw: (proc ()))	
+setControllerAdded	nico.html#setControllerAdded,proc(NicoController)	nico: setControllerAdded(cadded: proc (controller: NicoController))	
+setControllerRemoved	nico.html#setControllerRemoved,proc(NicoController)	nico: setControllerRemoved(cremoved: proc (controller: NicoController))	
+run	nico.html#run,,,	nico: run(init: (proc ()); update: (proc (dt: float32)); draw: (proc ()))	
+setWritePath	nico.html#setWritePath,string	nico: setWritePath(path: string)	
+setAssetPath	nico.html#setAssetPath,string	nico: setAssetPath(path: string)	
+setGifScale	nico.html#setGifScale,int	nico: setGifScale(gs: int = 2)	
+bpm	nico.html#bpm,Natural	nico: bpm(newBpm: Natural)	
+tpb	nico.html#tpb,Natural	nico: tpb(newTpb: Natural)	
+setAudioTickCallback	nico.html#setAudioTickCallback,proc)	nico: setAudioTickCallback(callback: proc ())	
+addKeyListener	nico.html#addKeyListener,KeyListener	nico: addKeyListener(p: KeyListener)	
+removeKeyListener	nico.html#removeKeyListener,KeyListener	nico: removeKeyListener(p: KeyListener)	
+addEventListener	nico.html#addEventListener,EventListener	nico: addEventListener(f: EventListener): EventListener	
+removeEventListener	nico.html#removeEventListener,EventListener	nico: removeEventListener(f: EventListener)	
+removeAllEventListeners	nico.html#removeAllEventListeners	nico: removeAllEventListeners()	
+sgn	nico.html#sgn,Pint	nico: sgn(x: Pint): Pint	
+DEG2RAD	nico.html#DEG2RAD	nico: DEG2RAD	
+RAD2DEG	nico.html#RAD2DEG	nico: RAD2DEG	
+deg2rad	nico.html#deg2rad.t,typed	nico: deg2rad(x: typed): untyped	
+rad2deg	nico.html#rad2deg.t,typed	nico: rad2deg(x: typed): untyped	
+invLerp	nico.html#invLerp,Pfloat,Pfloat,Pfloat	nico: invLerp(a, b, v: Pfloat): Pfloat	
+modSign	nico.html#modSign,T,T	nico: modSign[T](a, n: T): T	
+angleDiff	nico.html#angleDiff,Pfloat,Pfloat	nico: angleDiff(a, b: Pfloat): Pfloat	
+remove	nico.html#remove,seq[T],T	nico: remove[T](a: var seq[T]; v: T)	
+approach	nico.html#approach,T,T,T	nico: approach[T](a: var T; b: T; speed: T)	
+approach	nico.html#approach,T,T,T_2	nico: approach[T](a: T; b: T; speed: T): T	
+approachAngle	nico.html#approachAngle,float32,float32,float32	nico: approachAngle(a: var float32; b: float32; speed: float32)	
+timer	nico.html#timer.t,typed,untyped	nico: timer(a: typed; body: untyped): untyped	
+toPint	nico.html#toPint.c,uint8	nico: toPint(x: uint8): Pint	
+toPfloat	nico.html#toPfloat.c,int	nico: toPfloat(x: int): Pfloat	
+all	nico.html#all.i,openArray[T]	nico: all[T](a: var openArray[T]): T	

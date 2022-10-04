@@ -1,0 +1,81 @@
+debug	nico/backends/sdl2.html#debug.t,varargs[string,]	sdl2: debug(args: varargs[string, `$`])	
+audioInSample	nico/backends/sdl2.html#audioInSample	sdl2: audioInSample	
+resize	nico/backends/sdl2.html#resize,int,int	sdl2: resize(w, h: int)	
+setShaderBool	nico/backends/sdl2.html#setShaderBool,string,bool	sdl2: setShaderBool(uniformName: string; value: bool)	
+setShaderFloat	nico/backends/sdl2.html#setShaderFloat,string,float32	sdl2: setShaderFloat(uniformName: string; value: float32)	
+resize	nico/backends/sdl2.html#resize	sdl2: resize()	
+createWindow	nico/backends/sdl2.html#createWindow,string,int,int,int,bool	sdl2: createWindow(title: string; w, h: int; scale: int = 2; fullscreen: bool = false)	
+readFile	nico/backends/sdl2.html#readFile,string	sdl2: readFile(filename: string): string	
+loadSurfaceFromPNG	nico/backends/sdl2.html#loadSurfaceFromPNG,string,proc()	sdl2: loadSurfaceFromPNG(filename: string; callback: proc (surface: common.Surface))	
+loadSurfaceFromPNGNoConvert	nico/backends/sdl2.html#loadSurfaceFromPNGNoConvert,string,proc()	sdl2: loadSurfaceFromPNGNoConvert(filename: string;\n                            callback: proc (surface: common.Surface))	
+refreshSpritesheets	nico/backends/sdl2.html#refreshSpritesheets	sdl2: refreshSpritesheets()	
+readJsonFile	nico/backends/sdl2.html#readJsonFile,string	sdl2: readJsonFile(filename: string): JsonNode	
+saveJsonFile	nico/backends/sdl2.html#saveJsonFile,string,JsonNode	sdl2: saveJsonFile(filename: string; data: JsonNode)	
+present	nico/backends/sdl2.html#present	sdl2: present()	
+flip	nico/backends/sdl2.html#flip	sdl2: flip()	
+saveScreenshot	nico/backends/sdl2.html#saveScreenshot	sdl2: saveScreenshot()	
+saveRecording	nico/backends/sdl2.html#saveRecording	sdl2: saveRecording()	
+getKeyNamesForBtn	nico/backends/sdl2.html#getKeyNamesForBtn,NicoButton	sdl2: getKeyNamesForBtn(btn: NicoButton): seq[string]	
+getKeyMap	nico/backends/sdl2.html#getKeyMap	sdl2: getKeyMap(): string	
+setKeyMap	nico/backends/sdl2.html#setKeyMap,string	sdl2: setKeyMap(mapstr: string)	
+setFullscreen	nico/backends/sdl2.html#setFullscreen,bool	sdl2: setFullscreen(fullscreen: bool)	
+getFullscreen	nico/backends/sdl2.html#getFullscreen	sdl2: getFullscreen(): bool	
+setScreenSize	nico/backends/sdl2.html#setScreenSize,int,int	sdl2: setScreenSize(w, h: int)	
+queuedAudioSize	nico/backends/sdl2.html#queuedAudioSize	sdl2: queuedAudioSize(): int	
+getRealDt	nico/backends/sdl2.html#getRealDt	sdl2: getRealDt(): float32	
+step	nico/backends/sdl2.html#step	sdl2: step()	
+getPerformanceCounter	nico/backends/sdl2.html#getPerformanceCounter	sdl2: getPerformanceCounter(): uint64	
+getPerformanceFrequency	nico/backends/sdl2.html#getPerformanceFrequency	sdl2: getPerformanceFrequency(): uint64	
+setWindowTitle	nico/backends/sdl2.html#setWindowTitle,string	sdl2: setWindowTitle(title: string)	
+getUnmappedJoysticks	nico/backends/sdl2.html#getUnmappedJoysticks	sdl2: getUnmappedJoysticks(): seq[Joystick]	
+loadConfig	nico/backends/sdl2.html#loadConfig	sdl2: loadConfig()	
+saveConfig	nico/backends/sdl2.html#saveConfig	sdl2: saveConfig()	
+updateConfigValue	nico/backends/sdl2.html#updateConfigValue,string,string,string	sdl2: updateConfigValue(section, key, value: string)	
+getConfigValue	nico/backends/sdl2.html#getConfigValue,string,string,string	sdl2: getConfigValue(section, key: string; default: string = &quot;&quot;): string	
+queueAudio	nico/backends/sdl2.html#queueAudio,seq[float32]	sdl2: queueAudio(samples: var seq[float32])	
+queueMixerAudio	nico/backends/sdl2.html#queueMixerAudio	sdl2: queueMixerAudio()	
+initMixer	nico/backends/sdl2.html#initMixer	sdl2: initMixer(wantsAudioIn = false)	
+init	nico/backends/sdl2.html#init,string,string	sdl2: init(org: string; app: string)	
+setFullSpeedGif	nico/backends/sdl2.html#setFullSpeedGif,bool	sdl2: setFullSpeedGif(enabled: bool)	
+getFullSpeedGif	nico/backends/sdl2.html#getFullSpeedGif	sdl2: getFullSpeedGif(): bool	
+setRecordSeconds	nico/backends/sdl2.html#setRecordSeconds,int	sdl2: setRecordSeconds(seconds: int)	
+getRecordSeconds	nico/backends/sdl2.html#getRecordSeconds	sdl2: getRecordSeconds(): int	
+stopLastRun	nico/backends/sdl2.html#stopLastRun	sdl2: stopLastRun()	
+run	nico/backends/sdl2.html#run	sdl2: run()	
+waitUntilReady	nico/backends/sdl2.html#waitUntilReady	sdl2: waitUntilReady()	
+resetChannel	nico/backends/sdl2.html#resetChannel,Channel	sdl2: resetChannel(channel: var Channel)	
+loadSfx	nico/backends/sdl2.html#loadSfx,SfxId,string	sdl2: loadSfx(index: SfxId; filename: string)	
+loadMusic	nico/backends/sdl2.html#loadMusic,int,string	sdl2: loadMusic(index: int; filename: string)	
+getMusic	nico/backends/sdl2.html#getMusic,AudioChannelId	sdl2: getMusic(channel: AudioChannelId): int	
+sfx	nico/backends/sdl2.html#sfx,AudioChannelId,SfxId,int,Pfloat,Pfloat,Pfloat	sdl2: sfx(channel: AudioChannelId = -1; index: SfxId; loop: int = 1;\n    gain: Pfloat = 1.0; pitch: Pfloat = 1.0; priority: Pfloat = Inf)	
+music	nico/backends/sdl2.html#music,AudioChannelId,int,int	sdl2: music(channel: AudioChannelId; index: int; loop: int = -1)	
+musicSeek	nico/backends/sdl2.html#musicSeek,AudioChannelId,int	sdl2: musicSeek(channel: AudioChannelId; pos: int)	
+musicGetPos	nico/backends/sdl2.html#musicGetPos,AudioChannelId	sdl2: musicGetPos(channel: AudioChannelId): int	
+volume	nico/backends/sdl2.html#volume,AudioChannelId,int	sdl2: volume(channel: AudioChannelId; volume: int)	
+pitchbend	nico/backends/sdl2.html#pitchbend,AudioChannelId,range[]	sdl2: pitchbend(channel: AudioChannelId; changeSpeed: range[-128 .. 128])	
+vibrato	nico/backends/sdl2.html#vibrato,AudioChannelId,range[],range[]	sdl2: vibrato(channel: AudioChannelId; speed: range[1 .. 15]; amount: range[0 .. 15])	
+glide	nico/backends/sdl2.html#glide,AudioChannelId,range[]	sdl2: glide(channel: AudioChannelId; glide: range[0 .. 15])	
+wavData	nico/backends/sdl2.html#wavData,AudioChannelId	sdl2: wavData(channel: AudioChannelId): array[32, uint8]	
+wavData	nico/backends/sdl2.html#wavData,AudioChannelId,array[,uint8]	sdl2: wavData(channel: AudioChannelId; data: array[32, uint8])	
+pitch	nico/backends/sdl2.html#pitch,AudioChannelId,Pfloat	sdl2: pitch(channel: AudioChannelId; freq: Pfloat)	
+synthShape	nico/backends/sdl2.html#synthShape,AudioChannelId,SynthShape	sdl2: synthShape(channel: AudioChannelId; newShape: SynthShape)	
+audioOut	nico/backends/sdl2.html#audioOut,AudioChannelId,int	sdl2: audioOut(channel: AudioChannelId; index: int): float32	
+synth	nico/backends/sdl2.html#synth,AudioChannelId,SynthShape,Pfloat,range[],range[],range[]	sdl2: synth(channel: AudioChannelId; shape: SynthShape; freq: Pfloat;\n      init: range[0 .. 15]; env: range[-7 .. 7]; length: range[0 .. 255] = 0)	
+synth	nico/backends/sdl2.html#synth,AudioChannelId,SynthData	sdl2: synth(channel: AudioChannelId; synthData: SynthData)	
+synth	nico/backends/sdl2.html#synth,AudioChannelId,string	sdl2: synth(channel: AudioChannelId; synthString: string)	
+synthIndex	nico/backends/sdl2.html#synthIndex,AudioChannelId	sdl2: synthIndex(channel: AudioChannelId): int	
+synthUpdate	nico/backends/sdl2.html#synthUpdate,AudioChannelId,SynthShape,Pfloat	sdl2: synthUpdate(channel: AudioChannelId; shape: SynthShape; freq: Pfloat)	
+startTextInput	nico/backends/sdl2.html#startTextInput	sdl2: startTextInput()	
+stopTextInput	nico/backends/sdl2.html#stopTextInput	sdl2: stopTextInput()	
+useRelativeMouse	nico/backends/sdl2.html#useRelativeMouse,bool	sdl2: useRelativeMouse(on: bool)	
+isTextInput	nico/backends/sdl2.html#isTextInput	sdl2: isTextInput(): bool	
+setAudioCallback	nico/backends/sdl2.html#setAudioCallback,AudioChannelId,proc(float32),bool	sdl2: setAudioCallback(channel: AudioChannelId;\n                 callback: proc (input: float32): float32; stereo: bool)	
+setAudioBufferSize	nico/backends/sdl2.html#setAudioBufferSize,int	sdl2: setAudioBufferSize(samples: int)	
+hideMouse	nico/backends/sdl2.html#hideMouse	sdl2: hideMouse()	
+showMouse	nico/backends/sdl2.html#showMouse	sdl2: showMouse()	
+setClipboardText	nico/backends/sdl2.html#setClipboardText,string	sdl2: setClipboardText(text: string)	
+setLinearFilter	nico/backends/sdl2.html#setLinearFilter,bool	sdl2: setLinearFilter(on: bool)	
+hasWindow	nico/backends/sdl2.html#hasWindow	sdl2: hasWindow(): bool	
+setVSync	nico/backends/sdl2.html#setVSync,bool	sdl2: setVSync(on: bool)	
+getVSync	nico/backends/sdl2.html#getVSync	sdl2: getVSync(): bool	
+errorPopup	nico/backends/sdl2.html#errorPopup,string,string	sdl2: errorPopup(title: string; message: string)	

@@ -1,0 +1,40 @@
+Keyboard	nico/controller.html#Keyboard	NicoControllerKind.Keyboard	
+Gamepad	nico/controller.html#Gamepad	NicoControllerKind.Gamepad	
+NicoControllerKind	nico/controller.html#NicoControllerKind	controller: NicoControllerKind	
+pcXAxis	nico/controller.html#pcXAxis	NicoAxis.pcXAxis	
+pcYAxis	nico/controller.html#pcYAxis	NicoAxis.pcYAxis	
+pcXAxis2	nico/controller.html#pcXAxis2	NicoAxis.pcXAxis2	
+pcYAxis2	nico/controller.html#pcYAxis2	NicoAxis.pcYAxis2	
+pcLTrigger	nico/controller.html#pcLTrigger	NicoAxis.pcLTrigger	
+pcRTrigger	nico/controller.html#pcRTrigger	NicoAxis.pcRTrigger	
+NicoAxis	nico/controller.html#NicoAxis	controller: NicoAxis	
+pcLeft	nico/controller.html#pcLeft	NicoButton.pcLeft	
+pcRight	nico/controller.html#pcRight	NicoButton.pcRight	
+pcUp	nico/controller.html#pcUp	NicoButton.pcUp	
+pcDown	nico/controller.html#pcDown	NicoButton.pcDown	
+pcA	nico/controller.html#pcA	NicoButton.pcA	
+pcB	nico/controller.html#pcB	NicoButton.pcB	
+pcX	nico/controller.html#pcX	NicoButton.pcX	
+pcY	nico/controller.html#pcY	NicoButton.pcY	
+pcL1	nico/controller.html#pcL1	NicoButton.pcL1	
+pcL2	nico/controller.html#pcL2	NicoButton.pcL2	
+pcL3	nico/controller.html#pcL3	NicoButton.pcL3	
+pcR1	nico/controller.html#pcR1	NicoButton.pcR1	
+pcR2	nico/controller.html#pcR2	NicoButton.pcR2	
+pcR3	nico/controller.html#pcR3	NicoButton.pcR3	
+pcStart	nico/controller.html#pcStart	NicoButton.pcStart	
+pcBack	nico/controller.html#pcBack	NicoButton.pcBack	
+NicoButton	nico/controller.html#NicoButton	controller: NicoButton	
+NicoController	nico/controller.html#NicoController	controller: NicoController	
+newNicoController	nico/controller.html#newNicoController,cint	controller: newNicoController(id: cint): NicoController	
+update	nico/controller.html#update,NicoController	controller: update(self: NicoController)	
+postUpdate	nico/controller.html#postUpdate,NicoController	controller: postUpdate(self: NicoController)	
+axis	nico/controller.html#axis,NicoController,NicoAxis	controller: axis(self: NicoController; axis: NicoAxis): float	
+axisp	nico/controller.html#axisp,NicoController,NicoAxis,float	controller: axisp(self: NicoController; axis: NicoAxis; value: float): bool	
+btn	nico/controller.html#btn,NicoController,NicoButton	controller: btn(self: NicoController; button: NicoButton): bool	
+btnp	nico/controller.html#btnp,NicoController,NicoButton	controller: btnp(self: NicoController; button: NicoButton): bool	
+anybtnp	nico/controller.html#anybtnp,NicoController	controller: anybtnp(self: NicoController): bool	
+btnup	nico/controller.html#btnup,NicoController,NicoButton	controller: btnup(self: NicoController; button: NicoButton): bool	
+btnpr	nico/controller.html#btnpr,NicoController,NicoButton,int	controller: btnpr(self: NicoController; button: NicoButton; repeat = 48): bool	
+setButtonState	nico/controller.html#setButtonState,NicoController,NicoButton,bool	controller: setButtonState(self: NicoController; button: NicoButton; down: bool)	
+setAxisValue	nico/controller.html#setAxisValue,NicoController,NicoAxis,float	controller: setAxisValue(self: NicoController; axis: NicoAxis; value: float)	

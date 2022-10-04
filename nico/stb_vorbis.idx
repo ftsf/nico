@@ -1,0 +1,14 @@
+Vorbis	nico/stb_vorbis.html#Vorbis	stb_vorbis: Vorbis	
+VorbisInfo	nico/stb_vorbis.html#VorbisInfo	stb_vorbis: VorbisInfo	
+stb_vorbis_open_file	nico/stb_vorbis.html#stb_vorbis_open_file,File,cint,ptr.cint,pointer	stb_vorbis: stb_vorbis_open_file(fp: File; close_handle_on_close: cint; error: ptr cint;\n                     alloc_buffer: pointer): Vorbis	
+stb_vorbis_open_filename	nico/stb_vorbis.html#stb_vorbis_open_filename,cstring,ptr.cint,pointer	stb_vorbis: stb_vorbis_open_filename(filename: cstring; error: ptr cint;\n                         alloc_buffer: pointer): Vorbis	
+stb_vorbis_open_memory	nico/stb_vorbis.html#stb_vorbis_open_memory,pointer,cint,ptr.cint,pointer	stb_vorbis: stb_vorbis_open_memory(data: pointer; len: cint; error: ptr cint;\n                       alloc_buffer: pointer): Vorbis	
+stb_vorbis_get_info	nico/stb_vorbis.html#stb_vorbis_get_info,Vorbis	stb_vorbis: stb_vorbis_get_info(f: Vorbis): VorbisInfo	
+stb_vorbis_stream_length_in_samples	nico/stb_vorbis.html#stb_vorbis_stream_length_in_samples,Vorbis	stb_vorbis: stb_vorbis_stream_length_in_samples(f: Vorbis): cuint	
+stb_vorbis_get_samples_short_interleaved	nico/stb_vorbis.html#stb_vorbis_get_samples_short_interleaved,Vorbis,cint,ptr.uint16,cint	stb_vorbis: stb_vorbis_get_samples_short_interleaved(f: Vorbis; channels: cint;\n    buffer: ptr uint16; num_shorts: cint): cint	
+stb_vorbis_get_samples_float_interleaved	nico/stb_vorbis.html#stb_vorbis_get_samples_float_interleaved,Vorbis,cint,ptr.float32,cint	stb_vorbis: stb_vorbis_get_samples_float_interleaved(f: Vorbis; channels: cint;\n    buffer: ptr float32; num_floats: cint): cint	
+stb_vorbis_close	nico/stb_vorbis.html#stb_vorbis_close,Vorbis	stb_vorbis: stb_vorbis_close(f: Vorbis)	
+stb_vorbis_seek_frame	nico/stb_vorbis.html#stb_vorbis_seek_frame,Vorbis,cuint	stb_vorbis: stb_vorbis_seek_frame(f: Vorbis; frame: cuint): cint	
+stb_vorbis_seek	nico/stb_vorbis.html#stb_vorbis_seek,Vorbis,cuint	stb_vorbis: stb_vorbis_seek(f: Vorbis; sample: cuint): cint	
+stb_vorbis_get_file_offset	nico/stb_vorbis.html#stb_vorbis_get_file_offset,Vorbis	stb_vorbis: stb_vorbis_get_file_offset(f: Vorbis): cuint	
+stb_vorbis_get_sample_offset	nico/stb_vorbis.html#stb_vorbis_get_sample_offset,Vorbis	stb_vorbis: stb_vorbis_get_sample_offset(f: Vorbis): cint	

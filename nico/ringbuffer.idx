@@ -1,0 +1,10 @@
+RingBuffer	nico/ringbuffer.html#RingBuffer	ringbuffer: RingBuffer	
+initRingBuffer	nico/ringbuffer.html#initRingBuffer,int	ringbuffer: initRingBuffer[T](length: int): RingBuffer[T]	
+add	nico/ringbuffer.html#add,RingBuffer[T],openArray[T]	ringbuffer: add[T](b: var RingBuffer[T]; data: openArray[T])	
+add	nico/ringbuffer.html#add,RingBuffer[T],T	ringbuffer: add[T](b: var RingBuffer[T]; data: T)	
+idx	nico/ringbuffer.html#idx,RingBuffer[T],int	ringbuffer: idx[T](b: RingBuffer[T]; i: int): int	
+`[]`	nico/ringbuffer.html#[],RingBuffer[T],int	ringbuffer: `[]`[T](b: RingBuffer[T]; i: int): T	
+`[]=`	nico/ringbuffer.html#[]=,RingBuffer[T],int,T	ringbuffer: `[]=`[T](b: var RingBuffer[T]; i: int; item: T)	
+len	nico/ringbuffer.html#len,RingBuffer[T]	ringbuffer: len[T](b: RingBuffer[T]): int	
+items	nico/ringbuffer.html#items.i,RingBuffer[T]	ringbuffer: items[T](b: RingBuffer[T]): T	
+pairs	nico/ringbuffer.html#pairs.i,RingBuffer[T]	ringbuffer: pairs[T](b: RingBuffer[T]): (int, T)	

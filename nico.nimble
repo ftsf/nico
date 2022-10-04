@@ -31,6 +31,10 @@ task test, "run tests":
   for file in tests:
     exec &"nim c -p:. -r {file}"
 
+task docs, "Generate documentation":
+  exec "nim doc -p:. --git.url:https://github.com/ftsf/nico --git.commit:main --project --outdir:docs nico.nim"
+  exec "echo \"<meta http-equiv=\\\"Refresh\\\" content=\\\"0; url='nico.html'\\\" />\" >> docs/index.html"
+
 task testemscripten, "compile tests with emscripten":
   # test they compile with emscripten backend, harder to test running
   for file in tests:

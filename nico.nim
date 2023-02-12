@@ -39,6 +39,7 @@ export profileHistory
 export errorPopup
 
 export setClipboardText
+export getClipboardText
 
 # Audio
 export joinPath
@@ -738,7 +739,7 @@ proc ditherADitherXor*(v: float32, a = 149,b = 1234, c = 511) =
 proc ditherPass(x,y: int): bool {.inline.} =
   if gDitherMode == DitherNone:
     return true
-    
+
   let x = floorMod(x + gDitherOffsetX, screenWidth)
   let y = floorMod(y + gDitherOffsetY, screenHeight)
 
@@ -2532,12 +2533,12 @@ proc spr*(drawer: SpriteDraw, x,y:Pint)=
 proc sprOverlap*(a,b : SpriteDraw): bool=
   ##Will return true if the sprites overlap
   setSpritesheet(a.spriteSheet)
-  let 
+  let
     aSprRect = getSprRect(a.spriteIndex,a.w,a.h)
     aRect: Rect = (a.x, a.y, aSprRect.w, aSprRect.h)
 
   if(a.spritesheet != b.spritesheet): setSpritesheet(b.spriteSheet)
-  let 
+  let
     bSprRect = getSprRect(b.spriteIndex,b.w,b.h)
     bRect: Rect = (b.x, b.y, bSprRect.w, bSprRect.h)
 
@@ -2552,7 +2553,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
       bXRelative = xOverlap - b.x
       bYRelative = yOverlap - b.y
 
-    var 
+    var
       surfA = spritesheets[a.spriteSheet]
       surfB = spritesheets[b.spriteSheet]
       indA = 0
@@ -2561,7 +2562,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
     #Foreach pixel in the overlap check the colour there
     for xSamp in 0..<wOverlap:
       for ySamp in 0..<hOverlap:
-        var 
+        var
           aX = aSprRect.x + xSamp + aXRelative
           aY = aSprRect.y + ySamp + aYRelative
           bX = bSprRect.x + xSamp + bxRelative
@@ -2572,7 +2573,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
         if(a.flipX):
           aX = aSprRect.x + (aSprRect.w - (xSamp + aXRelative)) - 1
         if(a.flipY):
-          aY = aSprRect.y + (aSprRect.h - (ySamp + aYRelative)) - 1 
+          aY = aSprRect.y + (aSprRect.h - (ySamp + aYRelative)) - 1
 
         if(b.flipX):
           bX = bSprRect.x + (aSprRect.w - (xSamp + bXRelative)) - 1
@@ -2584,7 +2585,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
         indB = bX + bY * surfB.w
         if(indA < surfA.data.len and indB < surfB.data.len):#Shouldnt ever happen but errors must be checked
           if(surfA.data[indA] > 0 and surfB.data[indB] > 0): #Using 0 as of now for alpha check
-            return true 
+            return true
 
   return false
 

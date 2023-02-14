@@ -1693,8 +1693,6 @@ proc fontBlit(font: Font, srcRect, dstRect: Rect, color: ColorId) =
     for x in 0..<dstRect.w:
       if sx.int < 0 or sy.int < 0 or sx.int > font.w - 1 or sy.int > font.h - 1:
         continue
-      if dx.int < clipMinX or dy.int < clipMinY or dx.int > clipMaxX or dy.int > clipMaxY:
-        continue
       if font.data[sy * font.w + sx] == 1:
         pset(dx,dy,currentColor)
 

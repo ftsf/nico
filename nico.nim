@@ -2224,7 +2224,7 @@ proc glyph*(c: Rune, x,y: Pint, scale: Pint = 1): Pint =
   if not currentFont.rects.hasKey(c):
     return
   let src: Rect = currentFont.rects[c]
-  let dst: Rect = (x.int, y.int, src.w * scale, src.h * scale)
+  let dst: Rect = (x.int, y.int, src.w * scale.int, src.h * scale.int)
   try:
     fontBlit(currentFont, src, dst, currentColor)
   except IndexDefect:

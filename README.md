@@ -37,6 +37,7 @@ NICO is a simple game framework for the [Nim](http://nim-lang.org/) programming 
    * For web builds you'll need [Emscripten](https://emscripten.org/docs/getting_started/downloads.html).
    * From your project directory run ```nimble webr``` to build for web in release mode.
    * From your project directory run ```nimble webd``` to build for web in debug mode.
+   * From your project directory run ```emrun projectname.html # or nimble runweb``` open browser run webapp.
 
 ## Learning
  * [API Documentation](API.md)

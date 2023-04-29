@@ -2263,7 +2263,7 @@ proc print*(text: string) =
   let y = cursorY
   for c in text.runes:
     x += glyph(c, x, y, 1)
-  cursorY += 6
+  cursorY += currentFont.h
 
 proc glyphWidth*(c: Rune, scale: Pint = 1): Pint =
   ## returns the width of the glyph in the current font

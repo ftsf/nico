@@ -148,7 +148,7 @@ proc glyph*(c: Rune, x,y: Pint, scale: Pint = 1): Pint {.discardable, inline.}
 proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint {.discardable, inline.}
 
 proc cursor*(x,y: Pint) # set cursor position
-proc print*(text: string) # print at cursor
+proc print*(text: string, scale: Pint = 1) # print at cursor
 proc print*(text: string, x,y: Pint, scale: Pint = 1)
 proc printc*(text: string, x,y: Pint, scale: Pint = 1) # centered
 proc printr*(text: string, x,y: Pint, scale: Pint = 1) # right aligned
@@ -2249,21 +2249,23 @@ proc print*(text: string, x,y: Pint, scale: Pint = 1) =
   var x = x
   var y = y
   let ix = x
+  let lineHeight = fontHeight() + scale
   for line in text.splitLines:
     for c in line.runes:
       x += glyph(c, x, y, scale)
     x = ix
-    y += currentFont.h
+    y += lineHeight
 
-proc print*(text: string) =
+proc print*(text: string, scale: Pint = 1) =
   ## prints a string using the current font at cursor position
   if currentFont == nil:
     raise newException(Exception, "No font selected")
   var x = cursorX
   let y = cursorY
+  let lineHeight = fontHeight() + scale
   for c in text.runes:
-    x += glyph(c, x, y, 1)
-  cursorY += 6
+    x += glyph(c, x, y, scale)
+  cursorY += lineHeight
 
 proc glyphWidth*(c: Rune, scale: Pint = 1): Pint =
   ## returns the width of the glyph in the current font

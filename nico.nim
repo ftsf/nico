@@ -2249,7 +2249,7 @@ proc print*(text: string, x,y: Pint, scale: Pint = 1) =
   var x = x
   var y = y
   let ix = x
-  let lineHeight = fontHeight() + scale
+  let lineHeight = fontHeight() * scale + scale
   for line in text.splitLines:
     for c in line.runes:
       x += glyph(c, x, y, scale)
@@ -2262,7 +2262,7 @@ proc print*(text: string, scale: Pint = 1) =
     raise newException(Exception, "No font selected")
   var x = cursorX
   let y = cursorY
-  let lineHeight = fontHeight() + scale
+  let lineHeight = fontHeight() * scale + scale
   for c in text.runes:
     x += glyph(c, x, y, scale)
   cursorY += lineHeight

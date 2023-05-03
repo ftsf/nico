@@ -139,7 +139,7 @@ glyph	nico.html#glyph,Rune,Pint,Pint,Pint	nico: glyph(c: Rune; x, y: Pint; scale
 glyph	nico.html#glyph,char,Pint,Pint,Pint	nico: glyph(c: char; x, y: Pint; scale: Pint = 1): Pint	
 fontHeight	nico.html#fontHeight	nico: fontHeight(): Pint	
 print	nico.html#print,string,Pint,Pint,Pint	nico: print(text: string; x, y: Pint; scale: Pint = 1)	
-print	nico.html#print,string	nico: print(text: string)	
+print	nico.html#print,string,Pint	nico: print(text: string; scale: Pint = 1)	
 glyphWidth	nico.html#glyphWidth,Rune,Pint	nico: glyphWidth(c: Rune; scale: Pint = 1): Pint	
 glyphWidth	nico.html#glyphWidth,char,Pint	nico: glyphWidth(c: char; scale: Pint = 1): Pint	
 textWidth	nico.html#textWidth,string,Pint	nico: textWidth(text: string; scale: Pint = 1): Pint	

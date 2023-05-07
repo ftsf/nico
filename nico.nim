@@ -1911,7 +1911,7 @@ proc shear(radians: float32, x,y: int32): (int32, int32) {.inline.} =
   var newX = x.float32
   var newY = y.float32
 
-  # if angle is > 90 and 270, 
+  # if angle is > 90 and < 270, 
   # flip the angle and the x,y (effectivement mirroring the sprite on both axes)
   if rad > PI/2.0 and rad < PI*1.5:
     rad = rad + PI
@@ -1938,21 +1938,11 @@ proc blitShearRot(src: Surface, srcRect: Rect, centerX,centerY: Pint, radians: f
   if radians < 0:
     radians += 2*PI
 
-  let cosRadians = cos(radians)
-  let sinRadians = sin(radians)
-
   let width = srcRect.w.float32
   let height = srcRect.h.float32
-  let newWidth = (round(abs(width * cosRadians) + abs(height * sinRadians)) + 1)
-  let newHeight = (round(abs(height * cosRadians) + abs(width * sinRadians)) + 1)
 
   let ogCenterX = round((width+1)/2 - 1)
   let ogCenterY = round((height+1)/2 - 1)
-  let dstCenterX = round((newWidth+1)/2 - 1)
-  let dstCenterY = round((newHeight+1)/2 - 1)
-
-  let offsetX = centerX + (ogCenterX - dstCenterX) - width/2
-  let offsetY = centerY + (ogCenterY - dstCenterY) - height/2
 
   for i in 0..<height:
     for j in 0..<width:
@@ -1961,8 +1951,8 @@ proc blitShearRot(src: Surface, srcRect: Rect, centerX,centerY: Pint, radians: f
 
       var (dx, dy) = shear(radians, x, y)
 
-      dx = dstCenterX - dx + offsetX - cameraX
-      dy = dstCenterY - dy + offsetY - cameraY
+      dx = -dx + centerX + ogCenterX - width/2 - cameraX
+      dy = -dy + centerY + ogCenterY - height/2 - cameraY
 
       # check dest pixel is in bounds
       if dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY:

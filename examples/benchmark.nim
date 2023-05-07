@@ -38,6 +38,7 @@ toDraw[bmSprite] = 1000
 toDraw[bmSpriteIntScaled] = 1000
 toDraw[bmSpriteScaled] = 1000
 toDraw[bmSpriteRot] = 1000
+toDraw[bmSpriteShearRot] = 1000
 toDraw[bmTrifill] = 1000
 toDraw[bmTTrifill] = 1000
 

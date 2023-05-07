@@ -15,6 +15,7 @@ type BenchmarkMode = enum
   bmSpriteIntScaled
   bmSpriteScaled
   bmSpriteRot
+  bmSpriteShearRot
   bmTrifill
   bmTTrifill
 
@@ -160,6 +161,10 @@ proc gameDraw() =
   of bmSpriteRot:
     for i in 0..<toDraw:
       sprRot(16+rnd(8), rnd(screenWidth),rnd(screenHeight), rnd(TAU))
+      count += 1
+  of bmSpriteShearRot:
+    for i in 0..<toDraw:
+      sprShearRot(16+rnd(8), rnd(screenWidth),rnd(screenHeight), rnd(TAU))
       count += 1
   of bmTrifill:
     for i in 0..<toDraw:

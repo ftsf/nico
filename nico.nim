@@ -1904,6 +1904,74 @@ proc blitFastRot90(src: Surface, srcRect: Rect, dx, dy: Pint, rotations: int) =
       if not paletteTransparent[srcCol]:
         psetRaw(dxi, dyi, paletteMapDraw[srcCol])
 
+proc shear(radians: float32, x,y: int32): (int32, int32) {.inline.} =
+  ## rotates x,y around the origin by rad radians using 3 shears
+  var rad = radians
+
+  var newX = x.float32
+  var newY = y.float32
+
+  # if angle is > 90 and 270, 
+  # flip the angle and the x,y (effectivement mirroring the sprite on both axes)
+  if rad > PI/2.0 and rad < PI*1.5:
+    rad = rad + PI
+    newX = -newX
+    newY = -newY
+
+  let tangent = tan(rad/2)
+
+  # shear 1
+  newX = round(newX - newY * tangent)
+  # shear 2
+  newY = round(newX * sin(rad) + newY)
+  # shear 3
+  newX = round(newX - newY * tangent)
+
+  return (newX.int32, newY.int32)
+
+proc blitShearRot(src: Surface, srcRect: Rect, centerX,centerY: Pint, radians: float32) =
+  # original algorithm:
+  # https://gautamnagrawal.medium.com/rotating-image-by-any-angle-shear-transformation-using-only-numpy-d28d16eb5076
+
+  # clamp radians to 0-2*PI
+  var radians = radians mod (2*PI)
+  if radians < 0:
+    radians += 2*PI
+
+  let cosRadians = cos(radians)
+  let sinRadians = sin(radians)
+
+  let width = srcRect.w.float32
+  let height = srcRect.h.float32
+  let newWidth = (round(abs(width * cosRadians) + abs(height * sinRadians)) + 1)
+  let newHeight = (round(abs(height * cosRadians) + abs(width * sinRadians)) + 1)
+
+  let ogCenterX = round((width+1)/2 - 1)
+  let ogCenterY = round((height+1)/2 - 1)
+  let dstCenterX = round((newWidth+1)/2 - 1)
+  let dstCenterY = round((newHeight+1)/2 - 1)
+
+  let offsetX = centerX + (ogCenterX - dstCenterX)
+  let offsetY = centerY + (ogCenterY - dstCenterY)
+
+  for i in 0..<height:
+    for j in 0..<width:
+      let x = width - 1 - j - ogCenterX
+      let y = height - 1 - i - ogCenterY
+
+      var (dx, dy) = shear(radians, x, y)
+
+      dx = dstCenterX - dx + offsetX
+      dy = dstCenterY - dy + offsetY
+
+      # check dest pixel is in bounds
+      if dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY:
+        continue
+
+      let srcCol = src.data[(srcRect.y+i) * src.w + srcRect.x + j].ColorId
+      if not paletteTransparent[srcCol]:
+        pset(dx, dy, paletteMapDraw[srcCol])
+
 proc blitFastFlip(src: Surface, sx,sy, dx,dy, w,h: Pint, hflip, vflip: bool) =
   # used for tile drawing, no stretch
   let startsx = sx + (if hflip: w - 1 else: 0)
@@ -2499,6 +2567,12 @@ proc sprRot*(spr: Pint, x,y: Pint, radians: float32, w,h: Pint = 1) =
   ## draw a rotated sprite, center will be at x,y and rotated around the center
   let src = getSprRect(spr, w, h)
   blitFastRot(spritesheet, src, x, y, radians)
+
+proc sprShearRot*(spr: Pint, x,y: Pint, radians: float32, w,h: Pint = 1) =
+  ## draw a rotated sprite by shearing, center will be at x,y and rotated around the center
+  ## this is 2.5x slower than sprRot() but more accurate and preserves all pixels
+  let src = getSprRect(spr, w, h)
+  blitShearRot(spritesheet, src, x, y, radians)
 
 proc sprRot90*(spr: Pint, x,y: Pint, rotations: int, w,h: Pint = 1) =
   ## draw a 90 degree rotated sprite from top left, rotations = 1 = 90 degrees clockwise, 2 = 180 degrees, 3 = 90 degrees anti-clockwise

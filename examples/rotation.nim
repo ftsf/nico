@@ -4,6 +4,7 @@ import math
 
 var angle = 0f
 var mode = 0
+var rotFn = sprRot
 var pos: Vec2f
 
 proc gameInit() =
@@ -25,6 +26,9 @@ proc gameUpdate(dt: Pfloat) =
     if mode > 2:
       mode = 0
 
+  if keyp(K_RETURN):
+    rotFn = if rotFn == sprRot: sprShearRot else: sprRot
+
 proc gameDraw() =
   cls()
 
@@ -35,11 +39,11 @@ proc gameDraw() =
       i+=1
 
   if mode == 0:
-    sprRot(0, pos.x, pos.y, angle, 1, 1)
+    rotFn(0, pos.x, pos.y, angle, 1, 1)
   elif mode == 1:
-    sprRot(1, pos.x, pos.y, angle, 2, 1)
+    rotFn(1, pos.x, pos.y, angle, 2, 1)
   else:
-    sprRot(3, pos.x, pos.y, angle, 1, 2)
+    rotFn(3, pos.x, pos.y, angle, 1, 2)
 
 # initialization
 nico.init("nico", "test")

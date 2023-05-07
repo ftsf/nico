@@ -1951,8 +1951,8 @@ proc blitShearRot(src: Surface, srcRect: Rect, centerX,centerY: Pint, radians: f
   let dstCenterX = round((newWidth+1)/2 - 1)
   let dstCenterY = round((newHeight+1)/2 - 1)
 
-  let offsetX = centerX + (ogCenterX - dstCenterX)
-  let offsetY = centerY + (ogCenterY - dstCenterY)
+  let offsetX = centerX + (ogCenterX - dstCenterX) - width/2
+  let offsetY = centerY + (ogCenterY - dstCenterY) - height/2
 
   for i in 0..<height:
     for j in 0..<width:
@@ -1961,8 +1961,8 @@ proc blitShearRot(src: Surface, srcRect: Rect, centerX,centerY: Pint, radians: f
 
       var (dx, dy) = shear(radians, x, y)
 
-      dx = dstCenterX - dx + offsetX
-      dy = dstCenterY - dy + offsetY
+      dx = dstCenterX - dx + offsetX - cameraX
+      dy = dstCenterY - dy + offsetY - cameraY
 
       # check dest pixel is in bounds
       if dx < clipMinX or dy < clipMinY or dx > clipMaxX or dy > clipMaxY:
@@ -1970,7 +1970,7 @@ proc blitShearRot(src: Surface, srcRect: Rect, centerX,centerY: Pint, radians: f
 
       let srcCol = src.data[(srcRect.y+i) * src.w + srcRect.x + j].ColorId
       if not paletteTransparent[srcCol]:
-        pset(dx, dy, paletteMapDraw[srcCol])
+        psetRaw(dx, dy, paletteMapDraw[srcCol])
 
 proc blitFastFlip(src: Surface, sx,sy, dx,dy, w,h: Pint, hflip, vflip: bool) =
   # used for tile drawing, no stretch

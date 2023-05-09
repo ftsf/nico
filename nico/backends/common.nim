@@ -437,6 +437,7 @@ var resizeFuncs*: seq[ResizeFunc]
 var fonts*: array[FontId, Font]
 var currentFont*: Font
 var currentFontId*: FontId
+var currentFontHeight*: Pint
 
 var frame* = 0
 

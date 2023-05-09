@@ -154,6 +154,7 @@ proc printc*(text: string, x,y: Pint, scale: Pint = 1) # centered
 proc printr*(text: string, x,y: Pint, scale: Pint = 1) # right aligned
 
 proc textWidth*(text: string, scale: Pint = 1): Pint
+proc textHeight*(text: string, scale: Pint = 1): Pint
 proc glyphWidth*(c: Rune, scale: Pint = 1): Pint
 proc glyphWidth*(c: char, scale: Pint = 1): Pint
 
@@ -646,6 +647,9 @@ proc clip*(x,y,w,h: Pint) =
   clippingRect.w = min(w, screenWidth - x)
   clippingRect.h = min(h, screenHeight - y)
 
+template clip*(t: (int,int,int,int)) =
+  clip(t[0], t[1], t[2], t[3])
+
 proc getClip*(): (int,int,int,int) =
   ## returns the clipping rectangle as x,y,w,h
   return (clipMinX,clipMinY,clipMaxX-clipMinX,clipMaxY-clipMinY)
@@ -738,7 +742,7 @@ proc ditherADitherXor*(v: float32, a = 149,b = 1234, c = 511) =
 proc ditherPass(x,y: int): bool {.inline.} =
   if gDitherMode == DitherNone:
     return true
-    
+
   let x = floorMod(x + gDitherOffsetX, screenWidth)
   let y = floorMod(y + gDitherOffsetY, screenHeight)
 
@@ -1069,6 +1073,9 @@ proc pgetRGB*(x,y: Pint): (uint8,uint8,uint8) =
     return (0'u8,0'u8,0'u8)
   return palCol(swCanvas.data[y*swCanvas.w+x].ColorId)
 
+template rectfill*(t: (int,int,int,int)) =
+  rectfill(t[0], t[1], t[0]+t[2]-1, t[1]+t[3]-1)
+
 proc rectfill*(x1,y1,x2,y2: Pint) =
   ## draws a filled rectangle from two points
   let minx = min(x1,x2) - cameraX
@@ -1079,6 +1086,9 @@ proc rectfill*(x1,y1,x2,y2: Pint) =
   for y in max(miny,clipMinY)..min(maxy,clipMaxY):
     for x in max(minx,clipMinX)..min(maxx,clipMaxX):
       psetRaw(x,y,currentColor)
+
+template rrectfill*(t: (int,int,int,int), r = 1) =
+  rrectfill(t[0], t[1], t[0]+t[2]-1, t[1]+t[3]-1, r)
 
 proc rrectfill*(x1,y1,x2,y2: Pint, r: Pint = 1) =
   ## draws a filled rounded rectangle from two points, r specifies radius
@@ -1096,12 +1106,18 @@ proc rrectfill*(x1,y1,x2,y2: Pint, r: Pint = 1) =
   rectfill(minx + r, miny, maxx - r, miny + r)
   rectfill(minx + r, maxy - r, maxx - r, maxy)
 
+template box*(t: (int,int,int,int)) =
+  box(t[0], t[1], t[2], t[3])
+
 proc box*(x,y,w,h: Pint) =
   ## draws a hollow rectangle from position and size
   hline(x,y,x+w-1)
   vline(x,y,y+h-1)
   vline(x+w-1,y,y+h-1)
   hline(x,y+h-1,x+w-1)
+
+template boxfill*(t: (int,int,int,int)) =
+  boxfill(t[0], t[1], t[2], t[3])
 
 proc boxfill*(x,y,w,h: Pint) =
   ## draws a filled rectangle from position and size
@@ -1110,9 +1126,15 @@ proc boxfill*(x,y,w,h: Pint) =
   for y in y..<y+h:
     hline(x,y,x+w-1)
 
+template rbox*(t: (int,int,int,int), r = 1) =
+  rbox(t[0], t[1], t[2], t[3], r)
+
 proc rbox*(x,y,w,h: Pint, r: Pint = 1) =
   ## draws a hollow rounded rectangle from position and size, r specifies radius
   rrect(x,y,x+w-1,y+h-1,r)
+
+template rboxfill*(t: (int,int,int,int), r = 1) =
+  rboxfill(t[0], t[1], t[2], t[3], r)
 
 proc rboxfill*(x,y,w,h: Pint, r: Pint = 1) =
   ## draws a filled rounded rectangle from position and size, r specifies radius
@@ -1254,6 +1276,9 @@ proc lineDashed*(x0,y0,x1,y1: Pint, pattern: uint8 = 0b10101010) =
     if (pattern and (1 shl i).uint8) != 0:
       pset(x,y)
 
+template rect*(t: (int,int,int,int)) =
+  rect(t[0], t[1], t[0]+t[2]-1, t[1]+t[3]-1)
+
 proc rect*(x1,y1,x2,y2: Pint) =
   ## draws a rectangle defined by two points
   let w = x2-x1
@@ -1268,6 +1293,9 @@ proc rect*(x1,y1,x2,y2: Pint) =
   vline(x+w, y+1, y+h-1)
   # left
   vline(x, y+1, y+h-1)
+
+template rrect*(t: (int,int,int,int), r = 1) =
+  rrect(t[0], t[1], t[0]+t[2]-1, t[1]+t[3]-1, r)
 
 proc rrect*(x1,y1,x2,y2: Pint, r: Pint = 1) =
   ## draws a rounded rectangle, radius defined by r
@@ -1351,6 +1379,9 @@ proc rrect*(x1,y1,x2,y2: Pint, r: Pint = 1) =
   vline(minx, miny + r, maxy - r)
   vline(maxx, miny + r, maxy - r)
 
+template rectCorner*(t: (int,int,int,int)) =
+  rectCorner(t[0], t[1], t[0]+t[2]-1, t[1]+t[3]-1)
+
 proc rectCorner*(x1,y1,x2,y2: Pint) =
   ## draws the corners of a rectangle
   let x = x1
@@ -1371,6 +1402,9 @@ proc rectCorner*(x1,y1,x2,y2: Pint) =
   pset(x2, y2)
   pset(x2-1, y2)
   pset(x2, y2-1)
+
+template rrectCorner*(t: (int,int,int,int)) =
+  rrectCorner(t[0], t[1], t[0]+t[2]-1, t[1]+t[3]-1)
 
 proc rrectCorner*(x1,y1,x2,y2: Pint) =
   ## draws the corners of a rounded rectangle
@@ -2221,10 +2255,17 @@ proc glyph*(c: Rune, x,y: Pint, scale: Pint = 1): Pint =
   ## draw a glyph from the current font
   if currentFont == nil:
     raise newException(Exception, "No font selected")
+
+  var src: Rect
   if not currentFont.rects.hasKey(c):
-    return
-  let src: Rect = currentFont.rects[c]
-  let dst: Rect = (x.int, y.int, src.w * scale, src.h * scale)
+    let unknown = '?'.Rune
+    if not currentFont.rects.hasKey(unknown):
+      return
+    src = currentFont.rects[unknown]
+  else:
+    src = currentFont.rects[c]
+
+  let dst: Rect = (x.int, y.int, src.w * scale.int, src.h * scale.int)
   try:
     fontBlit(currentFont, src, dst, currentColor)
   except IndexDefect:
@@ -2240,32 +2281,36 @@ proc fontHeight*(): Pint =
   ## returns the height of the current font in pixels
   if currentFont == nil:
     return 0
-  return currentFont.rects[Rune(' ')].h
+  return currentFontHeight
 
 proc print*(text: string, x,y: Pint, scale: Pint = 1) =
   ## prints a string using the current font
   if currentFont == nil:
     raise newException(Exception, "No font selected")
-  var x = x
-  var y = y
+  var tx = x
+  var ty = y
   let ix = x
   let lineHeight = fontHeight() * scale + scale
   for line in text.splitLines:
     for c in line.runes:
-      x += glyph(c, x, y, scale)
-    x = ix
-    y += lineHeight
+      tx += glyph(c, tx, ty, scale)
+    tx = ix
+    ty += lineHeight
 
 proc print*(text: string, scale: Pint = 1) =
   ## prints a string using the current font at cursor position
-  if currentFont == nil:
-    raise newException(Exception, "No font selected")
-  var x = cursorX
-  let y = cursorY
-  let lineHeight = fontHeight() * scale + scale
-  for c in text.runes:
-    x += glyph(c, x, y, scale)
-  cursorY += lineHeight
+  print(text, cursorX, cursorY, scale)
+
+proc printr*(text: string, x,y: Pint, scale: Pint = 1) =
+  ## prints a string in the current font, right aligned
+  let width = textWidth(text, scale)
+  print(text, x-width, y, scale)
+
+proc printc*(text: string, x,y: Pint, scale: Pint = 1) =
+  ## prints a string in the current font, center aligned
+  let width = textWidth(text, scale)
+  print(text, x-(width div 2), y, scale)
+
 
 proc glyphWidth*(c: Rune, scale: Pint = 1): Pint =
   ## returns the width of the glyph in the current font
@@ -2283,20 +2328,24 @@ proc textWidth*(text: string, scale: Pint = 1): Pint =
   ## returns the width of a string in the current font
   if currentFont == nil:
     raise newException(Exception, "No font selected")
-  for c in text.runes:
-    if not currentFont.rects.hasKey(c):
-      raise newException(Exception, "character not in font: '" & $c & "'")
-    result += currentFont.rects[c].w*scale + scale
+  var lineWidth: int
+  for line in text.splitLines:
+    lineWidth = 0
+    for c in line.runes:
+      if not currentFont.rects.hasKey(c):
+        let unknown = '?'.Rune
+        if not currentFont.rects.hasKey(unknown):
+          raise newException(Exception, "character not in font: '" & $c & "' = " & $(c.int))
+        lineWidth += currentFont.rects[unknown].w*scale + scale
+      else:
+        lineWidth += currentFont.rects[c].w*scale + scale
+    if result < lineWidth:
+      result = lineWidth
 
-proc printr*(text: string, x,y: Pint, scale: Pint = 1) =
-  ## prints a string in the current font, right aligned
-  let width = textWidth(text, scale)
-  print(text, x-width, y, scale)
-
-proc printc*(text: string, x,y: Pint, scale: Pint = 1) =
-  ## prints a string in the current font, center aligned
-  let width = textWidth(text, scale)
-  print(text, x-(width div 2), y, scale)
+proc textHeight*(text: string, scale: Pint = 1): Pint =
+  ## returns the height of a string in the current font
+  let lineslen = text.countLines()
+  result = lineslen * fontHeight() * scale + lineslen * scale
 
 proc copy*(sx,sy,dx,dy,w,h: Pint) =
   ## copy a rectangle of w by h pixels from sx,sy to dx,dy
@@ -2532,12 +2581,12 @@ proc spr*(drawer: SpriteDraw, x,y:Pint)=
 proc sprOverlap*(a,b : SpriteDraw): bool=
   ##Will return true if the sprites overlap
   setSpritesheet(a.spriteSheet)
-  let 
+  let
     aSprRect = getSprRect(a.spriteIndex,a.w,a.h)
     aRect: Rect = (a.x, a.y, aSprRect.w, aSprRect.h)
 
   if(a.spritesheet != b.spritesheet): setSpritesheet(b.spriteSheet)
-  let 
+  let
     bSprRect = getSprRect(b.spriteIndex,b.w,b.h)
     bRect: Rect = (b.x, b.y, bSprRect.w, bSprRect.h)
 
@@ -2552,7 +2601,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
       bXRelative = xOverlap - b.x
       bYRelative = yOverlap - b.y
 
-    var 
+    var
       surfA = spritesheets[a.spriteSheet]
       surfB = spritesheets[b.spriteSheet]
       indA = 0
@@ -2561,7 +2610,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
     #Foreach pixel in the overlap check the colour there
     for xSamp in 0..<wOverlap:
       for ySamp in 0..<hOverlap:
-        var 
+        var
           aX = aSprRect.x + xSamp + aXRelative
           aY = aSprRect.y + ySamp + aYRelative
           bX = bSprRect.x + xSamp + bxRelative
@@ -2572,7 +2621,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
         if(a.flipX):
           aX = aSprRect.x + (aSprRect.w - (xSamp + aXRelative)) - 1
         if(a.flipY):
-          aY = aSprRect.y + (aSprRect.h - (ySamp + aYRelative)) - 1 
+          aY = aSprRect.y + (aSprRect.h - (ySamp + aYRelative)) - 1
 
         if(b.flipX):
           bX = bSprRect.x + (aSprRect.w - (xSamp + bXRelative)) - 1
@@ -2584,7 +2633,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
         indB = bX + bY * surfB.w
         if(indA < surfA.data.len and indB < surfB.data.len):#Shouldnt ever happen but errors must be checked
           if(surfA.data[indA] > 0 and surfB.data[indB] > 0): #Using 0 as of now for alpha check
-            return true 
+            return true
 
   return false
 
@@ -2955,10 +3004,14 @@ proc getControllers*(): seq[NicoController] =
 
 proc setFont*(fontId: FontId) =
   ## sets the active font to be used by future print calls
-  if fontId > fonts.len:
+  if fontId > fonts.len: return
+  let font = fonts[fontId]
+  if font == nil:
+    echo "Haven't font id: " & $fontId
     return
+  currentFont = font
   currentFontId = fontId
-  currentFont = fonts[currentFontId]
+  currentFontHeight = currentFont.rects[Rune(' ')].h
 
 proc getFont*(): FontId =
   ## gets the current font id

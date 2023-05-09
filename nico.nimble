@@ -29,7 +29,7 @@ let tests = collect(newSeq):
 
 task test, "run tests":
   for file in tests:
-    exec &"nim c -p:. -r {file}"
+    exec &"nim c -p:./tests -r {file}"
 
 task docs, "Generate documentation":
   exec "nim doc -p:. --git.url:https://github.com/ftsf/nico --git.commit:main --project --outdir:docs nico.nim"
@@ -38,34 +38,37 @@ task docs, "Generate documentation":
 task testemscripten, "compile tests with emscripten":
   # test they compile with emscripten backend, harder to test running
   for file in tests:
-    exec &"nim c -d:emscripten -p:. {file}"
+    exec &"nim c -d:emscripten -p:./tests {file}"
+
+task unicode, "compile unicode example":
+  exec "nim c -r -p:./examples -d:release -o:examples/unicode examples/unicode.nim"
 
 task paintout, "compile paintout example":
-  exec "nim c -p:. -d:debug examples/paintout.nim"
+  exec "nim c -p:./examples -d:debug -o:examples/paintout examples/paintout.nim"
 
 task platformer, "compile platformer example":
-  exec "nim c -p:. -d:release --multimethods:on -o:examples/platformer examples/platformer.nim"
+  exec "nim c -p:./examples -d:release --multimethods:on -o:examples/platformer examples/platformer.nim"
 
 task audio, "compile audio example":
-  exec "nim c -p:. -d:debug -o:examples/audio examples/audio.nim"
+  exec "nim c -p:./examples -d:debug -o:examples/audio examples/audio.nim"
 
 task vertex, "compile vertex example":
-  exec "nim c -p:. -d:debug -o:examples/vertex examples/vertex.nim"
+  exec "nim c -p:./examples -d:debug -o:examples/vertex examples/vertex.nim"
 
 task gui, "compile gui example":
-  exec "nim c -p:. -d:debug -o:examples/gui examples/gui.nim"
+  exec "nim c -p:./examples -d:debug -o:examples/gui examples/gui.nim"
 
 task guiweb, "compile gui example":
-  exec "nim c -d:emscripten -p:. -o:examples/gui.js examples/gui2.nim"
+  exec "nim c -d:emscripten -p:./examples -o:examples/gui.js examples/gui2.nim"
 
 task coro, "compile coro example":
-  exec "nim c -p:. -d:debug -o:examples/gui examples/coro.nim"
+  exec "nim c -p:./examples -d:debug -o:examples/gui examples/coro.nim"
 
 task benchmark, "compile benchmark example":
-  exec "nim c -p:. -d:release -d:danger -o:examples/benchmark examples/benchmark.nim"
+  exec "nim c -p:./examples -d:release -d:danger -o:examples/benchmark examples/benchmark.nim"
 
 task tweaker, "compile tweaker example":
-  exec "nim c -p:. -d:release -d:danger -o:examples/tweaker examples/tweaker.nim"
+  exec "nim c -p:./examples -d:release -d:danger -o:examples/tweaker examples/tweaker.nim"
 
 task examples, "compile all examples":
   exec "nimble paintout"
@@ -76,6 +79,7 @@ task examples, "compile all examples":
   exec "nimble benchmark"
   exec "nimble coro"
   exec "nimble tweaks"
+  exec "nimble unicode"
 
 task nicosynth, "runs nicosynth":
   exec "nim c -r -p:. -d:release -o:tools/nicosynth tools/nicosynth.nim"

@@ -22,6 +22,9 @@ task runr, "Runs exampleApp for current platform":
 task rund, "Runs debug exampleApp for current platform":
  exec &"nim c -r {debugOpts} -o:exampleApp src/main.nim"
 
+task runweb, "Runs web exampleApp for current platform":
+ exec &"emrun exampleApp.html"
+
 task release, "Builds exampleApp for current platform":
  exec &"nim c {releaseOpts} -o:exampleApp src/main.nim"
 

@@ -2230,7 +2230,7 @@ proc glyph*(c: Rune, x,y: Pint, scale: Pint = 1): Pint =
   except IndexDefect:
     debug "index error glyph: ", c, " @ ", x, ",", y
     raise
-  return src.w * scale + scale
+  return src.w * scale
 
 proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint =
   ## draw a glyph from the current font
@@ -2249,7 +2249,7 @@ proc print*(text: string, x,y: Pint, scale: Pint = 1) =
   var x = x
   var y = y
   let ix = x
-  let lineHeight = fontHeight() * scale + scale
+  let lineHeight = fontHeight() * scale
   for line in text.splitLines:
     for c in line.runes:
       x += glyph(c, x, y, scale)
@@ -2262,7 +2262,7 @@ proc print*(text: string, scale: Pint = 1) =
     raise newException(Exception, "No font selected")
   var x = cursorX
   let y = cursorY
-  let lineHeight = fontHeight() * scale + scale
+  let lineHeight = fontHeight() * scale
   for c in text.runes:
     x += glyph(c, x, y, scale)
   cursorY += lineHeight
@@ -2273,7 +2273,7 @@ proc glyphWidth*(c: Rune, scale: Pint = 1): Pint =
     raise newException(Exception, "No font selected")
   if not currentFont.rects.hasKey(c):
     return 0
-  result = currentFont.rects[c].w*scale + scale
+  result = currentFont.rects[c].w * scale
 
 proc glyphWidth*(c: char, scale: Pint = 1): Pint =
   ## returns the width of the glyph in the current font
@@ -2286,7 +2286,7 @@ proc textWidth*(text: string, scale: Pint = 1): Pint =
   for c in text.runes:
     if not currentFont.rects.hasKey(c):
       raise newException(Exception, "character not in font: '" & $c & "'")
-    result += currentFont.rects[c].w*scale + scale
+    result += currentFont.rects[c].w * scale
 
 proc printr*(text: string, x,y: Pint, scale: Pint = 1) =
   ## prints a string in the current font, right aligned

@@ -25,7 +25,7 @@ jobs:
           #- windows-latest
           #- macOS-latest
         nim_version:
-          - '1.4.0'
+          - '1.6.12'
           - 'stable'
     needs: before
     steps:

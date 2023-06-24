@@ -647,9 +647,6 @@ proc clip*(x,y,w,h: Pint) =
   clippingRect.w = min(w, screenWidth - x)
   clippingRect.h = min(h, screenHeight - y)
 
-template clip*(t: (int,int,int,int)) =
-  clip(t[0], t[1], t[2], t[3])
-
 proc getClip*(): (int,int,int,int) =
   ## returns the clipping rectangle as x,y,w,h
   return (clipMinX,clipMinY,clipMaxX-clipMinX,clipMaxY-clipMinY)
@@ -1073,9 +1070,6 @@ proc pgetRGB*(x,y: Pint): (uint8,uint8,uint8) =
     return (0'u8,0'u8,0'u8)
   return palCol(swCanvas.data[y*swCanvas.w+x].ColorId)
 
-template rectfill*(t: (int,int,int,int)) =
-  rectfill(t[0], t[1], t[0]+t[2]-1, t[1]+t[3]-1)
-
 proc rectfill*(x1,y1,x2,y2: Pint) =
   ## draws a filled rectangle from two points
   let minx = min(x1,x2) - cameraX
@@ -1086,9 +1080,6 @@ proc rectfill*(x1,y1,x2,y2: Pint) =
   for y in max(miny,clipMinY)..min(maxy,clipMaxY):
     for x in max(minx,clipMinX)..min(maxx,clipMaxX):
       psetRaw(x,y,currentColor)
-
-template rrectfill*(t: (int,int,int,int), r = 1) =
-  rrectfill(t[0], t[1], t[0]+t[2]-1, t[1]+t[3]-1, r)
 
 proc rrectfill*(x1,y1,x2,y2: Pint, r: Pint = 1) =
   ## draws a filled rounded rectangle from two points, r specifies radius
@@ -1106,18 +1097,12 @@ proc rrectfill*(x1,y1,x2,y2: Pint, r: Pint = 1) =
   rectfill(minx + r, miny, maxx - r, miny + r)
   rectfill(minx + r, maxy - r, maxx - r, maxy)
 
-template box*(t: (int,int,int,int)) =
-  box(t[0], t[1], t[2], t[3])
-
 proc box*(x,y,w,h: Pint) =
   ## draws a hollow rectangle from position and size
   hline(x,y,x+w-1)
   vline(x,y,y+h-1)
   vline(x+w-1,y,y+h-1)
   hline(x,y+h-1,x+w-1)
-
-template boxfill*(t: (int,int,int,int)) =
-  boxfill(t[0], t[1], t[2], t[3])
 
 proc boxfill*(x,y,w,h: Pint) =
   ## draws a filled rectangle from position and size
@@ -1126,15 +1111,9 @@ proc boxfill*(x,y,w,h: Pint) =
   for y in y..<y+h:
     hline(x,y,x+w-1)
 
-template rbox*(t: (int,int,int,int), r = 1) =
-  rbox(t[0], t[1], t[2], t[3], r)
-
 proc rbox*(x,y,w,h: Pint, r: Pint = 1) =
   ## draws a hollow rounded rectangle from position and size, r specifies radius
   rrect(x,y,x+w-1,y+h-1,r)
-
-template rboxfill*(t: (int,int,int,int), r = 1) =
-  rboxfill(t[0], t[1], t[2], t[3], r)
 
 proc rboxfill*(x,y,w,h: Pint, r: Pint = 1) =
   ## draws a filled rounded rectangle from position and size, r specifies radius
@@ -1276,9 +1255,6 @@ proc lineDashed*(x0,y0,x1,y1: Pint, pattern: uint8 = 0b10101010) =
     if (pattern and (1 shl i).uint8) != 0:
       pset(x,y)
 
-template rect*(t: (int,int,int,int)) =
-  rect(t[0], t[1], t[0]+t[2]-1, t[1]+t[3]-1)
-
 proc rect*(x1,y1,x2,y2: Pint) =
   ## draws a rectangle defined by two points
   let w = x2-x1
@@ -1293,9 +1269,6 @@ proc rect*(x1,y1,x2,y2: Pint) =
   vline(x+w, y+1, y+h-1)
   # left
   vline(x, y+1, y+h-1)
-
-template rrect*(t: (int,int,int,int), r = 1) =
-  rrect(t[0], t[1], t[0]+t[2]-1, t[1]+t[3]-1, r)
 
 proc rrect*(x1,y1,x2,y2: Pint, r: Pint = 1) =
   ## draws a rounded rectangle, radius defined by r
@@ -1379,9 +1352,6 @@ proc rrect*(x1,y1,x2,y2: Pint, r: Pint = 1) =
   vline(minx, miny + r, maxy - r)
   vline(maxx, miny + r, maxy - r)
 
-template rectCorner*(t: (int,int,int,int)) =
-  rectCorner(t[0], t[1], t[0]+t[2]-1, t[1]+t[3]-1)
-
 proc rectCorner*(x1,y1,x2,y2: Pint) =
   ## draws the corners of a rectangle
   let x = x1
@@ -1402,9 +1372,6 @@ proc rectCorner*(x1,y1,x2,y2: Pint) =
   pset(x2, y2)
   pset(x2-1, y2)
   pset(x2, y2-1)
-
-template rrectCorner*(t: (int,int,int,int)) =
-  rrectCorner(t[0], t[1], t[0]+t[2]-1, t[1]+t[3]-1)
 
 proc rrectCorner*(x1,y1,x2,y2: Pint) =
   ## draws the corners of a rounded rectangle

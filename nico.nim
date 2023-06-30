@@ -617,7 +617,7 @@ proc loadPalettePico8Extra*(): Palette =
 proc loadPaletteGrayscale*(steps: range[1..256] = 256): Palette =
   ## loads grayscale palette with specified number of steps
   for i in 0..<steps:
-    let v = floor(i.float32 / 255f).int
+    let v = floor((i / steps) * 256.0).int
     result.data[i] = RGB(v,v,v)
   result.size = steps
 

@@ -113,7 +113,7 @@ window.addEventListener('DOMContentLoaded', main);
     title="NicoController = ref object
   kind*: NicoControllerKind
   name*: string
-  when not false:
+  when not defined(js):
       sdlController*: GameController
 
   id*: int
@@ -243,7 +243,7 @@ class="link-seesrc" target="_blank">Source</a>
 <dt><pre><a href="controller.html#NicoController"><span class="Identifier">NicoController</span></a> <span class="Other">=</span> <span class="Keyword">ref</span> <span class="Keyword">object</span>
   <span class="Identifier">kind</span><span class="Operator">*</span><span class="Other">:</span> <a href="controller.html#NicoControllerKind"><span class="Identifier">NicoControllerKind</span></a>
   <span class="Identifier">name</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">string</span>
-  <span class="Keyword">when</span> <span class="Keyword">not</span> <span class="DecNumber">false</span><span class="Other">:</span>
+  <span class="Keyword">when</span> <span class="Keyword">not</span> <span class="Identifier">defined</span><span class="Other">(</span><span class="Identifier">js</span><span class="Other">)</span><span class="Other">:</span>
       <span class="Identifier">sdlController</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">GameController</span>
 
   <span class="Identifier">id</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">int</span>
@@ -441,7 +441,7 @@ class="link-seesrc" target="_blank">Source</a>
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br/>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2023-05-03 00:24:57 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2023-07-15 07:08:25 UTC</small>
       </div>
     </div>
   </div>

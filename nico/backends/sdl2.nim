@@ -496,7 +496,7 @@ proc createWindow*(title: string, w,h: int, scale: int = 2, fullscreen: bool = f
 
       window = createWindow(title.cstring, r.x, r.y, r.w, r.h, (WINDOW_RESIZABLE or WINDOW_OPENGL).uint32)
     else:
-      window = createWindow(title.cstring, WINDOWPOS_CENTERED, WINDOWPOS_CENTERED, (w * scale).cint, (h * scale).cint, 
+      window = createWindow(title.cstring, WINDOWPOS_CENTERED, WINDOWPOS_CENTERED, (w * scale).cint, (h * scale).cint,
         (WINDOW_RESIZABLE or (if fullscreen: WINDOW_FULLSCREEN_DESKTOP else: 0) or WINDOW_OPENGL.cint).uint32)
 
     discard glSetAttribute(GLattr.GL_CONTEXT_PROFILE_MASK, GL_CONTEXT_PROFILE_ES)
@@ -630,7 +630,7 @@ void main() {
       window = createWindow(title.cstring, r.x, r.y, r.w, r.h, (WINDOW_RESIZABLE).uint32)
 
     else:
-      window = createWindow(title.cstring, WINDOWPOS_CENTERED, WINDOWPOS_CENTERED, (w * scale).cint, (h * scale).cint, 
+      window = createWindow(title.cstring, WINDOWPOS_CENTERED, WINDOWPOS_CENTERED, (w * scale).cint, (h * scale).cint,
         (WINDOW_RESIZABLE or (if fullscreen: WINDOW_FULLSCREEN_DESKTOP else: 0)).uint32)
 
   if window == nil:
@@ -1392,7 +1392,7 @@ when defined(emscripten):
     {.emit:"""
     EM_ASM(
        //create your directory where we keep our persistent data
-       FS.mkdir('/IDBFS'); 
+       FS.mkdir('/IDBFS');
 
        //mount persistent directory as IDBFS
        FS.mount(IDBFS,{},'/IDBFS');
@@ -1401,9 +1401,9 @@ when defined(emscripten):
        //flag to check when data are synchronized
        Module.syncdone = 0;
 
-       //populate persistent_data directory with existing persistent source data 
+       //populate persistent_data directory with existing persistent source data
       //stored with Indexed Db
-      //first parameter = "true" mean synchronize from Indexed Db to 
+      //first parameter = "true" mean synchronize from Indexed Db to
       //Emscripten file system,
       // "false" mean synchronize from Emscripten file system to Indexed Db
       //second parameter = function called when data are synchronized
@@ -2138,6 +2138,9 @@ proc showMouse*() =
 
 proc setClipboardText*(text: string) =
   discard sdl.setClipboardText(text)
+
+proc getClipboardText*(): string =
+  return $sdl.getClipboardText()
 
 proc setLinearFilter*(on: bool) =
   linearFilter = on

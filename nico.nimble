@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.4.9"
+version       = "0.4.10"
 author        = "Jez 'Impbox' Kabanov"
 description   = "Nico Game Engine"
 license       = "MIT"

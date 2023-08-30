@@ -54,11 +54,7 @@ jobs:
 
       - name: Build examples
         run: |
-          nimble paintout
-          nimble platformer
-          nimble audio
-          nimble vertex
-          nimble gui
+          nimble examples
 
       - name: Build exampleApp
         run: |

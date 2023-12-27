@@ -75,10 +75,10 @@ task examples, "compile all examples":
   exec "nimble gui"
   exec "nimble benchmark"
   exec "nimble coro"
-  exec "nimble tweaks"
+  exec "nimble tweaker"
 
 task nicosynth, "runs nicosynth":
-  exec "nim c -r -p:. -d:release -o:tools/nicosynth tools/nicosynth.nim"
+  exec "nim c -r -p:. -d:release -o:nicosynth nicosynth.nim"
 
 task nicosynthWeb, "builds nicosynth for web":
-  exec "nim c -d:emscripten -p:. -d:release -o:tools/nicosynth.html tools/nicosynth.nim"
+  exec "nim c -d:emscripten -p:. -d:release -o:nicosynth.html nicosynth.nim"

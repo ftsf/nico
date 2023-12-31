@@ -2254,10 +2254,8 @@ proc print*(text: string, x,y: Pint, scale: Pint = 1) =
   ## prints a string using the current font
   if currentFont == nil:
     raise newException(Exception, "No font selected")
-  var tx = x
-  var ty = y
-  let ix = x
-  let lineHeight = fontHeight() * scale + scale
+  var tx = x; var ty = y
+  let ix = x; let lineHeight = fontHeight() * scale + scale
   for line in text.splitLines:
     for c in line.runes:
       tx += glyph(c, tx, ty, scale)
@@ -2295,9 +2293,8 @@ proc textWidth*(text: string, scale: Pint = 1): Pint =
   ## returns the width of a string in the current font
   if currentFont == nil:
     raise newException(Exception, "No font selected")
-  var lineWidth: int
   for line in text.splitLines:
-    lineWidth = 0
+    var lineWidth = 0
     for c in line.runes:
       if not currentFont.rects.hasKey(c):
         let unknown = '?'.Rune

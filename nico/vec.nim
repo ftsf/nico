@@ -1,6 +1,4 @@
-import std/math
-import std/hashes
-
+import std/[math, hashes]
 import nico
 
 type

@@ -1,7 +1,6 @@
+import std/[strutils, wordwrap]
 import nico
 import nico/utils
-import strutils
-import std/wordwrap
 
 export TextAlign
 

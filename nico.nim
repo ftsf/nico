@@ -1,7 +1,6 @@
-import nico/backends/common
-import tables
-import unicode
+import std/[tables, unicode, os]
 
+import nico/backends/common
 import nico/keycodes
 export nico.keycodes
 
@@ -10,8 +9,6 @@ export spritedraw
 
 when not defined(js):
   import nico/backends/sdl2 as backend
-
-import os
 
 export StencilMode
 export StencilBlend

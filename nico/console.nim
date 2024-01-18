@@ -1,6 +1,5 @@
+import std/[strutils, tables]
 import nico
-import strutils
-import tables
 
 var consoleBG: ColorId = 9
 var consoleFG: ColorId = 1

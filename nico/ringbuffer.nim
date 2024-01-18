@@ -1,4 +1,4 @@
-import math
+import std/math
 
 type
   RingBuffer*[T] = object

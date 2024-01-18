@@ -1,14 +1,8 @@
+import std/[tables, algorithm, strformat]
 import nico
-import tables
-
-import algorithm
-
 import nico/debug
 
-import strformat
-
 # gui inspired by Dear Imgui
-
 const hPadding = 4
 const vPadding = 2
 const hSpacing = 2

@@ -1,13 +1,6 @@
-import math
-import tables
-import unicode
-import hashes
-import times
-import algorithm
-import strutils
+import std/[strutils, math, tables, unicode, hashes, times, algorithm]
 
 import nico/keycodes
-
 export keycodes.Keycode
 export keycodes.Scancode
 

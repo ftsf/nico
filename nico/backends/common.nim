@@ -1,13 +1,6 @@
-import math
-import tables
-import unicode
-import hashes
-import times
-import algorithm
-import strutils
+import std/[strutils, math, tables, unicode, hashes, times, algorithm]
 
 import nico/keycodes
-
 export keycodes.Keycode
 export keycodes.Scancode
 
@@ -437,6 +430,7 @@ var resizeFuncs*: seq[ResizeFunc]
 var fonts*: array[FontId, Font]
 var currentFont*: Font
 var currentFontId*: FontId
+var currentFontHeight*: Pint
 
 var frame* = 0
 

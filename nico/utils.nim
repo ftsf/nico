@@ -1,6 +1,5 @@
+import std/[strutils, strscans]
 import nico
-import strutils
-import strscans
 
 type TextAlign* = enum
   taLeft
@@ -82,7 +81,7 @@ proc richPrintWidthOneLine*(text: string, startChar = 0, endChar = -1): int =
       if code.startsWith("spr"):
         var sprId, palA, palB: int
         var (sw,sh) = spriteSize()
-        if scanf(code, "spr($i,$i,$i)", sprId, sw, sh) or 
+        if scanf(code, "spr($i,$i,$i)", sprId, sw, sh) or
           scanf(code, "spr($i)pal($i,$i)", sprId, palA, palB) or
           scanf(code, "spr($i)", sprId):
           result += sw

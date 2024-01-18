@@ -1,5 +1,5 @@
+import std/math
 import nico/vec
-import math
 
 type Quat* = array[4,float32]
 

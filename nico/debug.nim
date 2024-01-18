@@ -1,7 +1,6 @@
+import std/[sequtils, strutils]
 import nico
 import nico/vec
-import sequtils
-import strutils
 
 type DebugKind = enum
   Point

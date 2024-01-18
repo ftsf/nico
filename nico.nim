@@ -1,7 +1,6 @@
-import nico/backends/common
-import tables
-import unicode
+import std/[tables, unicode, os]
 
+import nico/backends/common
 import nico/keycodes
 export nico.keycodes
 
@@ -10,8 +9,6 @@ export spritedraw
 
 when not defined(js):
   import nico/backends/sdl2 as backend
-
-import os
 
 export StencilMode
 export StencilBlend
@@ -154,6 +151,7 @@ proc printc*(text: string, x,y: Pint, scale: Pint = 1) # centered
 proc printr*(text: string, x,y: Pint, scale: Pint = 1) # right aligned
 
 proc textWidth*(text: string, scale: Pint = 1): Pint
+proc textHeight*(text: string, scale: Pint = 1): Pint
 proc glyphWidth*(c: Rune, scale: Pint = 1): Pint
 proc glyphWidth*(c: char, scale: Pint = 1): Pint
 
@@ -738,7 +736,7 @@ proc ditherADitherXor*(v: float32, a = 149,b = 1234, c = 511) =
 proc ditherPass(x,y: int): bool {.inline.} =
   if gDitherMode == DitherNone:
     return true
-    
+
   let x = floorMod(x + gDitherOffsetX, screenWidth)
   let y = floorMod(y + gDitherOffsetY, screenHeight)
 
@@ -2221,10 +2219,17 @@ proc glyph*(c: Rune, x,y: Pint, scale: Pint = 1): Pint =
   ## draw a glyph from the current font
   if currentFont == nil:
     raise newException(Exception, "No font selected")
+
+  var src: Rect
   if not currentFont.rects.hasKey(c):
-    return
-  let src: Rect = currentFont.rects[c]
-  let dst: Rect = (x.int, y.int, src.w * scale, src.h * scale)
+    let unknown = '?'.Rune
+    if not currentFont.rects.hasKey(unknown):
+      return
+    src = currentFont.rects[unknown]
+  else:
+    src = currentFont.rects[c]
+
+  let dst: Rect = (x.int, y.int, src.w * scale.int, src.h * scale.int)
   try:
     fontBlit(currentFont, src, dst, currentColor)
   except IndexDefect:
@@ -2240,32 +2245,34 @@ proc fontHeight*(): Pint =
   ## returns the height of the current font in pixels
   if currentFont == nil:
     return 0
-  return currentFont.rects[Rune(' ')].h
+  return currentFontHeight
 
 proc print*(text: string, x,y: Pint, scale: Pint = 1) =
   ## prints a string using the current font
   if currentFont == nil:
     raise newException(Exception, "No font selected")
-  var x = x
-  var y = y
-  let ix = x
-  let lineHeight = fontHeight() * scale + scale
+  var tx = x; var ty = y
+  let ix = x; let lineHeight = fontHeight() * scale + scale
   for line in text.splitLines:
     for c in line.runes:
-      x += glyph(c, x, y, scale)
-    x = ix
-    y += lineHeight
+      tx += glyph(c, tx, ty, scale)
+    tx = ix
+    ty += lineHeight
 
 proc print*(text: string, scale: Pint = 1) =
   ## prints a string using the current font at cursor position
-  if currentFont == nil:
-    raise newException(Exception, "No font selected")
-  var x = cursorX
-  let y = cursorY
-  let lineHeight = fontHeight() * scale + scale
-  for c in text.runes:
-    x += glyph(c, x, y, scale)
-  cursorY += lineHeight
+  print(text, cursorX, cursorY, scale)
+
+proc printr*(text: string, x,y: Pint, scale: Pint = 1) =
+  ## prints a string in the current font, right aligned
+  let width = textWidth(text, scale)
+  print(text, x-width, y, scale)
+
+proc printc*(text: string, x,y: Pint, scale: Pint = 1) =
+  ## prints a string in the current font, center aligned
+  let width = textWidth(text, scale)
+  print(text, x-(width div 2), y, scale)
+
 
 proc glyphWidth*(c: Rune, scale: Pint = 1): Pint =
   ## returns the width of the glyph in the current font
@@ -2283,20 +2290,23 @@ proc textWidth*(text: string, scale: Pint = 1): Pint =
   ## returns the width of a string in the current font
   if currentFont == nil:
     raise newException(Exception, "No font selected")
-  for c in text.runes:
-    if not currentFont.rects.hasKey(c):
-      raise newException(Exception, "character not in font: '" & $c & "'")
-    result += currentFont.rects[c].w*scale + scale
+  for line in text.splitLines:
+    var lineWidth = 0
+    for c in line.runes:
+      if not currentFont.rects.hasKey(c):
+        let unknown = '?'.Rune
+        if not currentFont.rects.hasKey(unknown):
+          raise newException(Exception, "character not in font: '" & $c & "' = " & $(c.int))
+        lineWidth += currentFont.rects[unknown].w*scale + scale
+      else:
+        lineWidth += currentFont.rects[c].w*scale + scale
+    if result < lineWidth:
+      result = lineWidth
 
-proc printr*(text: string, x,y: Pint, scale: Pint = 1) =
-  ## prints a string in the current font, right aligned
-  let width = textWidth(text, scale)
-  print(text, x-width, y, scale)
-
-proc printc*(text: string, x,y: Pint, scale: Pint = 1) =
-  ## prints a string in the current font, center aligned
-  let width = textWidth(text, scale)
-  print(text, x-(width div 2), y, scale)
+proc textHeight*(text: string, scale: Pint = 1): Pint =
+  ## returns the height of a string in the current font
+  let lineslen = text.countLines()
+  result = lineslen * fontHeight() * scale + lineslen * scale
 
 proc copy*(sx,sy,dx,dy,w,h: Pint) =
   ## copy a rectangle of w by h pixels from sx,sy to dx,dy
@@ -2532,12 +2542,12 @@ proc spr*(drawer: SpriteDraw, x,y:Pint)=
 proc sprOverlap*(a,b : SpriteDraw): bool=
   ##Will return true if the sprites overlap
   setSpritesheet(a.spriteSheet)
-  let 
+  let
     aSprRect = getSprRect(a.spriteIndex,a.w,a.h)
     aRect: Rect = (a.x, a.y, aSprRect.w, aSprRect.h)
 
   if(a.spritesheet != b.spritesheet): setSpritesheet(b.spriteSheet)
-  let 
+  let
     bSprRect = getSprRect(b.spriteIndex,b.w,b.h)
     bRect: Rect = (b.x, b.y, bSprRect.w, bSprRect.h)
 
@@ -2552,7 +2562,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
       bXRelative = xOverlap - b.x
       bYRelative = yOverlap - b.y
 
-    var 
+    var
       surfA = spritesheets[a.spriteSheet]
       surfB = spritesheets[b.spriteSheet]
       indA = 0
@@ -2561,7 +2571,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
     #Foreach pixel in the overlap check the colour there
     for xSamp in 0..<wOverlap:
       for ySamp in 0..<hOverlap:
-        var 
+        var
           aX = aSprRect.x + xSamp + aXRelative
           aY = aSprRect.y + ySamp + aYRelative
           bX = bSprRect.x + xSamp + bxRelative
@@ -2572,7 +2582,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
         if(a.flipX):
           aX = aSprRect.x + (aSprRect.w - (xSamp + aXRelative)) - 1
         if(a.flipY):
-          aY = aSprRect.y + (aSprRect.h - (ySamp + aYRelative)) - 1 
+          aY = aSprRect.y + (aSprRect.h - (ySamp + aYRelative)) - 1
 
         if(b.flipX):
           bX = bSprRect.x + (aSprRect.w - (xSamp + bXRelative)) - 1
@@ -2584,7 +2594,7 @@ proc sprOverlap*(a,b : SpriteDraw): bool=
         indB = bX + bY * surfB.w
         if(indA < surfA.data.len and indB < surfB.data.len):#Shouldnt ever happen but errors must be checked
           if(surfA.data[indA] > 0 and surfB.data[indB] > 0): #Using 0 as of now for alpha check
-            return true 
+            return true
 
   return false
 
@@ -2955,10 +2965,14 @@ proc getControllers*(): seq[NicoController] =
 
 proc setFont*(fontId: FontId) =
   ## sets the active font to be used by future print calls
-  if fontId > fonts.len:
+  if fontId > fonts.len: return
+  let font = fonts[fontId]
+  if font == nil:
+    echo "Haven't font id: " & $fontId
     return
+  currentFont = font
   currentFontId = fontId
-  currentFont = fonts[currentFontId]
+  currentFontHeight = currentFont.rects[Rune(' ')].h
 
 proc getFont*(): FontId =
   ## gets the current font id

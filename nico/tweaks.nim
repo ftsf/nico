@@ -1,11 +1,9 @@
-import json
-import tables
+import std/[json, tables, strutils]
+import std/os except `/`
 import nico
 import nico/console
 import nico/gui2
 import nico/vec
-import strutils
-import os except `/`
 
 type
   TweakKind = enum

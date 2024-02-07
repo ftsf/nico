@@ -148,7 +148,7 @@ proc glyph*(c: Rune, x,y: Pint, scale: Pint = 1): Pint {.discardable, inline.}
 proc glyph*(c: char, x,y: Pint, scale: Pint = 1): Pint {.discardable, inline.}
 
 proc cursor*(x,y: Pint) # set cursor position
-proc print*(text: string) # print at cursor
+proc print*(text: string, scale: Pint = 1) # print at cursor
 proc print*(text: string, x,y: Pint, scale: Pint = 1)
 proc printc*(text: string, x,y: Pint, scale: Pint = 1) # centered
 proc printr*(text: string, x,y: Pint, scale: Pint = 1) # right aligned
@@ -736,6 +736,9 @@ proc ditherADitherXor*(v: float32, a = 149,b = 1234, c = 511) =
   gDitherADitherC = c
 
 proc ditherPass(x,y: int): bool {.inline.} =
+  if gDitherMode == DitherNone:
+    return true
+    
   let x = floorMod(x + gDitherOffsetX, screenWidth)
   let y = floorMod(y + gDitherOffsetY, screenHeight)
 
@@ -940,11 +943,11 @@ proc palt*() =
     paletteTransparent[i] = if i == 0: true else: false
 
 {.push checks:off, optimization: speed.}
-proc cls*() =
-  ## clears the screen to color 0 (clipped to clipping rectangle)
-  for y in clipMinY..clipMaxY:
-    for x in clipMinX..clipMaxX:
-      psetRaw(x,y,0)
+proc cls*(c: ColorId = 0) =
+  ## clears the screen to the given color. Default is 0. If you need clipping, use rectfill() instead.
+  let colId = paletteMapDraw[c].uint8
+  for i in 0..<swCanvas.data.len:
+    swCanvas.data[i] = colId
 
 proc setCamera*(x,y: Pint = 0) =
   ## sets the current camera position, future drawing operations will draw based on camera position
@@ -1690,8 +1693,6 @@ proc fontBlit(font: Font, srcRect, dstRect: Rect, color: ColorId) =
     for x in 0..<dstRect.w:
       if sx.int < 0 or sy.int < 0 or sx.int > font.w - 1 or sy.int > font.h - 1:
         continue
-      if dx.int < clipMinX or dy.int < clipMinY or dx.int > clipMaxX or dy.int > clipMaxY:
-        continue
       if font.data[sy * font.w + sx] == 1:
         pset(dx,dy,currentColor)
 
@@ -2248,21 +2249,23 @@ proc print*(text: string, x,y: Pint, scale: Pint = 1) =
   var x = x
   var y = y
   let ix = x
+  let lineHeight = fontHeight() * scale + scale
   for line in text.splitLines:
     for c in line.runes:
       x += glyph(c, x, y, scale)
     x = ix
-    y += currentFont.h
+    y += lineHeight
 
-proc print*(text: string) =
+proc print*(text: string, scale: Pint = 1) =
   ## prints a string using the current font at cursor position
   if currentFont == nil:
     raise newException(Exception, "No font selected")
   var x = cursorX
   let y = cursorY
+  let lineHeight = fontHeight() * scale + scale
   for c in text.runes:
-    x += glyph(c, x, y, 1)
-  cursorY += 6
+    x += glyph(c, x, y, scale)
+  cursorY += lineHeight
 
 proc glyphWidth*(c: Rune, scale: Pint = 1): Pint =
   ## returns the width of the glyph in the current font
@@ -2871,7 +2874,7 @@ proc mapToPixel*(tx,ty: Pint): (Pint,Pint) = # returns the pixel coordinates at 
     let px = tx * currentTilemap.tw - (if ty mod 2 == 0: currentTilemap.tw div 2 else: 0)
     return (px.Pint, py.Pint)
   else:
-    return ((ty * currentTilemap.tw).Pint, (ty * currentTilemap.th).Pint)
+    return ((tx * currentTilemap.tw).Pint, (ty * currentTilemap.th).Pint)
 
 proc newMap*(index: int, w,h: Pint, tw,th: Pint = 8) =
   var tm = tilemaps[index].addr

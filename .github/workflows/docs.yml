@@ -1,0 +1,24 @@
+name: Generate docs
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  gen:
+    name: Generate and deploy docs
+    runs-on: ubuntu-latest  
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: iffy/install-nim@v4.1.1
+      - name: Generate
+        run: |
+          nimble install -d -y
+          nimble docs
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs

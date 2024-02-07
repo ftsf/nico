@@ -1,6 +1,7 @@
-import math
+import std/math
+import std/hashes
+
 import nico
-import hashes
 
 type
   Vec*[N: static int, T: float32 | int] = array[N,T]

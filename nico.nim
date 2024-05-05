@@ -1902,7 +1902,7 @@ proc blitFastRot90(src: Surface, srcRect: Rect, dx, dy: Pint, rotations: int) =
 
       let srcCol = src.data[(srcRect.y + sy) * src.w + (srcRect.x + sx)].ColorId
       if not paletteTransparent[srcCol]:
-        psetRaw(dx, dy, paletteMapDraw[srcCol])
+        psetRaw(dxi, dyi, paletteMapDraw[srcCol])
 
 proc blitFastFlip(src: Surface, sx,sy, dx,dy, w,h: Pint, hflip, vflip: bool) =
   # used for tile drawing, no stretch

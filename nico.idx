@@ -167,130 +167,131 @@ nim	ttrifill	nico.html#ttrifill,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat
 nim	tquadfill	nico.html#tquadfill,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat,Pfloat	proc tquadfill(x1, y1, u1, v1, x2, y2, u2, v2, x3, y3, u3, v3, x4, y4, u4, v4: Pfloat)		1517
 nim	doWhile	nico.html#doWhile.t,untyped,untyped	template doWhile(a, b: untyped): untyped		1527
 nim	blitFastRaw	nico.html#blitFastRaw,Pint,Pint,Pint,Pint,Pint,Pint	proc blitFastRaw(sx, sy, dx, dy, w, h: Pint)		1737
-nim	mapAdjacent	nico.html#mapAdjacent.i,Pint,Pint	iterator mapAdjacent(tx, ty: Pint): (Pint, Pint)		2042
-nim	fget	nico.html#fget,Pint	proc fget(s: Pint): uint8		2055
-nim	fget	nico.html#fget,Pint,uint8	proc fget(s: Pint; f: uint8): bool		2059
-nim	fset	nico.html#fset,Pint,uint8	proc fset(s: Pint; f: uint8)		2063
-nim	fset	nico.html#fset,Pint,uint8,bool	proc fset(s: Pint; f: uint8; v: bool)		2067
-nim	masterVol	nico.html#masterVol,range[]	proc masterVol(newVol: range[0 .. 255])		2074
-nim	masterVol	nico.html#masterVol	proc masterVol(): int		2079
-nim	sfxVol	nico.html#sfxVol,range[]	proc sfxVol(newVol: range[0 .. 255])		2083
-nim	sfxVol	nico.html#sfxVol	proc sfxVol(): int		2087
-nim	musicVol	nico.html#musicVol,range[]	proc musicVol(newVol: range[0 .. 255])		2091
-nim	musicVol	nico.html#musicVol	proc musicVol(): int		2095
-nim	loadDefaultFont	nico.html#loadDefaultFont,int	proc loadDefaultFont(index: int)		2187
-nim	loadFont	nico.html#loadFont,int,string	proc loadFont(index: int; filename: string)		2195
-nim	loadFont	nico.html#loadFont,int,string,string	proc loadFont(index: int; filename: string; chars: string)		2212
-nim	fontHeight	nico.html#fontHeight	proc fontHeight(): Pint		2239
-nim	copyPixelsToMem	nico.html#copyPixelsToMem,Pint,Pint,openArray[uint8],int	proc copyPixelsToMem(sx, sy: Pint; buffer: var openArray[uint8]; count = -1)		2305
-nim	copyMemToScreen	nico.html#copyMemToScreen,Pint,Pint,openArray[uint8],int	proc copyMemToScreen(dx, dy: Pint; buffer: var openArray[uint8]; count = -1)		2316
-nim	hasMouse	nico.html#hasMouse	proc hasMouse(): bool		2327
-nim	useRelativeMouse	nico.html#useRelativeMouse,bool	proc useRelativeMouse(on: bool)		2343
-nim	clearKeysForBtn	nico.html#clearKeysForBtn,NicoButton	proc clearKeysForBtn(btn: NicoButton)		2367
-nim	addKeyForBtn	nico.html#addKeyForBtn,NicoButton,Scancode	proc addKeyForBtn(btn: NicoButton; scancode: Scancode)		2371
-nim	addResizeFunc	nico.html#addResizeFunc,ResizeFunc	proc addResizeFunc(newResizeFunc: ResizeFunc)		2387
-nim	removeResizeFunc	nico.html#removeResizeFunc,ResizeFunc	proc removeResizeFunc(resizeFunc: ResizeFunc)		2391
-nim	setTargetSize	nico.html#setTargetSize,int,int	proc setTargetSize(w, h: int)		2396
-nim	fixedSize	nico.html#fixedSize	proc fixedSize(): bool		2404
-nim	fixedSize	nico.html#fixedSize,bool	proc fixedSize(enabled: bool)		2408
-nim	getScreenScale	nico.html#getScreenScale	proc getScreenScale(): float32		2414
-nim	integerScale	nico.html#integerScale	proc integerScale(): bool		2418
-nim	integerScale	nico.html#integerScale,bool	proc integerScale(enabled: bool)		2422
-nim	newSpritesheet	nico.html#newSpritesheet,int,int,int,int,int	proc newSpritesheet(index: int; w, h: int; tw, th = 8)		2428
-nim	setSpritesheet	nico.html#setSpritesheet,int	proc setSpritesheet(index: int)		2437
-nim	loadSpriteSheet	nico.html#loadSpriteSheet,int,string,Pint,Pint	proc loadSpriteSheet(index: int; filename: string; tileWidth, tileHeight: Pint = 8)		2446
-nim	spriteSize	nico.html#spriteSize	proc spriteSize(): (int, int)		2464
-nim	sprBlitFast	nico.html#sprBlitFast,Pint,Pint,Pint,Pint,Pint	proc sprBlitFast(spr: Pint; x, y: Pint; w, h: Pint = 1)		2508
-nim	sprBlitFastRaw	nico.html#sprBlitFastRaw,Pint,Pint,Pint,Pint,Pint	proc sprBlitFastRaw(spr: Pint; x, y: Pint; w, h: Pint = 1)		2513
-nim	sprBlitStretch	nico.html#sprBlitStretch,Pint,Pint,Pint,Pint,Pint	proc sprBlitStretch(spr: Pint; x, y: Pint; w, h: Pint = 1)		2518
-nim	sprss	nico.html#sprss,Pint,Pint,Pint,Pint,Pint,Pint,Pint,bool,bool	proc sprss(spr: Pint; x, y: Pint; w, h: Pint = 1; dw, dh: Pint;\n      hflip, vflip: bool = false)		2598
-nim	roundTo	nico.html#roundTo,T,T	proc roundTo[T](a: T; n: T): T		2618
-nim	remainder	nico.html#remainder,int,int	proc remainder(a: int; n: int): int		2632
-nim	mapFilter	nico.html#mapFilter,uint8	proc mapFilter(flags: uint8 = 0'u8)		2674
-nim	mapFilter	nico.html#mapFilter,range[],bool	proc mapFilter(flag: range[0 .. 7]; on: bool)		2678
-nim	mapWidth	nico.html#mapWidth	proc mapWidth(): Pint		2772
-nim	mapHeight	nico.html#mapHeight	proc mapHeight(): Pint		2776
-nim	succWrap	nico.html#succWrap.t,T	template succWrap[T](x: T): T		2890
-nim	predWrap	nico.html#predWrap.t,T	template predWrap[T](x: T): T		2897
-nim	incWrap	nico.html#incWrap.t,T	template incWrap[T](x: var T)		2904
-nim	decWrap	nico.html#decWrap.t,T	template decWrap[T](x: var T)		2911
-nim	rndbi	nico.html#rndbi,T	proc rndbi[T](x: T): T		2926
-nim	rnd	nico.html#rnd,T,T	proc rnd[T](min: T; max: T): T		2930
-nim	srand	nico.html#srand,int	proc srand(seed: int)		2942
-nim	srand	nico.html#srand	proc srand()		2948
-nim	getControllers	nico.html#getControllers	proc getControllers(): seq[NicoController]		2952
-nim	createWindow	nico.html#createWindow,string,int,int,int,bool	proc createWindow(title: string; w, h: int; scale: int = 2; fullscreen: bool = false)		2967
-nim	hasWindow	nico.html#hasWindow	proc hasWindow(): bool		2972
-nim	readFile	nico.html#readFile,string	proc readFile(filename: string): string		2979
-nim	readJsonFile	nico.html#readJsonFile,string	proc readJsonFile(filename: string): JsonNode		2983
-nim	saveJsonFile	nico.html#saveJsonFile,string,JsonNode	proc saveJsonFile(filename: string; data: JsonNode)		2987
-nim	flip	nico.html#flip	proc flip()		2991
-nim	setFullscreen	nico.html#setFullscreen,bool	proc setFullscreen(fullscreen: bool)		2995
-nim	getFullscreen	nico.html#getFullscreen	proc getFullscreen(): bool		2999
-nim	setScreenSize	nico.html#setScreenSize,int,int	proc setScreenSize(w, h: int)		3003
-nim	setWindowTitle	nico.html#setWindowTitle,string	proc setWindowTitle(title: string)		3006
-nim	setInitFunc	nico.html#setInitFunc	proc setInitFunc(init: (proc ()))		3046
-nim	setUpdateFunc	nico.html#setUpdateFunc	proc setUpdateFunc(update: (proc (dt: float32)))		3050
-nim	setDrawFunc	nico.html#setDrawFunc	proc setDrawFunc(draw: (proc ()))		3053
-nim	setControllerAdded	nico.html#setControllerAdded,proc(NicoController)	proc setControllerAdded(cadded: proc (controller: NicoController))		3056
-nim	setControllerRemoved	nico.html#setControllerRemoved,proc(NicoController)	proc setControllerRemoved(cremoved: proc (controller: NicoController))		3059
-nim	run	nico.html#run,,,	proc run(init: (proc ()); update: (proc (dt: float32)); draw: (proc ()))		3062
-nim	setWritePath	nico.html#setWritePath,string	proc setWritePath(path: string)		3079
-nim	setAssetPath	nico.html#setAssetPath,string	proc setAssetPath(path: string)		3086
-nim	setGifScale	nico.html#setGifScale,int	proc setGifScale(gs: int = 2)		3093
-nim	bpm	nico.html#bpm,Natural	proc bpm(newBpm: Natural)		3096
-nim	tpb	nico.html#tpb,Natural	proc tpb(newTpb: Natural)		3100
-nim	setAudioTickCallback	nico.html#setAudioTickCallback,proc)	proc setAudioTickCallback(callback: proc ())		3104
-nim	addKeyListener	nico.html#addKeyListener,KeyListener	proc addKeyListener(p: KeyListener)		3107
-nim	removeKeyListener	nico.html#removeKeyListener,KeyListener	proc removeKeyListener(p: KeyListener)		3111
-nim	addEventListener	nico.html#addEventListener,EventListener	proc addEventListener(f: EventListener): EventListener		3117
-nim	removeEventListener	nico.html#removeEventListener,EventListener	proc removeEventListener(f: EventListener)		3121
-nim	removeAllEventListeners	nico.html#removeAllEventListeners	proc removeAllEventListeners()		3127
-nim	sgn	nico.html#sgn,Pint	proc sgn(x: Pint): Pint		3131
-nim	DEG2RAD	nico.html#DEG2RAD	const DEG2RAD		3140
-nim	RAD2DEG	nico.html#RAD2DEG	const RAD2DEG		3141
-nim	deg2rad	nico.html#deg2rad.t,typed	template deg2rad(x: typed): untyped		3143
-nim	rad2deg	nico.html#rad2deg.t,typed	template rad2deg(x: typed): untyped		3147
-nim	invLerp	nico.html#invLerp,Pfloat,Pfloat,Pfloat	proc invLerp(a, b, v: Pfloat): Pfloat		3151
-nim	modSign	nico.html#modSign,T,T	proc modSign[T](a, n: T): T		3155
-nim	angleDiff	nico.html#angleDiff,Pfloat,Pfloat	proc angleDiff(a, b: Pfloat): Pfloat		3159
-nim	remove	nico.html#remove,seq[T],T	proc remove[T](a: var seq[T]; v: T)		3168
-nim	approach	nico.html#approach,T,T,T	proc approach[T](a: var T; b: T; speed: T)		3174
-nim	approach	nico.html#approach,T,T,T_2	proc approach[T](a: T; b: T; speed: T): T		3180
-nim	approachAngle	nico.html#approachAngle,float32,float32,float32	proc approachAngle(a: var float32; b: float32; speed: float32)		3186
-nim	timer	nico.html#timer.t,typed,untyped	template timer(a: typed; body: untyped): untyped		3190
-nim	toPint	nico.html#toPint.c,uint8	converter toPint(x: uint8): Pint		3196
-nim	toPfloat	nico.html#toPfloat.c,int	converter toPfloat(x: int): Pfloat		3199
-nim	all	nico.html#all.i,openArray[T]	iterator all[T](a: var openArray[T]): T		3202
+nim	mapAdjacent	nico.html#mapAdjacent.i,Pint,Pint	iterator mapAdjacent(tx, ty: Pint): (Pint, Pint)		2100
+nim	fget	nico.html#fget,Pint	proc fget(s: Pint): uint8		2113
+nim	fget	nico.html#fget,Pint,uint8	proc fget(s: Pint; f: uint8): bool		2117
+nim	fset	nico.html#fset,Pint,uint8	proc fset(s: Pint; f: uint8)		2121
+nim	fset	nico.html#fset,Pint,uint8,bool	proc fset(s: Pint; f: uint8; v: bool)		2125
+nim	masterVol	nico.html#masterVol,range[]	proc masterVol(newVol: range[0 .. 255])		2132
+nim	masterVol	nico.html#masterVol	proc masterVol(): int		2137
+nim	sfxVol	nico.html#sfxVol,range[]	proc sfxVol(newVol: range[0 .. 255])		2141
+nim	sfxVol	nico.html#sfxVol	proc sfxVol(): int		2145
+nim	musicVol	nico.html#musicVol,range[]	proc musicVol(newVol: range[0 .. 255])		2149
+nim	musicVol	nico.html#musicVol	proc musicVol(): int		2153
+nim	loadDefaultFont	nico.html#loadDefaultFont,int	proc loadDefaultFont(index: int)		2245
+nim	loadFont	nico.html#loadFont,int,string	proc loadFont(index: int; filename: string)		2253
+nim	loadFont	nico.html#loadFont,int,string,string	proc loadFont(index: int; filename: string; chars: string)		2270
+nim	fontHeight	nico.html#fontHeight	proc fontHeight(): Pint		2297
+nim	copyPixelsToMem	nico.html#copyPixelsToMem,Pint,Pint,openArray[uint8],int	proc copyPixelsToMem(sx, sy: Pint; buffer: var openArray[uint8]; count = -1)		2363
+nim	copyMemToScreen	nico.html#copyMemToScreen,Pint,Pint,openArray[uint8],int	proc copyMemToScreen(dx, dy: Pint; buffer: var openArray[uint8]; count = -1)		2374
+nim	hasMouse	nico.html#hasMouse	proc hasMouse(): bool		2385
+nim	useRelativeMouse	nico.html#useRelativeMouse,bool	proc useRelativeMouse(on: bool)		2401
+nim	clearKeysForBtn	nico.html#clearKeysForBtn,NicoButton	proc clearKeysForBtn(btn: NicoButton)		2425
+nim	addKeyForBtn	nico.html#addKeyForBtn,NicoButton,Scancode	proc addKeyForBtn(btn: NicoButton; scancode: Scancode)		2429
+nim	addResizeFunc	nico.html#addResizeFunc,ResizeFunc	proc addResizeFunc(newResizeFunc: ResizeFunc)		2445
+nim	removeResizeFunc	nico.html#removeResizeFunc,ResizeFunc	proc removeResizeFunc(resizeFunc: ResizeFunc)		2449
+nim	setTargetSize	nico.html#setTargetSize,int,int	proc setTargetSize(w, h: int)		2454
+nim	fixedSize	nico.html#fixedSize	proc fixedSize(): bool		2462
+nim	fixedSize	nico.html#fixedSize,bool	proc fixedSize(enabled: bool)		2466
+nim	getScreenScale	nico.html#getScreenScale	proc getScreenScale(): float32		2472
+nim	integerScale	nico.html#integerScale	proc integerScale(): bool		2476
+nim	integerScale	nico.html#integerScale,bool	proc integerScale(enabled: bool)		2480
+nim	newSpritesheet	nico.html#newSpritesheet,int,int,int,int,int	proc newSpritesheet(index: int; w, h: int; tw, th = 8)		2486
+nim	setSpritesheet	nico.html#setSpritesheet,int	proc setSpritesheet(index: int)		2495
+nim	loadSpriteSheet	nico.html#loadSpriteSheet,int,string,Pint,Pint	proc loadSpriteSheet(index: int; filename: string; tileWidth, tileHeight: Pint = 8)		2504
+nim	spriteSize	nico.html#spriteSize	proc spriteSize(): (int, int)		2522
+nim	sprShearRot	nico.html#sprShearRot,Pint,Pint,Pint,float32,Pint,Pint	proc sprShearRot(spr: Pint; x, y: Pint; radians: float32; w, h: Pint = 1)		2561
+nim	sprBlitFast	nico.html#sprBlitFast,Pint,Pint,Pint,Pint,Pint	proc sprBlitFast(spr: Pint; x, y: Pint; w, h: Pint = 1)		2572
+nim	sprBlitFastRaw	nico.html#sprBlitFastRaw,Pint,Pint,Pint,Pint,Pint	proc sprBlitFastRaw(spr: Pint; x, y: Pint; w, h: Pint = 1)		2577
+nim	sprBlitStretch	nico.html#sprBlitStretch,Pint,Pint,Pint,Pint,Pint	proc sprBlitStretch(spr: Pint; x, y: Pint; w, h: Pint = 1)		2582
+nim	sprss	nico.html#sprss,Pint,Pint,Pint,Pint,Pint,Pint,Pint,bool,bool	proc sprss(spr: Pint; x, y: Pint; w, h: Pint = 1; dw, dh: Pint;\n      hflip, vflip: bool = false)		2662
+nim	roundTo	nico.html#roundTo,T,T	proc roundTo[T](a: T; n: T): T		2682
+nim	remainder	nico.html#remainder,int,int	proc remainder(a: int; n: int): int		2696
+nim	mapFilter	nico.html#mapFilter,uint8	proc mapFilter(flags: uint8 = 0'u8)		2738
+nim	mapFilter	nico.html#mapFilter,range[],bool	proc mapFilter(flag: range[0 .. 7]; on: bool)		2742
+nim	mapWidth	nico.html#mapWidth	proc mapWidth(): Pint		2836
+nim	mapHeight	nico.html#mapHeight	proc mapHeight(): Pint		2840
+nim	succWrap	nico.html#succWrap.t,T	template succWrap[T](x: T): T		2954
+nim	predWrap	nico.html#predWrap.t,T	template predWrap[T](x: T): T		2961
+nim	incWrap	nico.html#incWrap.t,T	template incWrap[T](x: var T)		2968
+nim	decWrap	nico.html#decWrap.t,T	template decWrap[T](x: var T)		2975
+nim	rndbi	nico.html#rndbi,T	proc rndbi[T](x: T): T		2990
+nim	rnd	nico.html#rnd,T,T	proc rnd[T](min: T; max: T): T		2994
+nim	srand	nico.html#srand,int	proc srand(seed: int)		3006
+nim	srand	nico.html#srand	proc srand()		3012
+nim	getControllers	nico.html#getControllers	proc getControllers(): seq[NicoController]		3016
+nim	createWindow	nico.html#createWindow,string,int,int,int,bool	proc createWindow(title: string; w, h: int; scale: int = 2; fullscreen: bool = false)		3031
+nim	hasWindow	nico.html#hasWindow	proc hasWindow(): bool		3036
+nim	readFile	nico.html#readFile,string	proc readFile(filename: string): string		3043
+nim	readJsonFile	nico.html#readJsonFile,string	proc readJsonFile(filename: string): JsonNode		3047
+nim	saveJsonFile	nico.html#saveJsonFile,string,JsonNode	proc saveJsonFile(filename: string; data: JsonNode)		3051
+nim	flip	nico.html#flip	proc flip()		3055
+nim	setFullscreen	nico.html#setFullscreen,bool	proc setFullscreen(fullscreen: bool)		3059
+nim	getFullscreen	nico.html#getFullscreen	proc getFullscreen(): bool		3063
+nim	setScreenSize	nico.html#setScreenSize,int,int	proc setScreenSize(w, h: int)		3067
+nim	setWindowTitle	nico.html#setWindowTitle,string	proc setWindowTitle(title: string)		3070
+nim	setInitFunc	nico.html#setInitFunc	proc setInitFunc(init: (proc ()))		3110
+nim	setUpdateFunc	nico.html#setUpdateFunc	proc setUpdateFunc(update: (proc (dt: float32)))		3114
+nim	setDrawFunc	nico.html#setDrawFunc	proc setDrawFunc(draw: (proc ()))		3117
+nim	setControllerAdded	nico.html#setControllerAdded,proc(NicoController)	proc setControllerAdded(cadded: proc (controller: NicoController))		3120
+nim	setControllerRemoved	nico.html#setControllerRemoved,proc(NicoController)	proc setControllerRemoved(cremoved: proc (controller: NicoController))		3123
+nim	run	nico.html#run,,,	proc run(init: (proc ()); update: (proc (dt: float32)); draw: (proc ()))		3126
+nim	setWritePath	nico.html#setWritePath,string	proc setWritePath(path: string)		3143
+nim	setAssetPath	nico.html#setAssetPath,string	proc setAssetPath(path: string)		3150
+nim	setGifScale	nico.html#setGifScale,int	proc setGifScale(gs: int = 2)		3157
+nim	bpm	nico.html#bpm,Natural	proc bpm(newBpm: Natural)		3160
+nim	tpb	nico.html#tpb,Natural	proc tpb(newTpb: Natural)		3164
+nim	setAudioTickCallback	nico.html#setAudioTickCallback,proc)	proc setAudioTickCallback(callback: proc ())		3168
+nim	addKeyListener	nico.html#addKeyListener,KeyListener	proc addKeyListener(p: KeyListener)		3171
+nim	removeKeyListener	nico.html#removeKeyListener,KeyListener	proc removeKeyListener(p: KeyListener)		3175
+nim	addEventListener	nico.html#addEventListener,EventListener	proc addEventListener(f: EventListener): EventListener		3181
+nim	removeEventListener	nico.html#removeEventListener,EventListener	proc removeEventListener(f: EventListener)		3185
+nim	removeAllEventListeners	nico.html#removeAllEventListeners	proc removeAllEventListeners()		3191
+nim	sgn	nico.html#sgn,Pint	proc sgn(x: Pint): Pint		3195
+nim	DEG2RAD	nico.html#DEG2RAD	const DEG2RAD		3204
+nim	RAD2DEG	nico.html#RAD2DEG	const RAD2DEG		3205
+nim	deg2rad	nico.html#deg2rad.t,typed	template deg2rad(x: typed): untyped		3207
+nim	rad2deg	nico.html#rad2deg.t,typed	template rad2deg(x: typed): untyped		3211
+nim	invLerp	nico.html#invLerp,Pfloat,Pfloat,Pfloat	proc invLerp(a, b, v: Pfloat): Pfloat		3215
+nim	modSign	nico.html#modSign,T,T	proc modSign[T](a, n: T): T		3219
+nim	angleDiff	nico.html#angleDiff,Pfloat,Pfloat	proc angleDiff(a, b: Pfloat): Pfloat		3223
+nim	remove	nico.html#remove,seq[T],T	proc remove[T](a: var seq[T]; v: T)		3232
+nim	approach	nico.html#approach,T,T,T	proc approach[T](a: var T; b: T; speed: T)		3238
+nim	approach	nico.html#approach,T,T,T_2	proc approach[T](a: T; b: T; speed: T): T		3244
+nim	approachAngle	nico.html#approachAngle,float32,float32,float32	proc approachAngle(a: var float32; b: float32; speed: float32)		3250
+nim	timer	nico.html#timer.t,typed,untyped	template timer(a: typed; body: untyped): untyped		3254
+nim	toPint	nico.html#toPint.c,uint8	converter toPint(x: uint8): Pint		3260
+nim	toPfloat	nico.html#toPfloat.c,int	converter toPfloat(x: int): Pfloat		3263
+nim	all	nico.html#all.i,openArray[T]	iterator all[T](a: var openArray[T]): T		3266
 nimgrp	palt	nico.html#palt-procs-all	proc		177
 nimgrp	btn	nico.html#btn-procs-all	proc		281
 nimgrp	palcol	nico.html#palCol-procs-all	proc		180
-nimgrp	mapfilter	nico.html#mapFilter-procs-all	proc		2674
-nimgrp	fget	nico.html#fget-procs-all	proc		2055
+nimgrp	mapfilter	nico.html#mapFilter-procs-all	proc		2738
+nimgrp	fget	nico.html#fget-procs-all	proc		2113
 nimgrp	clip	nico.html#clip-procs-all	proc		203
 nimgrp	glyph	nico.html#glyph-procs-all	proc		147
 nimgrp	pset	nico.html#pset-procs-all	proc		316
 nimgrp	spr	nico.html#spr-procs-all	proc		349
-nimgrp	fset	nico.html#fset-procs-all	proc		2063
+nimgrp	fset	nico.html#fset-procs-all	proc		2121
 nimgrp	pal	nico.html#pal-procs-all	proc		171
 nimgrp	rnd	nico.html#rnd-procs-all	proc		421
 nimgrp	fps	nico.html#fps-procs-all	proc		431
 nimgrp	pald	nico.html#pald-procs-all	proc		173
-nimgrp	musicvol	nico.html#musicVol-procs-all	proc		2091
+nimgrp	musicvol	nico.html#musicVol-procs-all	proc		2149
 nimgrp	psetraw	nico.html#psetRaw-procs-all	proc		428
 nimgrp	stencilclear	nico.html#stencilClear-procs-all	proc		241
 nimgrp	anybtnp	nico.html#anybtnp-procs-all	proc		828
-nimgrp	srand	nico.html#srand-procs-all	proc		2942
-nimgrp	approach	nico.html#approach-procs-all	proc		3174
-nimgrp	fixedsize	nico.html#fixedSize-procs-all	proc		2404
+nimgrp	srand	nico.html#srand-procs-all	proc		3006
+nimgrp	approach	nico.html#approach-procs-all	proc		3238
+nimgrp	fixedsize	nico.html#fixedSize-procs-all	proc		2462
 nimgrp	btnp	nico.html#btnp-procs-all	proc		282
 nimgrp	print	nico.html#print-procs-all	proc		151
 nimgrp	btnpr	nico.html#btnpr-procs-all	proc		284
-nimgrp	integerscale	nico.html#integerScale-procs-all	proc		2418
+nimgrp	integerscale	nico.html#integerScale-procs-all	proc		2476
 nimgrp	axis	nico.html#axis-procs-all	proc		870
-nimgrp	loadfont	nico.html#loadFont-procs-all	proc		2195
+nimgrp	loadfont	nico.html#loadFont-procs-all	proc		2253
 nimgrp	btnup	nico.html#btnup-procs-all	proc		283
 nimgrp	jaxis	nico.html#jaxis-procs-all	proc		285
 nimgrp	glyphwidth	nico.html#glyphWidth-procs-all	proc		157
-nimgrp	sfxvol	nico.html#sfxVol-procs-all	proc		2083
-nimgrp	mastervol	nico.html#masterVol-procs-all	proc		2074
+nimgrp	sfxvol	nico.html#sfxVol-procs-all	proc		2141
+nimgrp	mastervol	nico.html#masterVol-procs-all	proc		2132

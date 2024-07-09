@@ -1,2 +1,3 @@
-defaultFontSurface	nico/fontdata.html#defaultFontSurface	fontdata: defaultFontSurface	
-defaultFontChars	nico/fontdata.html#defaultFontChars	fontdata: defaultFontChars	
+nimTitle	fontdata	nico/fontdata.html	module nico/fontdata		0
+nim	defaultFontSurface	nico/fontdata.html#defaultFontSurface	let defaultFontSurface		5
+nim	defaultFontChars	nico/fontdata.html#defaultFontChars	const defaultFontChars		6

@@ -1,2 +1,3 @@
-SpriteDraw	nico/spritedraw.html#SpriteDraw	spritedraw: SpriteDraw	
-initSpriteDraw	nico/spritedraw.html#initSpriteDraw,int,int,int,int,int,int	spritedraw: initSpriteDraw(spriteSheet, spriteIndex, x, y: int; w = 1; h = 1; flipX = false;\n               flipY = false): SpriteDraw	
+nimTitle	spritedraw	nico/spritedraw.html	module nico/spritedraw		0
+nim	SpriteDraw	nico/spritedraw.html#SpriteDraw	object SpriteDraw		1
+nim	initSpriteDraw	nico/spritedraw.html#initSpriteDraw,int,int,int,int,int,int	proc initSpriteDraw(spriteSheet, spriteIndex, x, y: int; w = 1; h = 1; flipX = false;\n               flipY = false): SpriteDraw		5

@@ -1,224 +1,230 @@
-maxPaletteSize	nico/backends/common.html#maxPaletteSize	common: maxPaletteSize	
-nAudioChannels	nico/backends/common.html#nAudioChannels	common: nAudioChannels	
-deadzone	nico/backends/common.html#deadzone	common: deadzone	
-gifScale	nico/backends/common.html#gifScale	common: gifScale	
-maxPlayers	nico/backends/common.html#maxPlayers	common: maxPlayers	
-recordingEnabled	nico/backends/common.html#recordingEnabled	common: recordingEnabled	
-musicBufferSize	nico/backends/common.html#musicBufferSize	common: musicBufferSize	
-tsStarted	nico/backends/common.html#tsStarted	TouchState.tsStarted	
-tsHeld	nico/backends/common.html#tsHeld	TouchState.tsHeld	
-tsMoved	nico/backends/common.html#tsMoved	TouchState.tsMoved	
-tsEnded	nico/backends/common.html#tsEnded	TouchState.tsEnded	
-tsCancelled	nico/backends/common.html#tsCancelled	TouchState.tsCancelled	
-TouchState	nico/backends/common.html#TouchState	common: TouchState	
-Touch	nico/backends/common.html#Touch	common: Touch	
-Palette	nico/backends/common.html#Palette	common: Palette	
-hash	nico/backends/common.html#hash,Keycode	common: hash(a: Keycode): Hash	
-keysDown	nico/backends/common.html#keysDown	common: keysDown	
-aKeyWasPressed	nico/backends/common.html#aKeyWasPressed	common: aKeyWasPressed	
-aKeyWasReleased	nico/backends/common.html#aKeyWasReleased	common: aKeyWasReleased	
-KeyListener	nico/backends/common.html#KeyListener	common: KeyListener	
-Pint	nico/backends/common.html#Pint	common: Pint	
-Pfloat	nico/backends/common.html#Pfloat	common: Pfloat	
-ColorId	nico/backends/common.html#ColorId	common: ColorId	
-Rect	nico/backends/common.html#Rect	common: Rect	
-Font	nico/backends/common.html#Font	common: Font	
-FontId	nico/backends/common.html#FontId	common: FontId	
-MusicId	nico/backends/common.html#MusicId	common: MusicId	
-SfxId	nico/backends/common.html#SfxId	common: SfxId	
-AudioChannelId	nico/backends/common.html#AudioChannelId	common: AudioChannelId	
-audioChannelAuto	nico/backends/common.html#audioChannelAuto	common: audioChannelAuto	
-channelNone	nico/backends/common.html#channelNone	ChannelKind.channelNone	
-channelSynth	nico/backends/common.html#channelSynth	ChannelKind.channelSynth	
-channelWave	nico/backends/common.html#channelWave	ChannelKind.channelWave	
-channelMusic	nico/backends/common.html#channelMusic	ChannelKind.channelMusic	
-channelCallback	nico/backends/common.html#channelCallback	ChannelKind.channelCallback	
-ChannelKind	nico/backends/common.html#ChannelKind	common: ChannelKind	
-synSame	nico/backends/common.html#synSame	SynthShape.synSame	
-synSin	nico/backends/common.html#synSin	SynthShape.synSin	
-synSqr	nico/backends/common.html#synSqr	SynthShape.synSqr	
-synP12	nico/backends/common.html#synP12	SynthShape.synP12	
-synP25	nico/backends/common.html#synP25	SynthShape.synP25	
-synSaw	nico/backends/common.html#synSaw	SynthShape.synSaw	
-synTri	nico/backends/common.html#synTri	SynthShape.synTri	
-synNoise	nico/backends/common.html#synNoise	SynthShape.synNoise	
-synNoise2	nico/backends/common.html#synNoise2	SynthShape.synNoise2	
-synWav	nico/backends/common.html#synWav	SynthShape.synWav	
-SynthShape	nico/backends/common.html#SynthShape	common: SynthShape	
-SynthDataStep	nico/backends/common.html#SynthDataStep	common: SynthDataStep	
-SynthData	nico/backends/common.html#SynthData	common: SynthData	
-synthDataToString	nico/backends/common.html#synthDataToString,SynthData	common: synthDataToString(sd: SynthData): string	
-synthDataFromString	nico/backends/common.html#synthDataFromString,string	common: synthDataFromString(sdstr: string): SynthData	
-note	nico/backends/common.html#note,int	common: note(n: int): Pfloat	
-noteToNoteStr	nico/backends/common.html#noteToNoteStr,int	common: noteToNoteStr(value: int): string	
-noteStrToNote	nico/backends/common.html#noteStrToNote,string	common: noteStrToNote(s: string): int	
-note	nico/backends/common.html#note,string	common: note(n: string): Pfloat	
-ekMouseButtonDown	nico/backends/common.html#ekMouseButtonDown	EventKind.ekMouseButtonDown	
-ekMouseButtonUp	nico/backends/common.html#ekMouseButtonUp	EventKind.ekMouseButtonUp	
-ekMouseMotion	nico/backends/common.html#ekMouseMotion	EventKind.ekMouseMotion	
-ekKeyDown	nico/backends/common.html#ekKeyDown	EventKind.ekKeyDown	
-ekKeyUp	nico/backends/common.html#ekKeyUp	EventKind.ekKeyUp	
-ekMouseWheel	nico/backends/common.html#ekMouseWheel	EventKind.ekMouseWheel	
-ekTextInput	nico/backends/common.html#ekTextInput	EventKind.ekTextInput	
-ekTextEditing	nico/backends/common.html#ekTextEditing	EventKind.ekTextEditing	
-ekButtonDown	nico/backends/common.html#ekButtonDown	EventKind.ekButtonDown	
-ekButtonUp	nico/backends/common.html#ekButtonUp	EventKind.ekButtonUp	
-ekAxisMotion	nico/backends/common.html#ekAxisMotion	EventKind.ekAxisMotion	
-EventKind	nico/backends/common.html#EventKind	common: EventKind	
-Event	nico/backends/common.html#Event	common: Event	
-EventListener	nico/backends/common.html#EventListener	common: EventListener	
-Surface	nico/backends/common.html#Surface	common: Surface	
-set	nico/backends/common.html#set,Surface,int,int,uint8	common: set(s: Surface; x, y: int; v: uint8)	
-set	nico/backends/common.html#set,Surface,int,int,tuple[uint8,uint8,uint8,uint8]	common: set(s: Surface; x, y: int; v: tuple[r, g, b, a: uint8])	
-add	nico/backends/common.html#add,Surface,int,int,uint8	common: add(s: Surface; x, y: int; v: uint8)	
-subtract	nico/backends/common.html#subtract,Surface,int,int,uint8	common: subtract(s: Surface; x, y: int; v: uint8)	
-blendMax	nico/backends/common.html#blendMax,Surface,int,int,uint8	common: blendMax(s: Surface; x, y: int; v: uint8)	
-blendMin	nico/backends/common.html#blendMin,Surface,int,int,uint8	common: blendMin(s: Surface; x, y: int; v: uint8)	
-get	nico/backends/common.html#get,Surface,int,int	common: get(s: Surface; x, y: int): uint8	
-Tilemap	nico/backends/common.html#Tilemap	common: Tilemap	
-ResizeFunc	nico/backends/common.html#ResizeFunc	common: ResizeFunc	
-toFloat32	nico/backends/common.html#toFloat32.c,float	common: toFloat32(x: float): float32	
-toPint	nico/backends/common.html#toPint.c,float	common: toPint(x: float): Pint	
-toPint	nico/backends/common.html#toPint.c,float32	common: toPint(x: float32): Pint	
-toPint	nico/backends/common.html#toPint.c,SomeInteger	common: toPint(x: SomeInteger): Pint	
-toPfloat	nico/backends/common.html#toPfloat.c,float	common: toPfloat(x: float): Pfloat	
-currentPalette	nico/backends/common.html#currentPalette	common: currentPalette	
-touches	nico/backends/common.html#touches	common: touches	
-touchMouseEmulation	nico/backends/common.html#touchMouseEmulation	common: touchMouseEmulation	
-masterVolume	nico/backends/common.html#masterVolume	common: masterVolume	
-sfxVolume	nico/backends/common.html#sfxVolume	common: sfxVolume	
-musicVolume	nico/backends/common.html#musicVolume	common: musicVolume	
-sampleRate	nico/backends/common.html#sampleRate	common: sampleRate	
-invSampleRate	nico/backends/common.html#invSampleRate	common: invSampleRate	
-audioTickCallback	nico/backends/common.html#audioTickCallback	common: audioTickCallback	
-currentBpm	nico/backends/common.html#currentBpm	common: currentBpm	
-currentTpb	nico/backends/common.html#currentTpb	common: currentTpb	
-initialized	nico/backends/common.html#initialized	common: initialized	
-running	nico/backends/common.html#running	common: running	
-keyListeners	nico/backends/common.html#keyListeners	common: keyListeners	
-eventListeners	nico/backends/common.html#eventListeners	common: eventListeners	
-loading	nico/backends/common.html#loading	common: loading	
-cursorX	nico/backends/common.html#cursorX	common: cursorX	
-cursorY	nico/backends/common.html#cursorY	common: cursorY	
-swCanvas	nico/backends/common.html#swCanvas	common: swCanvas	
-stencilBuffer	nico/backends/common.html#stencilBuffer	common: stencilBuffer	
-stencilAlways	nico/backends/common.html#stencilAlways	StencilMode.stencilAlways	
-stencilEqual	nico/backends/common.html#stencilEqual	StencilMode.stencilEqual	
-stencilLess	nico/backends/common.html#stencilLess	StencilMode.stencilLess	
-stencilGreater	nico/backends/common.html#stencilGreater	StencilMode.stencilGreater	
-stencilLEqual	nico/backends/common.html#stencilLEqual	StencilMode.stencilLEqual	
-stencilGEqual	nico/backends/common.html#stencilGEqual	StencilMode.stencilGEqual	
-stencilNot	nico/backends/common.html#stencilNot	StencilMode.stencilNot	
-stencilNever	nico/backends/common.html#stencilNever	StencilMode.stencilNever	
-StencilMode	nico/backends/common.html#StencilMode	common: StencilMode	
-stencilReplace	nico/backends/common.html#stencilReplace	StencilBlend.stencilReplace	
-stencilAdd	nico/backends/common.html#stencilAdd	StencilBlend.stencilAdd	
-stencilSubtract	nico/backends/common.html#stencilSubtract	StencilBlend.stencilSubtract	
-stencilMax	nico/backends/common.html#stencilMax	StencilBlend.stencilMax	
-stencilMin	nico/backends/common.html#stencilMin	StencilBlend.stencilMin	
-StencilBlend	nico/backends/common.html#StencilBlend	common: StencilBlend	
-stencilMode	nico/backends/common.html#stencilMode_2	common: stencilMode	
-stencilWrite	nico/backends/common.html#stencilWrite	common: stencilWrite	
-stencilWriteFail	nico/backends/common.html#stencilWriteFail	common: stencilWriteFail	
-stencilOnly	nico/backends/common.html#stencilOnly	common: stencilOnly	
-stencilRef	nico/backends/common.html#stencilRef	common: stencilRef	
-stencilBlend	nico/backends/common.html#stencilBlend_2	common: stencilBlend	
-targetScreenWidth	nico/backends/common.html#targetScreenWidth	common: targetScreenWidth	
-targetScreenHeight	nico/backends/common.html#targetScreenHeight	common: targetScreenHeight	
-fixedScreenSize	nico/backends/common.html#fixedScreenSize	common: fixedScreenSize	
-integerScreenScale	nico/backends/common.html#integerScreenScale	common: integerScreenScale	
-screenWidth	nico/backends/common.html#screenWidth	common: screenWidth	
-screenHeight	nico/backends/common.html#screenHeight	common: screenHeight	
-screenPaddingX	nico/backends/common.html#screenPaddingX	common: screenPaddingX	
-screenPaddingY	nico/backends/common.html#screenPaddingY	common: screenPaddingY	
-keymap	nico/backends/common.html#keymap	common: keymap	
-controllerAddedFunc	nico/backends/common.html#controllerAddedFunc	common: controllerAddedFunc	
-controllerRemovedFunc	nico/backends/common.html#controllerRemovedFunc	common: controllerRemovedFunc	
-controllers	nico/backends/common.html#controllers	common: controllers	
-focused	nico/backends/common.html#focused	common: focused	
-recordSeconds	nico/backends/common.html#recordSeconds	common: recordSeconds	
-fullSpeedGif	nico/backends/common.html#fullSpeedGif	common: fullSpeedGif	
-mixerChannels	nico/backends/common.html#mixerChannels	common: mixerChannels	
-DitherNone	nico/backends/common.html#DitherNone	DitherMode.DitherNone	
-Dither4x4	nico/backends/common.html#Dither4x4	DitherMode.Dither4x4	
-DitherADitherAdd	nico/backends/common.html#DitherADitherAdd	DitherMode.DitherADitherAdd	
-DitherADitherXor	nico/backends/common.html#DitherADitherXor	DitherMode.DitherADitherXor	
-DitherMode	nico/backends/common.html#DitherMode	common: DitherMode	
-gDitherPattern	nico/backends/common.html#gDitherPattern	common: gDitherPattern	
-gDitherMode	nico/backends/common.html#gDitherMode	common: gDitherMode	
-gDitherADitherA	nico/backends/common.html#gDitherADitherA	common: gDitherADitherA	
-gDitherADitherB	nico/backends/common.html#gDitherADitherB	common: gDitherADitherB	
-gDitherADitherC	nico/backends/common.html#gDitherADitherC	common: gDitherADitherC	
-gDitherADitherInput	nico/backends/common.html#gDitherADitherInput	common: gDitherADitherInput	
-gDitherOffsetX	nico/backends/common.html#gDitherOffsetX	common: gDitherOffsetX	
-gDitherOffsetY	nico/backends/common.html#gDitherOffsetY	common: gDitherOffsetY	
-frameRate	nico/backends/common.html#frameRate	common: frameRate	
-timeStep	nico/backends/common.html#timeStep	common: timeStep	
-frameMult	nico/backends/common.html#frameMult	common: frameMult	
-basePath	nico/backends/common.html#basePath	common: basePath	
-assetPath	nico/backends/common.html#assetPath	common: assetPath	
-writePath	nico/backends/common.html#writePath	common: writePath	
-screenScale	nico/backends/common.html#screenScale	common: screenScale	
-spritesheets	nico/backends/common.html#spritesheets	common: spritesheets	
-spritesheet	nico/backends/common.html#spritesheet	common: spritesheet	
-tilemaps	nico/backends/common.html#tilemaps	common: tilemaps	
-currentTilemap	nico/backends/common.html#currentTilemap	common: currentTilemap	
-initFunc	nico/backends/common.html#initFunc	common: initFunc	
-initFuncCalled	nico/backends/common.html#initFuncCalled	common: initFuncCalled	
-updateFunc	nico/backends/common.html#updateFunc	common: updateFunc	
-drawFunc	nico/backends/common.html#drawFunc	common: drawFunc	
-textFunc	nico/backends/common.html#textFunc	common: textFunc	
-resizeFuncs	nico/backends/common.html#resizeFuncs	common: resizeFuncs	
-fonts	nico/backends/common.html#fonts	common: fonts	
-currentFont	nico/backends/common.html#currentFont	common: currentFont	
-currentFontId	nico/backends/common.html#currentFontId	common: currentFontId	
-frame	nico/backends/common.html#frame	common: frame	
-cameraX	nico/backends/common.html#cameraX	common: cameraX	
-cameraY	nico/backends/common.html#cameraY	common: cameraY	
-paletteMapDraw	nico/backends/common.html#paletteMapDraw	common: paletteMapDraw	
-paletteMapDisplay	nico/backends/common.html#paletteMapDisplay	common: paletteMapDisplay	
-paletteTransparent	nico/backends/common.html#paletteTransparent	common: paletteTransparent	
-currentColor	nico/backends/common.html#currentColor	common: currentColor	
-keepRunning	nico/backends/common.html#keepRunning	common: keepRunning	
-muteAudio	nico/backends/common.html#muteAudio	common: muteAudio	
-currentMusicId	nico/backends/common.html#currentMusicId	common: currentMusicId	
-clipMinX	nico/backends/common.html#clipMinX	common: clipMinX	
-clipMaxX	nico/backends/common.html#clipMaxX	common: clipMaxX	
-clipMinY	nico/backends/common.html#clipMinY	common: clipMinY	
-clipMaxY	nico/backends/common.html#clipMaxY	common: clipMaxY	
-clippingRect	nico/backends/common.html#clippingRect	common: clippingRect	
-mouseDetected	nico/backends/common.html#mouseDetected	common: mouseDetected	
-mouseX	nico/backends/common.html#mouseX	common: mouseX	
-mouseY	nico/backends/common.html#mouseY	common: mouseY	
-mouseRawX	nico/backends/common.html#mouseRawX	common: mouseRawX	
-mouseRawY	nico/backends/common.html#mouseRawY	common: mouseRawY	
-mouseRelX	nico/backends/common.html#mouseRelX	common: mouseRelX	
-mouseRelY	nico/backends/common.html#mouseRelY	common: mouseRelY	
-lastMouseX	nico/backends/common.html#lastMouseX	common: lastMouseX	
-lastMouseY	nico/backends/common.html#lastMouseY	common: lastMouseY	
-lastMouseRawX	nico/backends/common.html#lastMouseRawX	common: lastMouseRawX	
-lastMouseRawY	nico/backends/common.html#lastMouseRawY	common: lastMouseRawY	
-mouseButtonsDown	nico/backends/common.html#mouseButtonsDown	common: mouseButtonsDown	
-mouseButtons	nico/backends/common.html#mouseButtons	common: mouseButtons	
-mouseWheelState	nico/backends/common.html#mouseWheelState	common: mouseWheelState	
-lerp	nico/backends/common.html#lerp,T,T,Pfloat	common: lerp[T](a, b: T; t: Pfloat): T	
-interpolatedLookup	nico/backends/common.html#interpolatedLookup,openArray[T],Pfloat	common: interpolatedLookup[T](a: openArray[T]; s: Pfloat): T	
-newSurface	nico/backends/common.html#newSurface,int,int	common: newSurface(w, h: int): Surface	
-newSurfaceRGBA	nico/backends/common.html#newSurfaceRGBA,int,int	common: newSurfaceRGBA(w, h: int): Surface	
-convertToABGR	nico/backends/common.html#convertToABGR,Surface,pointer,cint,cint,cint	common: convertToABGR(src: Surface; rgbaPixels: pointer; dpitch, w, h: cint)	
-convertToRGBA	nico/backends/common.html#convertToRGBA,Surface,pointer,cint,cint,cint	common: convertToRGBA(src: Surface; abgrPixels: pointer; dpitch, w, h: cint)	
-convertToRGBA	nico/backends/common.html#convertToRGBA,Surface	common: convertToRGBA(src: Surface): Surface	
-mapRGB	nico/backends/common.html#mapRGB,uint8,uint8,uint8	common: mapRGB(r, g, b: uint8): ColorId	
-mapRGBA	nico/backends/common.html#mapRGBA,uint8,uint8,uint8,uint8	common: mapRGBA(r, g, b, a: uint8): ColorId	
-convertToIndexed	nico/backends/common.html#convertToIndexed,Surface	common: convertToIndexed(surface: Surface): Surface	
-RGB	nico/backends/common.html#RGB,Pint,Pint,Pint	common: RGB(r, g, b: Pint): tuple[r, g, b: uint8]	
-RGB	nico/backends/common.html#RGB,Pint	common: RGB(color: Pint): tuple[r, g, b: uint8]	
-ProfilerNode	nico/backends/common.html#ProfilerNode	common: ProfilerNode	
-profileCollect	nico/backends/common.html#profileCollect	common: profileCollect	
-profileHistory	nico/backends/common.html#profileHistory	common: profileHistory	
-profileBegin	nico/backends/common.html#profileBegin.t,untyped	common: profileBegin(name: untyped): untyped	
-profileEnd	nico/backends/common.html#profileEnd.t	common: profileEnd(): untyped	
-profileStartFrame	nico/backends/common.html#profileStartFrame.t	common: profileStartFrame(): untyped	
-profileEndFrame	nico/backends/common.html#profileEndFrame.t	common: profileEndFrame(): untyped	
-profileGetLastStats	nico/backends/common.html#profileGetLastStats	common: profileGetLastStats(): seq[tuple[name: string, time: int64]]	
-profileGetLastStatsPeak	nico/backends/common.html#profileGetLastStatsPeak	common: profileGetLastStatsPeak(): seq[tuple[name: string, time: int64]]	
+nimTitle	common	nico/backends/common.html	module nico/backends/common		0
+nim	maxPaletteSize	nico/backends/common.html#maxPaletteSize	const maxPaletteSize		16
+nim	nAudioChannels	nico/backends/common.html#nAudioChannels	const nAudioChannels		17
+nim	deadzone	nico/backends/common.html#deadzone	const deadzone		18
+nim	gifScale	nico/backends/common.html#gifScale	var gifScale		19
+nim	maxPlayers	nico/backends/common.html#maxPlayers	const maxPlayers		20
+nim	recordingEnabled	nico/backends/common.html#recordingEnabled	const recordingEnabled		21
+nim	musicBufferSize	nico/backends/common.html#musicBufferSize	const musicBufferSize		22
+nim	tsStarted	nico/backends/common.html#tsStarted	TouchState.tsStarted		26
+nim	tsHeld	nico/backends/common.html#tsHeld	TouchState.tsHeld		26
+nim	tsMoved	nico/backends/common.html#tsMoved	TouchState.tsMoved		26
+nim	tsEnded	nico/backends/common.html#tsEnded	TouchState.tsEnded		26
+nim	tsCancelled	nico/backends/common.html#tsCancelled	TouchState.tsCancelled		26
+nim	TouchState	nico/backends/common.html#TouchState	enum TouchState		26
+nim	Touch	nico/backends/common.html#Touch	object Touch		33
+nim	Palette	nico/backends/common.html#Palette	tuple Palette		41
+nim	hash	nico/backends/common.html#hash,Keycode	proc hash(a: Keycode): Hash		45
+nim	keysDown	nico/backends/common.html#keysDown	var keysDown		53
+nim	aKeyWasPressed	nico/backends/common.html#aKeyWasPressed	var aKeyWasPressed		54
+nim	aKeyWasReleased	nico/backends/common.html#aKeyWasReleased	var aKeyWasReleased		55
+nim	KeyListener	nico/backends/common.html#KeyListener	type KeyListener		57
+nim	Pint	nico/backends/common.html#Pint	type Pint		60
+nim	Pfloat	nico/backends/common.html#Pfloat	type Pfloat		61
+nim	ColorId	nico/backends/common.html#ColorId	type ColorId		62
+nim	Rect	nico/backends/common.html#Rect	tuple Rect		64
+nim	Font	nico/backends/common.html#Font	type Font		67
+nim	FontId	nico/backends/common.html#FontId	type FontId		72
+nim	MusicId	nico/backends/common.html#MusicId	type MusicId		73
+nim	SfxId	nico/backends/common.html#SfxId	type SfxId		74
+nim	AudioChannelId	nico/backends/common.html#AudioChannelId	type AudioChannelId		76
+nim	audioChannelAuto	nico/backends/common.html#audioChannelAuto	const audioChannelAuto		77
+nim	channelNone	nico/backends/common.html#channelNone	ChannelKind.channelNone		80
+nim	channelSynth	nico/backends/common.html#channelSynth	ChannelKind.channelSynth		80
+nim	channelWave	nico/backends/common.html#channelWave	ChannelKind.channelWave		80
+nim	channelMusic	nico/backends/common.html#channelMusic	ChannelKind.channelMusic		80
+nim	channelCallback	nico/backends/common.html#channelCallback	ChannelKind.channelCallback		80
+nim	ChannelKind	nico/backends/common.html#ChannelKind	enum ChannelKind		80
+nim	synSame	nico/backends/common.html#synSame	SynthShape.synSame		87
+nim	synSin	nico/backends/common.html#synSin	SynthShape.synSin		87
+nim	synSqr	nico/backends/common.html#synSqr	SynthShape.synSqr		87
+nim	synP12	nico/backends/common.html#synP12	SynthShape.synP12		87
+nim	synP25	nico/backends/common.html#synP25	SynthShape.synP25		87
+nim	synSaw	nico/backends/common.html#synSaw	SynthShape.synSaw		87
+nim	synTri	nico/backends/common.html#synTri	SynthShape.synTri		87
+nim	synNoise	nico/backends/common.html#synNoise	SynthShape.synNoise		87
+nim	synNoise2	nico/backends/common.html#synNoise2	SynthShape.synNoise2		87
+nim	synWav	nico/backends/common.html#synWav	SynthShape.synWav		87
+nim	SynthShape	nico/backends/common.html#SynthShape	enum SynthShape		87
+nim	SynthDataStep	nico/backends/common.html#SynthDataStep	tuple SynthDataStep		99
+nim	SynthData	nico/backends/common.html#SynthData	tuple SynthData		104
+nim	synthDataToString	nico/backends/common.html#synthDataToString,SynthData	proc synthDataToString(sd: SynthData): string		110
+nim	synthDataFromString	nico/backends/common.html#synthDataFromString,string	proc synthDataFromString(sdstr: string): SynthData		122
+nim	note	nico/backends/common.html#note,int	proc note(n: int): Pfloat		138
+nim	noteToNoteStr	nico/backends/common.html#noteToNoteStr,int	proc noteToNoteStr(value: int): string		143
+nim	noteStrToNote	nico/backends/common.html#noteStrToNote,string	proc noteStrToNote(s: string): int		173
+nim	note	nico/backends/common.html#note,string	proc note(n: string): Pfloat		188
+nim	ekMouseButtonDown	nico/backends/common.html#ekMouseButtonDown	EventKind.ekMouseButtonDown		193
+nim	ekMouseButtonUp	nico/backends/common.html#ekMouseButtonUp	EventKind.ekMouseButtonUp		193
+nim	ekMouseMotion	nico/backends/common.html#ekMouseMotion	EventKind.ekMouseMotion		193
+nim	ekKeyDown	nico/backends/common.html#ekKeyDown	EventKind.ekKeyDown		193
+nim	ekKeyUp	nico/backends/common.html#ekKeyUp	EventKind.ekKeyUp		193
+nim	ekMouseWheel	nico/backends/common.html#ekMouseWheel	EventKind.ekMouseWheel		193
+nim	ekTextInput	nico/backends/common.html#ekTextInput	EventKind.ekTextInput		193
+nim	ekTextEditing	nico/backends/common.html#ekTextEditing	EventKind.ekTextEditing		193
+nim	ekButtonDown	nico/backends/common.html#ekButtonDown	EventKind.ekButtonDown		193
+nim	ekButtonUp	nico/backends/common.html#ekButtonUp	EventKind.ekButtonUp		193
+nim	ekAxisMotion	nico/backends/common.html#ekAxisMotion	EventKind.ekAxisMotion		193
+nim	EventKind	nico/backends/common.html#EventKind	enum EventKind		193
+nim	Event	nico/backends/common.html#Event	object Event		206
+nim	EventListener	nico/backends/common.html#EventListener	type EventListener		220
+nim	Surface	nico/backends/common.html#Surface	type Surface		223
+nim	set	nico/backends/common.html#set,Surface,int,int,uint8	proc set(s: Surface; x, y: int; v: uint8)		232
+nim	set	nico/backends/common.html#set,Surface,int,int,tuple[uint8,uint8,uint8,uint8]	proc set(s: Surface; x, y: int; v: tuple[r, g, b, a: uint8])		237
+nim	add	nico/backends/common.html#add,Surface,int,int,uint8	proc add(s: Surface; x, y: int; v: uint8)		245
+nim	subtract	nico/backends/common.html#subtract,Surface,int,int,uint8	proc subtract(s: Surface; x, y: int; v: uint8)		250
+nim	blendMax	nico/backends/common.html#blendMax,Surface,int,int,uint8	proc blendMax(s: Surface; x, y: int; v: uint8)		255
+nim	blendMin	nico/backends/common.html#blendMin,Surface,int,int,uint8	proc blendMin(s: Surface; x, y: int; v: uint8)		260
+nim	get	nico/backends/common.html#get,Surface,int,int	proc get(s: Surface; x, y: int): uint8		265
+nim	Tilemap	nico/backends/common.html#Tilemap	object Tilemap		271
+nim	ResizeFunc	nico/backends/common.html#ResizeFunc	type ResizeFunc		278
+nim	toFloat32	nico/backends/common.html#toFloat32.c,float	converter toFloat32(x: float): float32		282
+nim	toPint	nico/backends/common.html#toPint.c,float	converter toPint(x: float): Pint		285
+nim	toPint	nico/backends/common.html#toPint.c,float32	converter toPint(x: float32): Pint		288
+nim	toPint	nico/backends/common.html#toPint.c,SomeInteger	converter toPint(x: SomeInteger): Pint		291
+nim	toPfloat	nico/backends/common.html#toPfloat.c,float	converter toPfloat(x: float): Pfloat		294
+nim	currentPalette	nico/backends/common.html#currentPalette	var currentPalette		300
+nim	touches	nico/backends/common.html#touches	var touches		302
+nim	touchMouseEmulation	nico/backends/common.html#touchMouseEmulation	var touchMouseEmulation		303
+nim	masterVolume	nico/backends/common.html#masterVolume	var masterVolume		305
+nim	sfxVolume	nico/backends/common.html#sfxVolume	var sfxVolume		306
+nim	musicVolume	nico/backends/common.html#musicVolume	var musicVolume		307
+nim	sampleRate	nico/backends/common.html#sampleRate	var sampleRate		309
+nim	invSampleRate	nico/backends/common.html#invSampleRate	var invSampleRate		310
+nim	audioTickCallback	nico/backends/common.html#audioTickCallback	var audioTickCallback		312
+nim	currentBpm	nico/backends/common.html#currentBpm	var currentBpm		314
+nim	currentTpb	nico/backends/common.html#currentTpb	var currentTpb		315
+nim	initialized	nico/backends/common.html#initialized	var initialized		317
+nim	running	nico/backends/common.html#running	var running		318
+nim	keyListeners	nico/backends/common.html#keyListeners	var keyListeners		320
+nim	eventListeners	nico/backends/common.html#eventListeners	var eventListeners		321
+nim	loading	nico/backends/common.html#loading	var loading		323
+nim	cursorX	nico/backends/common.html#cursorX	var cursorX		325
+nim	cursorY	nico/backends/common.html#cursorY	var cursorY		326
+nim	swCanvas	nico/backends/common.html#swCanvas	var swCanvas		328
+nim	stencilBuffer	nico/backends/common.html#stencilBuffer	var stencilBuffer		330
+nim	stencilAlways	nico/backends/common.html#stencilAlways	StencilMode.stencilAlways		331
+nim	stencilEqual	nico/backends/common.html#stencilEqual	StencilMode.stencilEqual		331
+nim	stencilLess	nico/backends/common.html#stencilLess	StencilMode.stencilLess		331
+nim	stencilGreater	nico/backends/common.html#stencilGreater	StencilMode.stencilGreater		331
+nim	stencilLEqual	nico/backends/common.html#stencilLEqual	StencilMode.stencilLEqual		331
+nim	stencilGEqual	nico/backends/common.html#stencilGEqual	StencilMode.stencilGEqual		331
+nim	stencilNot	nico/backends/common.html#stencilNot	StencilMode.stencilNot		331
+nim	stencilNever	nico/backends/common.html#stencilNever	StencilMode.stencilNever		331
+nim	StencilMode	nico/backends/common.html#StencilMode	enum StencilMode		331
+nim	stencilReplace	nico/backends/common.html#stencilReplace	StencilBlend.stencilReplace		340
+nim	stencilAdd	nico/backends/common.html#stencilAdd	StencilBlend.stencilAdd		340
+nim	stencilSubtract	nico/backends/common.html#stencilSubtract	StencilBlend.stencilSubtract		340
+nim	stencilMax	nico/backends/common.html#stencilMax	StencilBlend.stencilMax		340
+nim	stencilMin	nico/backends/common.html#stencilMin	StencilBlend.stencilMin		340
+nim	StencilBlend	nico/backends/common.html#StencilBlend	enum StencilBlend		340
+nim	stencilMode	nico/backends/common.html#stencilMode_2	var stencilMode		347
+nim	stencilWrite	nico/backends/common.html#stencilWrite	var stencilWrite		348
+nim	stencilWriteFail	nico/backends/common.html#stencilWriteFail	var stencilWriteFail		349
+nim	stencilOnly	nico/backends/common.html#stencilOnly	var stencilOnly		350
+nim	stencilRef	nico/backends/common.html#stencilRef	var stencilRef		351
+nim	stencilBlend	nico/backends/common.html#stencilBlend_2	var stencilBlend		352
+nim	targetScreenWidth	nico/backends/common.html#targetScreenWidth	var targetScreenWidth		354
+nim	targetScreenHeight	nico/backends/common.html#targetScreenHeight	var targetScreenHeight		355
+nim	fixedScreenSize	nico/backends/common.html#fixedScreenSize	var fixedScreenSize		357
+nim	integerScreenScale	nico/backends/common.html#integerScreenScale	var integerScreenScale		358
+nim	screenWidth	nico/backends/common.html#screenWidth	var screenWidth		360
+nim	screenHeight	nico/backends/common.html#screenHeight	var screenHeight		361
+nim	screenPaddingX	nico/backends/common.html#screenPaddingX	var screenPaddingX		363
+nim	screenPaddingY	nico/backends/common.html#screenPaddingY	var screenPaddingY		364
+nim	keymap	nico/backends/common.html#keymap	var keymap		366
+nim	controllerAddedFunc	nico/backends/common.html#controllerAddedFunc	var controllerAddedFunc		389
+nim	controllerRemovedFunc	nico/backends/common.html#controllerRemovedFunc	var controllerRemovedFunc		390
+nim	controllers	nico/backends/common.html#controllers	var controllers		392
+nim	focused	nico/backends/common.html#focused	var focused		394
+nim	recordSeconds	nico/backends/common.html#recordSeconds	var recordSeconds		395
+nim	fullSpeedGif	nico/backends/common.html#fullSpeedGif	var fullSpeedGif		396
+nim	mixerChannels	nico/backends/common.html#mixerChannels	var mixerChannels		398
+nim	DitherNone	nico/backends/common.html#DitherNone	DitherMode.DitherNone		400
+nim	Dither4x4	nico/backends/common.html#Dither4x4	DitherMode.Dither4x4		400
+nim	DitherADitherAdd	nico/backends/common.html#DitherADitherAdd	DitherMode.DitherADitherAdd		400
+nim	DitherADitherXor	nico/backends/common.html#DitherADitherXor	DitherMode.DitherADitherXor		400
+nim	DitherMode	nico/backends/common.html#DitherMode	enum DitherMode		400
+nim	gDitherPattern	nico/backends/common.html#gDitherPattern	var gDitherPattern		406
+nim	gDitherMode	nico/backends/common.html#gDitherMode	var gDitherMode		407
+nim	gDitherADitherA	nico/backends/common.html#gDitherADitherA	var gDitherADitherA		408
+nim	gDitherADitherB	nico/backends/common.html#gDitherADitherB	var gDitherADitherB		409
+nim	gDitherADitherC	nico/backends/common.html#gDitherADitherC	var gDitherADitherC		410
+nim	gDitherADitherInput	nico/backends/common.html#gDitherADitherInput	var gDitherADitherInput		411
+nim	gDitherOffsetX	nico/backends/common.html#gDitherOffsetX	var gDitherOffsetX		412
+nim	gDitherOffsetY	nico/backends/common.html#gDitherOffsetY	var gDitherOffsetY		413
+nim	frameRate	nico/backends/common.html#frameRate	var frameRate		415
+nim	timeStep	nico/backends/common.html#timeStep	var timeStep		416
+nim	frameMult	nico/backends/common.html#frameMult	var frameMult		417
+nim	basePath	nico/backends/common.html#basePath	var basePath		419
+nim	assetPath	nico/backends/common.html#assetPath	var assetPath		420
+nim	writePath	nico/backends/common.html#writePath	var writePath		421
+nim	screenScale	nico/backends/common.html#screenScale	var screenScale		423
+nim	spritesheets	nico/backends/common.html#spritesheets	var spritesheets		424
+nim	spritesheet	nico/backends/common.html#spritesheet	var spritesheet		425
+nim	tilemaps	nico/backends/common.html#tilemaps	var tilemaps		427
+nim	currentTilemap	nico/backends/common.html#currentTilemap	var currentTilemap		428
+nim	initFunc	nico/backends/common.html#initFunc	var initFunc		430
+nim	initFuncCalled	nico/backends/common.html#initFuncCalled	var initFuncCalled		431
+nim	updateFunc	nico/backends/common.html#updateFunc	var updateFunc		432
+nim	drawFunc	nico/backends/common.html#drawFunc	var drawFunc		433
+nim	textFunc	nico/backends/common.html#textFunc	var textFunc		434
+nim	resizeFuncs	nico/backends/common.html#resizeFuncs	var resizeFuncs		435
+nim	fonts	nico/backends/common.html#fonts	var fonts		437
+nim	currentFont	nico/backends/common.html#currentFont	var currentFont		438
+nim	currentFontId	nico/backends/common.html#currentFontId	var currentFontId		439
+nim	frame	nico/backends/common.html#frame	var frame		441
+nim	cameraX	nico/backends/common.html#cameraX	var cameraX		443
+nim	cameraY	nico/backends/common.html#cameraY	var cameraY		444
+nim	paletteMapDraw	nico/backends/common.html#paletteMapDraw	var paletteMapDraw		446
+nim	paletteMapDisplay	nico/backends/common.html#paletteMapDisplay	var paletteMapDisplay		447
+nim	paletteTransparent	nico/backends/common.html#paletteTransparent	var paletteTransparent		448
+nim	currentColor	nico/backends/common.html#currentColor	var currentColor		455
+nim	keepRunning	nico/backends/common.html#keepRunning	var keepRunning		457
+nim	muteAudio	nico/backends/common.html#muteAudio	var muteAudio		458
+nim	currentMusicId	nico/backends/common.html#currentMusicId	var currentMusicId		461
+nim	clipMinX	nico/backends/common.html#clipMinX	var clipMinX		463
+nim	clipMaxX	nico/backends/common.html#clipMaxX	var clipMaxX		463
+nim	clipMinY	nico/backends/common.html#clipMinY	var clipMinY		463
+nim	clipMaxY	nico/backends/common.html#clipMaxY	var clipMaxY		463
+nim	clippingRect	nico/backends/common.html#clippingRect	var clippingRect		464
+nim	mouseDetected	nico/backends/common.html#mouseDetected	var mouseDetected		466
+nim	mouseX	nico/backends/common.html#mouseX	var mouseX		467
+nim	mouseY	nico/backends/common.html#mouseY	var mouseY		467
+nim	mouseRawX	nico/backends/common.html#mouseRawX	var mouseRawX		468
+nim	mouseRawY	nico/backends/common.html#mouseRawY	var mouseRawY		468
+nim	mouseRelX	nico/backends/common.html#mouseRelX	var mouseRelX		469
+nim	mouseRelY	nico/backends/common.html#mouseRelY	var mouseRelY		469
+nim	lastMouseX	nico/backends/common.html#lastMouseX	var lastMouseX		470
+nim	lastMouseY	nico/backends/common.html#lastMouseY	var lastMouseY		470
+nim	lastMouseRawX	nico/backends/common.html#lastMouseRawX	var lastMouseRawX		471
+nim	lastMouseRawY	nico/backends/common.html#lastMouseRawY	var lastMouseRawY		471
+nim	mouseButtonsDown	nico/backends/common.html#mouseButtonsDown	var mouseButtonsDown		472
+nim	mouseButtons	nico/backends/common.html#mouseButtons	var mouseButtons		473
+nim	mouseWheelState	nico/backends/common.html#mouseWheelState	var mouseWheelState		474
+nim	lerp	nico/backends/common.html#lerp,T,T,Pfloat	proc lerp[T](a, b: T; t: Pfloat): T		476
+nim	interpolatedLookup	nico/backends/common.html#interpolatedLookup,openArray[T],Pfloat	proc interpolatedLookup[T](a: openArray[T]; s: Pfloat): T		479
+nim	newSurface	nico/backends/common.html#newSurface,int,int	proc newSurface(w, h: int): Surface		485
+nim	newSurfaceRGBA	nico/backends/common.html#newSurfaceRGBA,int,int	proc newSurfaceRGBA(w, h: int): Surface		492
+nim	convertToABGR	nico/backends/common.html#convertToABGR,Surface,pointer,cint,cint,cint	proc convertToABGR(src: Surface; rgbaPixels: pointer; dpitch, w, h: cint)		500
+nim	convertToRGBA	nico/backends/common.html#convertToRGBA,Surface,pointer,cint,cint,cint	proc convertToRGBA(src: Surface; abgrPixels: pointer; dpitch, w, h: cint)		511
+nim	convertToRGBA	nico/backends/common.html#convertToRGBA,Surface	proc convertToRGBA(src: Surface): Surface		521
+nim	mapRGB	nico/backends/common.html#mapRGB,uint8,uint8,uint8	proc mapRGB(r, g, b: uint8): ColorId		532
+nim	mapRGBA	nico/backends/common.html#mapRGBA,uint8,uint8,uint8,uint8	proc mapRGBA(r, g, b, a: uint8): ColorId		549
+nim	convertToIndexed	nico/backends/common.html#convertToIndexed,Surface	proc convertToIndexed(surface: Surface): Surface		568
+nim	RGB	nico/backends/common.html#RGB,Pint,Pint,Pint	proc RGB(r, g, b: Pint): tuple[r, g, b: uint8]		594
+nim	RGB	nico/backends/common.html#RGB,Pint	proc RGB(color: Pint): tuple[r, g, b: uint8]		597
+nim	ProfilerNode	nico/backends/common.html#ProfilerNode	object ProfilerNode		606
+nim	profileCollect	nico/backends/common.html#profileCollect	var profileCollect		614
+nim	profileHistory	nico/backends/common.html#profileHistory	var profileHistory		615
+nim	profileBegin	nico/backends/common.html#profileBegin.t,untyped	template profileBegin(name: untyped): untyped		726
+nim	profileEnd	nico/backends/common.html#profileEnd.t	template profileEnd(): untyped		729
+nim	profileStartFrame	nico/backends/common.html#profileStartFrame.t	template profileStartFrame(): untyped		732
+nim	profileEndFrame	nico/backends/common.html#profileEndFrame.t	template profileEndFrame(): untyped		735
+nim	profileGetLastStats	nico/backends/common.html#profileGetLastStats	proc profileGetLastStats(): seq[tuple[name: string, time: int64]]		738
+nim	profileGetLastStatsPeak	nico/backends/common.html#profileGetLastStatsPeak	proc profileGetLastStatsPeak(): seq[tuple[name: string, time: int64]]		741
+nimgrp	note	nico/backends/common.html#note-procs-all	proc		138
+nimgrp	set	nico/backends/common.html#set-procs-all	proc		232
+nimgrp	converttorgba	nico/backends/common.html#convertToRGBA-procs-all	proc		511
+nimgrp	Rgb	nico/backends/common.html#RGB-procs-all	proc		594
+nimgrp	topint	nico/backends/common.html#toPint-converters-all	converter		285

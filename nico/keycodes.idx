@@ -1,21 +1,22 @@
-Scancode	nico/keycodes.html#Scancode	keycodes: Scancode	
-K_SCANCODE_MASK	nico/keycodes.html#K_SCANCODE_MASK	keycodes: K_SCANCODE_MASK	
-scancodeToKeycode	nico/keycodes.html#scancodeToKeycode.t,untyped	keycodes: scancodeToKeycode(x: untyped): cint	
-Keycode	nico/keycodes.html#Keycode	keycodes: Keycode	
-KMOD_NONE	nico/keycodes.html#KMOD_NONE	keycodes: KMOD_NONE	
-KMOD_LSHIFT	nico/keycodes.html#KMOD_LSHIFT	keycodes: KMOD_LSHIFT	
-KMOD_RSHIFT	nico/keycodes.html#KMOD_RSHIFT	keycodes: KMOD_RSHIFT	
-KMOD_SHIFT	nico/keycodes.html#KMOD_SHIFT	keycodes: KMOD_SHIFT	
-KMOD_LCTRL	nico/keycodes.html#KMOD_LCTRL	keycodes: KMOD_LCTRL	
-KMOD_RCTRL	nico/keycodes.html#KMOD_RCTRL	keycodes: KMOD_RCTRL	
-KMOD_CTRL	nico/keycodes.html#KMOD_CTRL	keycodes: KMOD_CTRL	
-KMOD_LALT	nico/keycodes.html#KMOD_LALT	keycodes: KMOD_LALT	
-KMOD_RALT	nico/keycodes.html#KMOD_RALT	keycodes: KMOD_RALT	
-KMOD_ALT	nico/keycodes.html#KMOD_ALT	keycodes: KMOD_ALT	
-KMOD_LGUI	nico/keycodes.html#KMOD_LGUI	keycodes: KMOD_LGUI	
-KMOD_RGUI	nico/keycodes.html#KMOD_RGUI	keycodes: KMOD_RGUI	
-KMOD_GUI	nico/keycodes.html#KMOD_GUI	keycodes: KMOD_GUI	
-KMOD_NUM	nico/keycodes.html#KMOD_NUM	keycodes: KMOD_NUM	
-KMOD_CAPS	nico/keycodes.html#KMOD_CAPS	keycodes: KMOD_CAPS	
-KMOD_MODE	nico/keycodes.html#KMOD_MODE	keycodes: KMOD_MODE	
-KMOD_RESERVED	nico/keycodes.html#KMOD_RESERVED	keycodes: KMOD_RESERVED	
+nimTitle	keycodes	nico/keycodes.html	module nico/keycodes		0
+nim	Scancode	nico/keycodes.html#Scancode	enum Scancode		2
+nim	K_SCANCODE_MASK	nico/keycodes.html#K_SCANCODE_MASK	const K_SCANCODE_MASK		201
+nim	scancodeToKeycode	nico/keycodes.html#scancodeToKeycode.t,untyped	template scancodeToKeycode(x: untyped): cint		203
+nim	Keycode	nico/keycodes.html#Keycode	enum Keycode		207
+nim	KMOD_NONE	nico/keycodes.html#KMOD_NONE	const KMOD_NONE		463
+nim	KMOD_LSHIFT	nico/keycodes.html#KMOD_LSHIFT	const KMOD_LSHIFT		464
+nim	KMOD_RSHIFT	nico/keycodes.html#KMOD_RSHIFT	const KMOD_RSHIFT		465
+nim	KMOD_SHIFT	nico/keycodes.html#KMOD_SHIFT	const KMOD_SHIFT		466
+nim	KMOD_LCTRL	nico/keycodes.html#KMOD_LCTRL	const KMOD_LCTRL		467
+nim	KMOD_RCTRL	nico/keycodes.html#KMOD_RCTRL	const KMOD_RCTRL		468
+nim	KMOD_CTRL	nico/keycodes.html#KMOD_CTRL	const KMOD_CTRL		469
+nim	KMOD_LALT	nico/keycodes.html#KMOD_LALT	const KMOD_LALT		470
+nim	KMOD_RALT	nico/keycodes.html#KMOD_RALT	const KMOD_RALT		471
+nim	KMOD_ALT	nico/keycodes.html#KMOD_ALT	const KMOD_ALT		472
+nim	KMOD_LGUI	nico/keycodes.html#KMOD_LGUI	const KMOD_LGUI		473
+nim	KMOD_RGUI	nico/keycodes.html#KMOD_RGUI	const KMOD_RGUI		474
+nim	KMOD_GUI	nico/keycodes.html#KMOD_GUI	const KMOD_GUI		475
+nim	KMOD_NUM	nico/keycodes.html#KMOD_NUM	const KMOD_NUM		476
+nim	KMOD_CAPS	nico/keycodes.html#KMOD_CAPS	const KMOD_CAPS		477
+nim	KMOD_MODE	nico/keycodes.html#KMOD_MODE	const KMOD_MODE		478
+nim	KMOD_RESERVED	nico/keycodes.html#KMOD_RESERVED	const KMOD_RESERVED		479

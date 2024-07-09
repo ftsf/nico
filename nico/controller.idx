@@ -1,40 +1,41 @@
-Keyboard	nico/controller.html#Keyboard	NicoControllerKind.Keyboard	
-Gamepad	nico/controller.html#Gamepad	NicoControllerKind.Gamepad	
-NicoControllerKind	nico/controller.html#NicoControllerKind	controller: NicoControllerKind	
-pcXAxis	nico/controller.html#pcXAxis	NicoAxis.pcXAxis	
-pcYAxis	nico/controller.html#pcYAxis	NicoAxis.pcYAxis	
-pcXAxis2	nico/controller.html#pcXAxis2	NicoAxis.pcXAxis2	
-pcYAxis2	nico/controller.html#pcYAxis2	NicoAxis.pcYAxis2	
-pcLTrigger	nico/controller.html#pcLTrigger	NicoAxis.pcLTrigger	
-pcRTrigger	nico/controller.html#pcRTrigger	NicoAxis.pcRTrigger	
-NicoAxis	nico/controller.html#NicoAxis	controller: NicoAxis	
-pcLeft	nico/controller.html#pcLeft	NicoButton.pcLeft	
-pcRight	nico/controller.html#pcRight	NicoButton.pcRight	
-pcUp	nico/controller.html#pcUp	NicoButton.pcUp	
-pcDown	nico/controller.html#pcDown	NicoButton.pcDown	
-pcA	nico/controller.html#pcA	NicoButton.pcA	
-pcB	nico/controller.html#pcB	NicoButton.pcB	
-pcX	nico/controller.html#pcX	NicoButton.pcX	
-pcY	nico/controller.html#pcY	NicoButton.pcY	
-pcL1	nico/controller.html#pcL1	NicoButton.pcL1	
-pcL2	nico/controller.html#pcL2	NicoButton.pcL2	
-pcL3	nico/controller.html#pcL3	NicoButton.pcL3	
-pcR1	nico/controller.html#pcR1	NicoButton.pcR1	
-pcR2	nico/controller.html#pcR2	NicoButton.pcR2	
-pcR3	nico/controller.html#pcR3	NicoButton.pcR3	
-pcStart	nico/controller.html#pcStart	NicoButton.pcStart	
-pcBack	nico/controller.html#pcBack	NicoButton.pcBack	
-NicoButton	nico/controller.html#NicoButton	controller: NicoButton	
-NicoController	nico/controller.html#NicoController	controller: NicoController	
-newNicoController	nico/controller.html#newNicoController,cint	controller: newNicoController(id: cint): NicoController	
-update	nico/controller.html#update,NicoController	controller: update(self: NicoController)	
-postUpdate	nico/controller.html#postUpdate,NicoController	controller: postUpdate(self: NicoController)	
-axis	nico/controller.html#axis,NicoController,NicoAxis	controller: axis(self: NicoController; axis: NicoAxis): float	
-axisp	nico/controller.html#axisp,NicoController,NicoAxis,float	controller: axisp(self: NicoController; axis: NicoAxis; value: float): bool	
-btn	nico/controller.html#btn,NicoController,NicoButton	controller: btn(self: NicoController; button: NicoButton): bool	
-btnp	nico/controller.html#btnp,NicoController,NicoButton	controller: btnp(self: NicoController; button: NicoButton): bool	
-anybtnp	nico/controller.html#anybtnp,NicoController	controller: anybtnp(self: NicoController): bool	
-btnup	nico/controller.html#btnup,NicoController,NicoButton	controller: btnup(self: NicoController; button: NicoButton): bool	
-btnpr	nico/controller.html#btnpr,NicoController,NicoButton,int	controller: btnpr(self: NicoController; button: NicoButton; repeat = 48): bool	
-setButtonState	nico/controller.html#setButtonState,NicoController,NicoButton,bool	controller: setButtonState(self: NicoController; button: NicoButton; down: bool)	
-setAxisValue	nico/controller.html#setAxisValue,NicoController,NicoAxis,float	controller: setAxisValue(self: NicoController; axis: NicoAxis; value: float)	
+nimTitle	controller	nico/controller.html	module nico/controller		0
+nim	Keyboard	nico/controller.html#Keyboard	NicoControllerKind.Keyboard		3
+nim	Gamepad	nico/controller.html#Gamepad	NicoControllerKind.Gamepad		3
+nim	NicoControllerKind	nico/controller.html#NicoControllerKind	enum NicoControllerKind		3
+nim	pcXAxis	nico/controller.html#pcXAxis	NicoAxis.pcXAxis		7
+nim	pcYAxis	nico/controller.html#pcYAxis	NicoAxis.pcYAxis		7
+nim	pcXAxis2	nico/controller.html#pcXAxis2	NicoAxis.pcXAxis2		7
+nim	pcYAxis2	nico/controller.html#pcYAxis2	NicoAxis.pcYAxis2		7
+nim	pcLTrigger	nico/controller.html#pcLTrigger	NicoAxis.pcLTrigger		7
+nim	pcRTrigger	nico/controller.html#pcRTrigger	NicoAxis.pcRTrigger		7
+nim	NicoAxis	nico/controller.html#NicoAxis	enum NicoAxis		7
+nim	pcLeft	nico/controller.html#pcLeft	NicoButton.pcLeft		15
+nim	pcRight	nico/controller.html#pcRight	NicoButton.pcRight		15
+nim	pcUp	nico/controller.html#pcUp	NicoButton.pcUp		15
+nim	pcDown	nico/controller.html#pcDown	NicoButton.pcDown		15
+nim	pcA	nico/controller.html#pcA	NicoButton.pcA		15
+nim	pcB	nico/controller.html#pcB	NicoButton.pcB		15
+nim	pcX	nico/controller.html#pcX	NicoButton.pcX		15
+nim	pcY	nico/controller.html#pcY	NicoButton.pcY		15
+nim	pcL1	nico/controller.html#pcL1	NicoButton.pcL1		15
+nim	pcL2	nico/controller.html#pcL2	NicoButton.pcL2		15
+nim	pcL3	nico/controller.html#pcL3	NicoButton.pcL3		15
+nim	pcR1	nico/controller.html#pcR1	NicoButton.pcR1		15
+nim	pcR2	nico/controller.html#pcR2	NicoButton.pcR2		15
+nim	pcR3	nico/controller.html#pcR3	NicoButton.pcR3		15
+nim	pcStart	nico/controller.html#pcStart	NicoButton.pcStart		15
+nim	pcBack	nico/controller.html#pcBack	NicoButton.pcBack		15
+nim	NicoButton	nico/controller.html#NicoButton	enum NicoButton		15
+nim	NicoController	nico/controller.html#NicoController	type NicoController		33
+nim	newNicoController	nico/controller.html#newNicoController,cint	proc newNicoController(id: cint): NicoController		46
+nim	update	nico/controller.html#update,NicoController	proc update(self: NicoController)		62
+nim	postUpdate	nico/controller.html#postUpdate,NicoController	proc postUpdate(self: NicoController)		93
+nim	axis	nico/controller.html#axis,NicoController,NicoAxis	proc axis(self: NicoController; axis: NicoAxis): float		97
+nim	axisp	nico/controller.html#axisp,NicoController,NicoAxis,float	proc axisp(self: NicoController; axis: NicoAxis; value: float): bool		100
+nim	btn	nico/controller.html#btn,NicoController,NicoButton	proc btn(self: NicoController; button: NicoButton): bool		108
+nim	btnp	nico/controller.html#btnp,NicoController,NicoButton	proc btnp(self: NicoController; button: NicoButton): bool		119
+nim	anybtnp	nico/controller.html#anybtnp,NicoController	proc anybtnp(self: NicoController): bool		130
+nim	btnup	nico/controller.html#btnup,NicoController,NicoButton	proc btnup(self: NicoController; button: NicoButton): bool		139
+nim	btnpr	nico/controller.html#btnpr,NicoController,NicoButton,int	proc btnpr(self: NicoController; button: NicoButton; repeat = 48): bool		142
+nim	setButtonState	nico/controller.html#setButtonState,NicoController,NicoButton,bool	proc setButtonState(self: NicoController; button: NicoButton; down: bool)		164
+nim	setAxisValue	nico/controller.html#setAxisValue,NicoController,NicoAxis,float	proc setAxisValue(self: NicoController; axis: NicoAxis; value: float)		169

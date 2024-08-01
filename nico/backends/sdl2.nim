@@ -1876,15 +1876,18 @@ proc run*() =
       if configInitialised:
         step()
 
-      if not vsyncEnabled:
-        # calculate how long we should sleep for to reduce cpu usage, if we have vsync this will do it for us
-        let frameEndTime = getPerformanceCounter()
-        let frameTime = ((frameEndTime - frameStartTime)*1000).float / getPerformanceFrequency().float
-        let targetFrameTime = 1000.0 / frameRate.float
-        let sleepTime = targetFrameTime - frameTime
-        #echo "frame time: ", frameTime, " target: ", targetFrameTime, " sleep time: ", sleepTime
-        if sleepTime > 0f:
+      # calculate how long we should sleep for to reduce cpu usage
+      let frameEndTime = getPerformanceCounter()
+      let frameTime = ((frameEndTime - frameStartTime)*1000).float / getPerformanceFrequency().float
+      let targetFrameTime = 1000.0 / frameRate.float
+      let sleepTime = targetFrameTime - frameTime
+      # echo "frame time: ", frameTime, " target: ", targetFrameTime, " sleep time: ", sleepTime
+      if sleepTime >= 1.0:
+        if vsyncEnabled:
+          delay(1) # if we have vsync this will wait for us, but delay(1) is necessary to keep CPU usage down
+        else:
           delay(sleepTime.uint32)
+
     sdl.quit()
 
 when defined(emscripten):

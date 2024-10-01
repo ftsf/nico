@@ -180,6 +180,13 @@ proc gameGui() =
   if G.button("COPY CODE"):
     echo fmt("synth(channel, \"{outputStr}\")")
     setClipboardText(outputStr)
+  if G.button("PASTE CODE"):
+    try:
+      data = synthDataFromString(getClipboardText())
+      gameInit()
+    except:
+      echo "Could not parse code: ", getClipboardText()
+      data = initData
   G.endArea()
 
 proc gameUpdate(dt: float32) =
